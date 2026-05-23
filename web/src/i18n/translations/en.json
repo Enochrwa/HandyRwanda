@@ -1,0 +1,9 @@
+{
+  "common": {
+    "welcome": "Welcome",
+    "search": "Search",
+    "verified": "Verified",
+    "book_now": "Book Now",
+    "categories": "Categories"
+  }
+}

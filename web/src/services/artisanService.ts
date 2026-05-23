@@ -2,28 +2,7 @@ import jean from "@/assets/artisan-jean.jpg";
 import marie from "@/assets/artisan-marie.jpg";
 import eric from "@/assets/artisan-eric.jpg";
 import claudine from "@/assets/artisan-claudine.jpg";
-
-export type Artisan = {
-  id: string;
-  name: string;
-  photo: string;
-  category: string;
-  categories: string[];
-  rating: number;
-  reviews: number;
-  jobs: number;
-  distanceKm: number;
-  startingPrice: number;
-  verified: boolean;
-  pro: boolean;
-  availableNow: boolean;
-  district: string;
-  languages: string[];
-  experienceYears: number;
-  bio: string;
-  responseTime: string;
-  weeklyBookings: number;
-};
+import { Artisan, Category, Review } from "@/types/artisan";
 
 export const artisans: Artisan[] = [
   {
@@ -123,7 +102,7 @@ export const categoryTint: Record<string, string> = {
   Appliance: "oklch(0.7 0.1 320)",
 };
 
-export const categories = [
+export const categories: Category[] = [
   { name: "Plumbing", rw: "Amazi", icon: "🔧", count: 23 },
   { name: "Electrical", rw: "Amashanyarazi", icon: "⚡", count: 18 },
   { name: "Cleaning", rw: "Isuku", icon: "🧹", count: 41 },
@@ -134,7 +113,7 @@ export const categories = [
   { name: "Appliance", rw: "Ibikoresho", icon: "🔌", count: 11 },
 ];
 
-export const reviews = [
+export const reviews: Review[] = [
   {
     id: 1,
     name: "Amina",

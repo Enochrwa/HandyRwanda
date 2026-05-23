@@ -3,15 +3,22 @@ import { createFileRoute, Link } from "@tanstack/react-router";
 import { Search, ArrowRight, Calendar, ShieldCheck, Sparkles } from "lucide-react";
 import { Header } from "@/components/Header";
 import { ArtisanCard } from "@/components/ArtisanCard";
-import { artisans, categories, categoryTint } from "@/lib/data";
+import { artisans, categories, categoryTint } from "@/services/artisanService";
 
 export const Route = createFileRoute("/")({
   head: () => ({
     meta: [
       { title: "HandyRwanda — Trusted artisans, booked in minutes" },
-      { name: "description", content: "Find verified plumbers, electricians, cleaners and more across Rwanda. Pay safely with MoMo, money held until the job is done." },
+      {
+        name: "description",
+        content:
+          "Find verified plumbers, electricians, cleaners and more across Rwanda. Pay safely with MoMo, money held until the job is done.",
+      },
       { property: "og:title", content: "HandyRwanda — Trusted artisans, booked in minutes" },
-      { property: "og:description", content: "Verified workers near you. Pay safely with MTN MoMo or Airtel Money." },
+      {
+        property: "og:description",
+        content: "Verified workers near you. Pay safely with MTN MoMo or Airtel Money.",
+      },
     ],
   }),
   component: Home,
@@ -52,7 +59,10 @@ function Home() {
             className="mt-5 flex items-center gap-3 rounded-2xl border border-border bg-card px-4 py-4 shadow-card transition hover:shadow-lift"
           >
             <Search className="h-5 w-5 text-muted-foreground" />
-            <span key={phIndex} className="flex-1 truncate text-base font-medium text-muted-foreground animate-in fade-in slide-in-from-bottom-1">
+            <span
+              key={phIndex}
+              className="flex-1 truncate text-base font-medium text-muted-foreground animate-in fade-in slide-in-from-bottom-1"
+            >
               {placeholders[phIndex]}
             </span>
             <span className="hidden rounded-lg bg-primary px-3 py-1.5 text-xs font-bold text-primary-foreground sm:inline-block">
@@ -73,7 +83,11 @@ function Home() {
                 Your plumber Jean-Pierre is scheduled for tomorrow at 10:00 am.
               </p>
             </div>
-            <Link to="/artisan/$id" params={{ id: "jean-pierre" }} className="hidden rounded-lg bg-primary px-3 py-2 text-xs font-bold text-primary-foreground sm:inline-block">
+            <Link
+              to="/artisan/$id"
+              params={{ id: "jean-pierre" }}
+              className="hidden rounded-lg bg-primary px-3 py-2 text-xs font-bold text-primary-foreground sm:inline-block"
+            >
               View
             </Link>
           </div>
@@ -83,7 +97,9 @@ function Home() {
         <section className="mt-10">
           <div className="mb-4 flex items-end justify-between">
             <h2 className="text-xl font-bold">Browse services</h2>
-            <Link to="/search" className="text-sm font-semibold text-primary hover:underline">See all</Link>
+            <Link to="/search" className="text-sm font-semibold text-primary hover:underline">
+              See all
+            </Link>
           </div>
           <div className="grid grid-cols-4 gap-3 sm:gap-4">
             {categories.map((c) => (
@@ -101,7 +117,9 @@ function Home() {
                 </span>
                 <div className="mt-4 text-sm font-bold text-foreground sm:mt-5">{c.rw}</div>
                 <div className="text-[11px] font-medium text-muted-foreground">{c.name}</div>
-                <div className="mt-1.5 text-[11px] font-semibold text-primary">{c.count} nearby</div>
+                <div className="mt-1.5 text-[11px] font-semibold text-primary">
+                  {c.count} nearby
+                </div>
               </Link>
             ))}
           </div>
@@ -111,7 +129,9 @@ function Home() {
         <section className="mt-10">
           <div className="mb-1 flex items-end justify-between">
             <h2 className="text-xl font-bold">Akazi beza hafi yawe</h2>
-            <Link to="/search" className="text-sm font-semibold text-primary hover:underline">See all</Link>
+            <Link to="/search" className="text-sm font-semibold text-primary hover:underline">
+              See all
+            </Link>
           </div>
           <p className="mb-4 text-sm text-muted-foreground">Good workers near you</p>
           <div className="-mx-4 flex snap-x snap-mandatory gap-3 overflow-x-auto px-4 pb-2 sm:mx-0 sm:px-0">
@@ -126,9 +146,21 @@ function Home() {
         {/* Trust strip */}
         <section className="mt-10 grid gap-3 sm:grid-cols-3">
           {[
-            { icon: ShieldCheck, title: "Verified workers", body: "Every artisan is ID-checked before they can take a booking." },
-            { icon: Sparkles, title: "Money held safely", body: "We hold your payment in escrow until you confirm the job is done." },
-            { icon: ArrowRight, title: "Pay with MoMo", body: "MTN MoMo and Airtel Money — no card, no bank account needed." },
+            {
+              icon: ShieldCheck,
+              title: "Verified workers",
+              body: "Every artisan is ID-checked before they can take a booking.",
+            },
+            {
+              icon: Sparkles,
+              title: "Money held safely",
+              body: "We hold your payment in escrow until you confirm the job is done.",
+            },
+            {
+              icon: ArrowRight,
+              title: "Pay with MoMo",
+              body: "MTN MoMo and Airtel Money — no card, no bank account needed.",
+            },
           ].map(({ icon: Icon, title, body }) => (
             <div key={title} className="rounded-2xl border border-border bg-card p-4 shadow-card">
               <div className="grid h-10 w-10 place-items-center rounded-xl bg-primary/10 text-primary">

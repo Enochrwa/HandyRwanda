@@ -21,34 +21,50 @@ export function Header() {
             to="/"
             activeOptions={{ exact: true }}
             className="rounded-lg px-3 py-2 text-sm font-semibold text-muted-foreground hover:bg-muted hover:text-foreground"
-            activeProps={{ className: "rounded-lg px-3 py-2 text-sm font-semibold text-foreground bg-muted" }}
+            activeProps={{
+              className: "rounded-lg px-3 py-2 text-sm font-semibold text-foreground bg-muted",
+            }}
           >
             Home
           </Link>
           <Link
             to="/search"
             className="rounded-lg px-3 py-2 text-sm font-semibold text-muted-foreground hover:bg-muted hover:text-foreground"
-            activeProps={{ className: "rounded-lg px-3 py-2 text-sm font-semibold text-foreground bg-muted" }}
+            activeProps={{
+              className: "rounded-lg px-3 py-2 text-sm font-semibold text-foreground bg-muted",
+            }}
           >
             Browse
           </Link>
           <Link
             to="/pro"
             className="rounded-lg px-3 py-2 text-sm font-semibold text-muted-foreground hover:bg-muted hover:text-foreground"
-            activeProps={{ className: "rounded-lg px-3 py-2 text-sm font-semibold text-foreground bg-muted" }}
+            activeProps={{
+              className: "rounded-lg px-3 py-2 text-sm font-semibold text-foreground bg-muted",
+            }}
           >
             For Artisans
           </Link>
         </nav>
         <div className="flex items-center gap-2">
-          <Link to="/search" aria-label="Search" className="grid h-10 w-10 place-items-center rounded-full text-foreground hover:bg-muted md:hidden">
+          <Link
+            to="/search"
+            aria-label="Search"
+            className="grid h-10 w-10 place-items-center rounded-full text-foreground hover:bg-muted md:hidden"
+          >
             <Search className="h-5 w-5" />
           </Link>
-          <button aria-label="Notifications" className="relative hidden h-10 w-10 place-items-center rounded-full text-foreground hover:bg-muted sm:grid">
+          <button
+            aria-label="Notifications"
+            className="relative hidden h-10 w-10 place-items-center rounded-full text-foreground hover:bg-muted sm:grid"
+          >
             <Bell className="h-5 w-5" />
             <span className="absolute right-2 top-2 h-2 w-2 rounded-full bg-accent" />
           </button>
-          <button aria-label="Account" className="grid h-10 w-10 place-items-center rounded-full bg-primary/10 text-primary font-bold">
+          <button
+            aria-label="Account"
+            className="grid h-10 w-10 place-items-center rounded-full bg-primary/10 text-primary font-bold"
+          >
             <User className="h-5 w-5" />
           </button>
         </div>

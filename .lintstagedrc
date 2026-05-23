@@ -1,0 +1,14 @@
+{
+  "web/**/*.{ts,tsx,js,jsx}": [
+    "npm run lint -w web",
+    "npm run format -w web"
+  ],
+  "mobile/**/*.{ts,tsx,js,jsx}": [
+    "npm run lint -w mobile",
+    "npm run format -w mobile"
+  ],
+  "backend/**/*.py": [
+    "ruff check --fix",
+    "ruff format"
+  ]
+}

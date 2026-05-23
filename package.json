@@ -7,13 +7,29 @@
     "backend"
   ],
   "scripts": {
+    "prepare": "husky",
     "dev": "npm run dev -w web",
     "build": "npm run build -w web",
-    "lint": "npm run lint -w web",
-    "format": "npm run format -w web",
+    "lint": "npm run lint --workspaces --if-present",
+    "format": "npm run format --workspaces --if-present",
+    "test": "npm run test --workspaces --if-present",
+    "type-check": "npm run type-check --workspaces --if-present",
     "web:dev": "npm run dev -w web",
     "web:build": "npm run build -w web",
     "web:lint": "npm run lint -w web",
-    "web:format": "npm run format -w web"
+    "web:format": "npm run format -w web",
+    "web:test": "npm run test -w web",
+    "mobile:lint": "npm run lint -w mobile",
+    "mobile:format": "npm run format -w mobile",
+    "mobile:test": "npm run test -w mobile",
+    "backend:lint": "npm run lint -w backend",
+    "backend:format": "npm run format -w backend",
+    "backend:test": "npm run test -w backend"
+  },
+  "devDependencies": {
+    "@commitlint/cli": "^19.7.1",
+    "@commitlint/config-conventional": "^19.7.1",
+    "husky": "^9.1.7",
+    "lint-staged": "^15.4.3"
   }
 }

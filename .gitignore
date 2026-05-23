@@ -26,6 +26,23 @@ dist-ssr
 .idea
 .DS_Store
 *.suo
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+.mypy_cache/
+.pytest_cache/
+.ruff_cache/
+.venv/
+venv/
+ENV/
+
+# Tests
+coverage/
+.nyc_output/
+
+# Husky
+.husky/_/
 *.ntvs*
 *.njsproj
 *.sln

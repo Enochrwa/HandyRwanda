@@ -1,0 +1,15 @@
+{
+  "auth": {
+    "phone_placeholder": "Phone number (+250...)",
+    "otp_title": "Enter the code sent",
+    "resend": "Resend",
+    "verify": "Verify",
+    "request_otp": "Request OTP",
+    "phone_label": "Phone Number",
+    "email_label": "Email"
+  },
+  "home": {
+    "greeting_morning": "Hello {{name}} 👋",
+    "search_placeholder": "Search for experts..."
+  }
+}

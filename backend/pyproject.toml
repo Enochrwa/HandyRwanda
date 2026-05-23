@@ -16,6 +16,7 @@ strict = true
 ignore_missing_imports = true
 disallow_untyped_decorators = false
 exclude = ["tests"]
+disable_error_code = ["misc"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]

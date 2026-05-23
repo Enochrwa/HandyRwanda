@@ -1,6 +1,7 @@
 import { Link } from "@tanstack/react-router";
 import { Star, MapPin, ShieldCheck, Zap, Circle } from "lucide-react";
-import { type Artisan, categoryTint, formatRWF } from "@/lib/data";
+import { categoryTint, formatRWF } from "@/services/artisanService";
+import type { Artisan } from "@/types/artisan";
 
 export function ArtisanCard({ a }: { a: Artisan }) {
   return (
@@ -11,7 +12,9 @@ export function ArtisanCard({ a }: { a: Artisan }) {
         "group relative block overflow-hidden rounded-2xl border border-border bg-card p-4 shadow-card transition-all hover:-translate-y-0.5 hover:shadow-lift",
         a.pro ? "border-l-4" : "",
       ].join(" ")}
-      style={a.pro ? { backgroundColor: "var(--pro-tint)", borderLeftColor: "var(--accent)" } : undefined}
+      style={
+        a.pro ? { backgroundColor: "var(--pro-tint)", borderLeftColor: "var(--accent)" } : undefined
+      }
     >
       <span
         aria-hidden
@@ -36,8 +39,13 @@ export function ArtisanCard({ a }: { a: Artisan }) {
               </p>
             </div>
             <div className="shrink-0 text-right">
-              <div className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">From</div>
-              <div className="font-bold text-foreground">{formatRWF(a.startingPrice)}<span className="ml-1 text-xs text-muted-foreground">RWF</span></div>
+              <div className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                From
+              </div>
+              <div className="font-bold text-foreground">
+                {formatRWF(a.startingPrice)}
+                <span className="ml-1 text-xs text-muted-foreground">RWF</span>
+              </div>
             </div>
           </div>
           <div className="mt-1.5 flex items-center gap-1.5 text-sm">

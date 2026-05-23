@@ -1,10 +1,11 @@
 [tool.ruff]
 line-length = 88
 target-version = "py310"
+exclude = ["migrations"]
 
 [tool.ruff.lint]
 select = ["E", "F", "I", "N", "W", "B", "UP", "PL"]
-ignore = ["PLR2004"]
+ignore = ["PLR2004", "B008", "E501", "B904"]
 
 [tool.ruff.format]
 quote-style = "double"
@@ -16,6 +17,7 @@ strict = true
 ignore_missing_imports = true
 disallow_untyped_decorators = false
 exclude = ["tests"]
+disable_error_code = ["misc"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]

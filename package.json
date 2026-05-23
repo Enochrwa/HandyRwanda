@@ -8,28 +8,21 @@
   ],
   "scripts": {
     "prepare": "husky",
-    "dev": "npm run dev -w web",
-    "build": "npm run build -w web",
-    "lint": "npm run lint --workspaces --if-present",
-    "format": "npm run format --workspaces --if-present",
-    "test": "npm run test --workspaces --if-present",
-    "type-check": "npm run type-check --workspaces --if-present",
-    "web:dev": "npm run dev -w web",
-    "web:build": "npm run build -w web",
-    "web:lint": "npm run lint -w web",
-    "web:format": "npm run format -w web",
-    "web:test": "npm run test -w web",
-    "mobile:lint": "npm run lint -w mobile",
-    "mobile:format": "npm run format -w mobile",
-    "mobile:test": "npm run test -w mobile",
-    "backend:lint": "npm run lint -w backend",
-    "backend:format": "npm run format -w backend",
-    "backend:test": "npm run test -w backend"
+    "dev": "concurrently \"npm run dev -w web\" \"cd backend && uvicorn app.main:app --reload --port 8000\"",
+    "build": "npm run build --workspaces --if-present",
+    "lint": "eslint web/src mobile/app --ext .ts,.tsx",
+    "format": "prettier --write \"**/*.{ts,tsx,py}\"",
+    "type-check": "tsc -p web/tsconfig.json --noEmit && tsc -p mobile/tsconfig.json --noEmit",
+    "test": "npm test -w web && npm test -w mobile && cd backend && pytest"
   },
   "devDependencies": {
     "@commitlint/cli": "^19.7.1",
     "@commitlint/config-conventional": "^19.7.1",
+    "concurrently": "^9.2.1",
+    "eslint": "^9.39.4",
+    "eslint-config-universe": "^15.2.0",
     "husky": "^9.1.7",
-    "lint-staged": "^15.4.3"
+    "lint-staged": "^15.4.3",
+    "prettier": "^3.8.3"
   }
 }

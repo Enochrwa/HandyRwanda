@@ -1,0 +1,15 @@
+{
+  "auth": {
+    "phone_placeholder": "Numero ya telefoni (+250...)",
+    "otp_title": "Injiza kode yoherejwe",
+    "resend": "Ohereza nanone",
+    "verify": "Emeza",
+    "request_otp": "Ohereza kode",
+    "phone_label": "Numero ya telefoni",
+    "email_label": "Imeri"
+  },
+  "home": {
+    "greeting_morning": "Muraho {{name}} 👋",
+    "search_placeholder": "Shakisha inzobere..."
+  }
+}

@@ -1,4 +1,5 @@
 from fastapi import FastAPI
+
 from app.routers import auth
 
 app = FastAPI(title="HandyRwanda API", version="1.0.0")

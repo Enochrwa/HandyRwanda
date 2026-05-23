@@ -1,6 +1,7 @@
-import httpx
 import os
 from typing import Any
+
+import httpx
 
 UPSTASH_URL = os.getenv("UPSTASH_REDIS_REST_URL", "")
 UPSTASH_TOKEN = os.getenv("UPSTASH_REDIS_REST_TOKEN", "")

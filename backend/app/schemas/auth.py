@@ -1,6 +1,8 @@
+
 from pydantic import BaseModel, EmailStr
-from typing import Optional
+
 from app.models.user import UserRole
+
 
 class OTPRequest(BaseModel):
     phone_number: str
@@ -18,7 +20,7 @@ class UserBase(BaseModel):
     id: str
     phone_number: str
     full_name: str
-    email: Optional[str]
+    email: str | None
     role: UserRole
 
     class Config:

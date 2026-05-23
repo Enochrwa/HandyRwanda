@@ -1,11 +1,12 @@
+import os
 import random
 import string
-import os
 from datetime import datetime, timedelta, timezone
-from typing import Any
+
 from jose import jwt
-from app.integrations.upstash import redis_set, redis_get, redis_del
+
 from app.integrations.resend_email import send_otp_email
+from app.integrations.upstash import redis_del, redis_get, redis_set
 
 SECRET = os.getenv("JWT_SECRET", "")
 ALGO = os.getenv("JWT_ALGORITHM", "HS256")

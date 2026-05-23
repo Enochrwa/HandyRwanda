@@ -1,10 +1,24 @@
-import uuid
 import enum
-from sqlalchemy import Column, String, Boolean, Enum, DateTime, Integer, Float, ForeignKey, Table, func
+import uuid
+
+from geoalchemy2 import Geography
+from sqlalchemy import (
+    Boolean,
+    Column,
+    DateTime,
+    Enum,
+    Float,
+    ForeignKey,
+    Integer,
+    String,
+    Table,
+    func,
+)
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import relationship
-from geoalchemy2 import Geography
+
 from app.database import Base
+
 
 class VerificationStatus(str, enum.Enum):
     unverified = "unverified"
@@ -41,7 +55,9 @@ class ArtisanProfile(Base):
     hourly_rate = Column(Integer, nullable=True)
     fixed_rate = Column(Integer, nullable=True)
     spoken_languages = Column(String, nullable=True)  # Comma-separated or JSON
-    verification_status = Column(Enum(VerificationStatus), default=VerificationStatus.unverified)
+    verification_status: Column[VerificationStatus] = Column(
+        Enum(VerificationStatus), default=VerificationStatus.unverified
+    )
     is_available = Column(Boolean, default=True)
     average_rating = Column(Float, default=0.0)
     total_reviews = Column(Integer, default=0)

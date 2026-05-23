@@ -1,8 +1,11 @@
-import uuid
 import enum
-from sqlalchemy import Column, String, Integer, ForeignKey, DateTime, Enum, func
+import uuid
+
+from sqlalchemy import Column, DateTime, Enum, ForeignKey, Integer, String, func
 from sqlalchemy.dialects.postgresql import UUID
+
 from app.database import Base
+
 
 class BookingStatus(str, enum.Enum):
     pending_payment = "pending_payment"
@@ -18,7 +21,9 @@ class Booking(Base):
     job_id = Column(UUID(as_uuid=True), ForeignKey("jobs.id"), nullable=False)
     client_id = Column(UUID(as_uuid=True), ForeignKey("users.id"), nullable=False)
     artisan_id = Column(UUID(as_uuid=True), ForeignKey("artisan_profiles.user_id"), nullable=False)
-    status = Column(Enum(BookingStatus), default=BookingStatus.pending_payment)
+    status: Column[BookingStatus] = Column(
+        Enum(BookingStatus), default=BookingStatus.pending_payment
+    )
     agreed_price = Column(Integer, nullable=False)
     before_photo_url = Column(String, nullable=True)
     after_photo_url = Column(String, nullable=True)

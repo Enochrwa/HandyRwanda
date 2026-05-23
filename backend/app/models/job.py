@@ -1,8 +1,11 @@
-import uuid
 import enum
-from sqlalchemy import Column, String, Integer, ForeignKey, DateTime, Enum, func
-from sqlalchemy.dialects.postgresql import UUID, ARRAY
+import uuid
+
+from sqlalchemy import Column, DateTime, Enum, ForeignKey, Integer, String, func
+from sqlalchemy.dialects.postgresql import ARRAY, UUID
+
 from app.database import Base
+
 
 class JobStatus(str, enum.Enum):
     open = "open"
@@ -29,8 +32,8 @@ class Job(Base):
     location_label = Column(String(200), nullable=True)
     scheduled_time = Column(DateTime(timezone=True), nullable=True)
     budget = Column(Integer, nullable=True)
-    status = Column(Enum(JobStatus), default=JobStatus.open)
-    photos_urls = Column(ARRAY(String), nullable=True)
+    status: Column[JobStatus] = Column(Enum(JobStatus), default=JobStatus.open)
+    photos_urls: Column[list[str]] = Column(ARRAY(String), nullable=True)
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     updated_at = Column(DateTime(timezone=True), onupdate=func.now())
 
@@ -42,5 +45,5 @@ class Bid(Base):
     proposed_price = Column(Integer, nullable=False)
     message = Column(String(500), nullable=True)
     proposed_start_time = Column(DateTime(timezone=True), nullable=True)
-    status = Column(Enum(BidStatus), default=BidStatus.pending)
+    status: Column[BidStatus] = Column(Enum(BidStatus), default=BidStatus.pending)
     created_at = Column(DateTime(timezone=True), server_default=func.now())

@@ -1,6 +1,7 @@
-import resend
 import os
 from typing import Any
+
+import resend
 
 resend.api_key = os.getenv("RESEND_API_KEY")
 

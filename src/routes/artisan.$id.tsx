@@ -64,8 +64,8 @@ function Profile() {
           <div className="ml-24">
             <h1 className="text-2xl font-extrabold leading-tight">{a.name}</h1>
             <div className="mt-1 flex flex-wrap items-center gap-2">
-              {a.categories.map((c) => (
-                <span key={c} className="rounded-full bg-primary/10 px-2.5 py-0.5 text-xs font-semibold text-primary">{c}</span>
+            {a.categories.map((c: string) => (
+              <span key={c} className="rounded-full bg-primary/10 px-2.5 py-0.5 text-xs font-semibold text-primary">{c}</span>
               ))}
               {a.verified && (
                 <span className="inline-flex items-center gap-1 rounded-full bg-[color:var(--verified)]/10 px-2.5 py-0.5 text-xs font-bold text-[color:var(--verified)]">
@@ -96,7 +96,7 @@ function Profile() {
           <div className="mt-3 flex flex-wrap gap-2">
             <Badge icon={<Award className="h-3.5 w-3.5" />}>{a.experienceYears} years experience</Badge>
             <Badge icon={<MapPin className="h-3.5 w-3.5" />}>From {a.district}</Badge>
-            {a.languages.map((l) => (
+            {a.languages.map((l: string) => (
               <Badge key={l} icon={<Languages className="h-3.5 w-3.5" />}>Speaks {l}</Badge>
             ))}
             <Badge icon={<CheckCircle2 className="h-3.5 w-3.5" />}>ID verified</Badge>

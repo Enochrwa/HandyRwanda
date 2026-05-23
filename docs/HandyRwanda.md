@@ -9,98 +9,38 @@
 
 ## Table of Contents
 
-1.  [Project
-    > Overview](https://claude.ai/chat/8e0e1339-a3af-4ef1-9ae0-f91ab0cb81b5#1-project-overview)
+1. Project Overview  
+2. Problem Statement  
+3. Solution Architecture  
+4. Tech Stack  
+5. System Architecture  
+6. Database Schema  
+7. API Design  
 
-2.  [Problem
-    > Statement](https://claude.ai/chat/8e0e1339-a3af-4ef1-9ae0-f91ab0cb81b5#2-problem-statement)
+8. Feature Specifications  
+   - 8.1 Authentication & User Management  
+   - 8.2 Artisan Profiles & Verification  
+   - 8.3 Job Posting & Matching  
+   - 8.4 Booking Management  
+   - 8.5 Payment & Escrow System  
+   - 8.6 Reviews & Ratings  
+   - 8.7 Geo-Search & Maps  
+   - 8.8 Notifications (Push + SMS)  
+   - 8.9 Offline Mode  
+   - 8.10 Admin Dashboard  
+   - 8.11 Localisation (i18n)  
 
-3.  [Solution
-    > Architecture](https://claude.ai/chat/8e0e1339-a3af-4ef1-9ae0-f91ab0cb81b5#3-solution-architecture)
-
-4.  [Tech
-    > Stack](https://claude.ai/chat/8e0e1339-a3af-4ef1-9ae0-f91ab0cb81b5#4-tech-stack)
-
-5.  [System
-    > Architecture](https://claude.ai/chat/8e0e1339-a3af-4ef1-9ae0-f91ab0cb81b5#5-system-architecture)
-
-6.  [Database
-    > Schema](https://claude.ai/chat/8e0e1339-a3af-4ef1-9ae0-f91ab0cb81b5#6-database-schema)
-
-7.  [API
-    > Design](https://claude.ai/chat/8e0e1339-a3af-4ef1-9ae0-f91ab0cb81b5#7-api-design)
-
-8.  [Feature
-    > Specifications](https://claude.ai/chat/8e0e1339-a3af-4ef1-9ae0-f91ab0cb81b5#8-feature-specifications)
-
-    - 8.1 [Authentication & User
-      > Management](https://claude.ai/chat/8e0e1339-a3af-4ef1-9ae0-f91ab0cb81b5#81-authentication--user-management)
-
-    - 8.2 [Artisan Profiles &
-      > Verification](https://claude.ai/chat/8e0e1339-a3af-4ef1-9ae0-f91ab0cb81b5#82-artisan-profiles--verification)
-
-    - 8.3 [Job Posting &
-      > Matching](https://claude.ai/chat/8e0e1339-a3af-4ef1-9ae0-f91ab0cb81b5#83-job-posting--matching)
-
-    - 8.4 [Booking
-      > Management](https://claude.ai/chat/8e0e1339-a3af-4ef1-9ae0-f91ab0cb81b5#84-booking-management)
-
-    - 8.5 [Payment & Escrow
-      > System](https://claude.ai/chat/8e0e1339-a3af-4ef1-9ae0-f91ab0cb81b5#85-payment--escrow-system)
-
-    - 8.6 [Reviews &
-      > Ratings](https://claude.ai/chat/8e0e1339-a3af-4ef1-9ae0-f91ab0cb81b5#86-reviews--ratings)
-
-    - 8.7 [Geo-Search &
-      > Maps](https://claude.ai/chat/8e0e1339-a3af-4ef1-9ae0-f91ab0cb81b5#87-geo-search--maps)
-
-    - 8.8 [Notifications (Push +
-      > SMS)](https://claude.ai/chat/8e0e1339-a3af-4ef1-9ae0-f91ab0cb81b5#88-notifications-push--sms)
-
-    - 8.9 [Offline
-      > Mode](https://claude.ai/chat/8e0e1339-a3af-4ef1-9ae0-f91ab0cb81b5#89-offline-mode)
-
-    - 8.10 [Admin
-      > Dashboard](https://claude.ai/chat/8e0e1339-a3af-4ef1-9ae0-f91ab0cb81b5#810-admin-dashboard)
-
-    - 8.11 [Localisation
-      > (i18n)](https://claude.ai/chat/8e0e1339-a3af-4ef1-9ae0-f91ab0cb81b5#811-localisation-i18n)
-
-9.  [User Roles &
-    > Permissions](https://claude.ai/chat/8e0e1339-a3af-4ef1-9ae0-f91ab0cb81b5#9-user-roles--permissions)
-
-10. [Mobile App
-    > Screens](https://claude.ai/chat/8e0e1339-a3af-4ef1-9ae0-f91ab0cb81b5#10-mobile-app-screens)
-
-11. [Payment
-    > Integration](https://claude.ai/chat/8e0e1339-a3af-4ef1-9ae0-f91ab0cb81b5#11-payment-integration)
-
-12. [Security
-    > Considerations](https://claude.ai/chat/8e0e1339-a3af-4ef1-9ae0-f91ab0cb81b5#12-security-considerations)
-
-13. [Monetisation
-    > Model](https://claude.ai/chat/8e0e1339-a3af-4ef1-9ae0-f91ab0cb81b5#13-monetisation-model)
-
-14. [Build Roadmap &
-    > Phases](https://claude.ai/chat/8e0e1339-a3af-4ef1-9ae0-f91ab0cb81b5#14-build-roadmap--phases)
-
-15. [Folder
-    > Structure](https://claude.ai/chat/8e0e1339-a3af-4ef1-9ae0-f91ab0cb81b5#15-folder-structure)
-
-16. [Environment
-    > Variables](https://claude.ai/chat/8e0e1339-a3af-4ef1-9ae0-f91ab0cb81b5#16-environment-variables)
-
-17. [Deployment
-    > Guide](https://claude.ai/chat/8e0e1339-a3af-4ef1-9ae0-f91ab0cb81b5#17-deployment-guide)
-
-18. [Third-Party
-    > Integrations](https://claude.ai/chat/8e0e1339-a3af-4ef1-9ae0-f91ab0cb81b5#18-third-party-integrations)
-
-19. [Testing
-    > Strategy](https://claude.ai/chat/8e0e1339-a3af-4ef1-9ae0-f91ab0cb81b5#19-testing-strategy)
-
-20. [Future
-    > Roadmap](https://claude.ai/chat/8e0e1339-a3af-4ef1-9ae0-f91ab0cb81b5#20-future-roadmap)
+9. User Roles & Permissions  
+10. Mobile App Screens  
+11. Payment Integration  
+12. Security Considerations  
+13. Monetisation Model  
+14. Folder Structure  
+15. Environment Variables  
+16. Deployment Guide  
+17. Third-Party Integrations  
+18. Testing Strategy  
+19. Development Plan  
 
 ## 1. Project Overview
 
@@ -1743,7 +1683,7 @@ Assume 50 jobs/day × avg job value of 10,000 RWF × 10% commission =
 **50,000 RWF/day (~\$45 USD)**.  
 At 500 jobs/day: **500,000 RWF/day (~\$450 USD)**.
 
-## 14. Build Roadmap & Phases
+For a detailed build roadmap and phase breakdown, please refer to the [`DEVELOPMENT`](../../DEVELOPMENT) document.
 
 ### Phase 1 — MVP (Weeks 1–6)
 
@@ -2126,7 +2066,7 @@ AUTO_CONFIRM_HOURS=48
 
 \# Clone and set up
 
-git clone https://github.com/yourorg/handyrwanda.git
+git clone https://github.com/Enochrwa/HandyRwanda.git
 
 cd handyrwanda
 
@@ -2254,19 +2194,6 @@ On every pull request to main:
 
 ## 20. Future Roadmap
 
-| Feature                     | Timeline | Notes                                                      |
-|-----------------------------|----------|------------------------------------------------------------|
-| USSD interface              | Month 4  | Africa's Talking USSD; no smartphone needed                |
-| Artisan scheduling calendar | Month 5  | Artisans set available time slots; clients book slots      |
-| In-app video call           | Month 6  | Client discusses job before booking (WebRTC)               |
-| Recurring job subscriptions | Month 6  | Monthly cleaner, weekly gardener, etc.                     |
-| Dynamic pricing suggestions | Month 7  | ML model trained on historical jobs by category + location |
-| TVET certificate badges     | Month 8  | Partner with Rwanda Polytechnic; verified graduate badge   |
-| Expansion: Uganda, Kenya    | Year 2   | Airtel Uganda + Safaricom M-Pesa integration               |
-| WhatsApp Business bot       | Year 2   | Book via WhatsApp for users who prefer messaging           |
-| Artisan insurance product   | Year 2   | Partnership with local insurer for job liability cover     |
+For future roadmap details, please refer to the [](../../DEVELOPMENT) document.
 
-*This document is a living blueprint. Update version numbers and dates
-as the product evolves.*
 
-*Built for Rwanda. Built for Africa.*

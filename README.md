@@ -498,40 +498,6 @@ Once the platform earns its first 50,000 RWF/month, upgrade in this order:
 
 ---
 
-## 🗺 Build Roadmap
-
-### Phase 1 — MVP (Weeks 1–6) — $0
-Core booking loop, all on free infrastructure.
-
-- [ ] Supabase schema: users, artisans, jobs, bookings, reviews, categories
-- [ ] Enable PostGIS on Supabase project
-- [ ] FastAPI backend: auth (JWT + email OTP via Resend), all core routers
-- [ ] Upstash Redis for OTP storage and search caching
-- [ ] Supabase Storage for artisan media (photos, ID documents)
-- [ ] React Native app: auth, search (OSM), artisan profile, booking flow
-- [ ] Manual payment confirmation flow (no MoMo API)
-- [ ] Expo Push Notifications + Resend email for critical events
-- [ ] Offline cache layer (`expo-sqlite`)
-- [ ] TanStack Start admin: verification queue, dispute resolution, analytics
-- [ ] GitHub Actions CI/CD → Render (backend) + GitHub Pages (web)
-
-### Phase 2 — Trust & Quality (Weeks 7–12) — $0
-- [ ] Before & after photo verification
-- [ ] In-app bilingual messaging (Hugging Face translation, free tier)
-- [ ] Community Safety Score on profiles
-- [ ] Live job tracking (WebSocket + GPS, consent-gated)
-- [ ] Artisan scheduling calendar
-- [ ] AI-powered smart matching v1 (Hugging Face sentence-transformers)
-
-### Phase 3 — Monetisation & Retention (Weeks 13–18) — Revenue-funded
-- [ ] Pro badge + featured placement monetisation
-- [ ] Recurring job subscriptions
-- [ ] Emergency Services Mode
-- [ ] Artisan Income Intelligence Dashboard + RRA-ready PDF export
-- [ ] **Upgrade: Africa's Talking SMS** (first paid service, ~$5/month)
-- [ ] **Upgrade: MTN MoMo Business API** — real escrow, drop-in replacement
-
-### Phase 4 — Scale & Expand (Month 5+)
 - [ ] USSD interface via Africa's Talking
 - [ ] TVET certificate badge (Rwanda Polytechnic partnership)
 - [ ] WhatsApp Business bot
@@ -576,6 +542,12 @@ Full design specification: [`docs/HandRwandaUI.md`](docs/HandRwandaUI.md).
 ---
 
 ## 📜 Documentation
+- [Development Plan](DEVELOPMENT) | Comprehensive development plan, sprint breakdown, and feature roadmap
+
+| Document | Description |
+|---|---|
+| [`DEVELOPMENT`](DEVELOPMENT) | Comprehensive development plan, sprint breakdown, and feature roadmap |
+
 
 | Document | Description |
 |---|---|
@@ -597,4 +569,3 @@ Full design specification: [`docs/HandRwandaUI.md`](docs/HandRwandaUI.md).
 **Built for Rwanda. Built for Africa. 🇷🇼**
 
 *Built solo. Built for $0. Built to last.*
-

@@ -1,5 +1,6 @@
 import os
 from typing import Any
+from uuid import UUID
 
 from fastapi import APIRouter, Depends, HTTPException
 from jose import jwt
@@ -8,6 +9,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.database import get_db
 from app.integrations.upstash import redis_set
+from app.models.artisan import ArtisanProfile, PortfolioPhoto
 from app.models.user import User, UserRole
 from app.schemas.auth import AuthResponse, OTPRequest, OTPVerify, RefreshRequest
 from app.services import auth_service
@@ -89,3 +91,35 @@ async def logout(payload: RefreshRequest) -> dict[str, str]:
         f"blacklist:{payload.refresh_token}", "true", ttl_seconds=30 * 24 * 60 * 60
     )
     return {"message": "Logged out successfully"}
+
+
+@router.get("/users/{user_id}/profile")
+async def get_user_profile(user_id: UUID, db: AsyncSession = Depends(get_db)) -> Any:
+    # Fetch user
+    res = await db.execute(select(User).where(User.id == user_id))
+    user = res.scalar_one_or_none()
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+
+    # Fetch artisan profile and portfolio if applicable
+    profile: ArtisanProfile | None = None
+    portfolio: list[PortfolioPhoto] = []
+    if user.role == UserRole.artisan:
+        p_res = await db.execute(
+            select(ArtisanProfile).where(ArtisanProfile.user_id == user_id)
+        )
+        profile = p_res.scalar_one_or_none()
+
+        port_res = await db.execute(
+            select(PortfolioPhoto).where(PortfolioPhoto.artisan_id == user_id)
+        )
+        portfolio = list(port_res.scalars().all())
+
+    return {
+        "id": user.id,
+        "full_name": user.full_name,
+        "avatar_url": user.avatar_url,
+        "role": user.role,
+        "profile": profile,
+        "portfolio": portfolio,
+    }

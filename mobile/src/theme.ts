@@ -16,8 +16,18 @@ export const typography = {
   display: { fontSize: 36, fontWeight: '700' as const, fontFamily: 'PlusJakartaSans-Bold' },
   heading: { fontSize: 22, fontWeight: '600' as const, fontFamily: 'PlusJakartaSans-SemiBold' },
   subheading: { fontSize: 16, fontWeight: '600' as const, fontFamily: 'PlusJakartaSans-SemiBold' },
-  body: { fontSize: 15, fontWeight: '400' as const, lineHeight: 24, fontFamily: 'PlusJakartaSans-Regular' },
-  caption: { fontSize: 12, fontWeight: '500' as const, letterSpacing: 0.3, fontFamily: 'PlusJakartaSans-Medium' },
+  body: {
+    fontSize: 15,
+    fontWeight: '400' as const,
+    lineHeight: 24,
+    fontFamily: 'PlusJakartaSans-Regular',
+  },
+  caption: {
+    fontSize: 12,
+    fontWeight: '500' as const,
+    letterSpacing: 0.3,
+    fontFamily: 'PlusJakartaSans-Medium',
+  },
 };
 
 export const spacing = {

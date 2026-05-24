@@ -15,12 +15,15 @@ class BookingStatus(str, enum.Enum):
     cancelled = "cancelled"
     disputed = "disputed"
 
+
 class Booking(Base):
     __tablename__ = "bookings"
     id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     job_id = Column(UUID(as_uuid=True), ForeignKey("jobs.id"), nullable=False)
     client_id = Column(UUID(as_uuid=True), ForeignKey("users.id"), nullable=False)
-    artisan_id = Column(UUID(as_uuid=True), ForeignKey("artisan_profiles.user_id"), nullable=False)
+    artisan_id = Column(
+        UUID(as_uuid=True), ForeignKey("artisan_profiles.user_id"), nullable=False
+    )
     status: Column[BookingStatus] = Column(
         Enum(BookingStatus), default=BookingStatus.pending_payment
     )

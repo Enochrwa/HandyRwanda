@@ -12,7 +12,12 @@ import { Route as rootRouteImport } from './routes/__root'
 import { Route as SearchRouteImport } from './routes/search'
 import { Route as ProRouteImport } from './routes/pro'
 import { Route as IndexRouteImport } from './routes/index'
+import { Route as ProfilePortfolioRouteImport } from './routes/profile/portfolio'
+import { Route as OnboardingArtisanRouteImport } from './routes/onboarding/artisan'
+import { Route as JobsPostRouteImport } from './routes/jobs/post'
+import { Route as ArtisansJobsRouteImport } from './routes/artisans/jobs'
 import { Route as ArtisanIdRouteImport } from './routes/artisan.$id'
+import { Route as AdminVerificationRouteImport } from './routes/admin/verification'
 
 const SearchRoute = SearchRouteImport.update({
   id: '/search',
@@ -29,9 +34,34 @@ const IndexRoute = IndexRouteImport.update({
   path: '/',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ProfilePortfolioRoute = ProfilePortfolioRouteImport.update({
+  id: '/profile/portfolio',
+  path: '/profile/portfolio',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const OnboardingArtisanRoute = OnboardingArtisanRouteImport.update({
+  id: '/onboarding/artisan',
+  path: '/onboarding/artisan',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const JobsPostRoute = JobsPostRouteImport.update({
+  id: '/jobs/post',
+  path: '/jobs/post',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ArtisansJobsRoute = ArtisansJobsRouteImport.update({
+  id: '/artisans/jobs',
+  path: '/artisans/jobs',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const ArtisanIdRoute = ArtisanIdRouteImport.update({
   id: '/artisan/$id',
   path: '/artisan/$id',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const AdminVerificationRoute = AdminVerificationRouteImport.update({
+  id: '/admin/verification',
+  path: '/admin/verification',
   getParentRoute: () => rootRouteImport,
 } as any)
 
@@ -39,34 +69,82 @@ export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/pro': typeof ProRoute
   '/search': typeof SearchRoute
+  '/admin/verification': typeof AdminVerificationRoute
   '/artisan/$id': typeof ArtisanIdRoute
+  '/artisans/jobs': typeof ArtisansJobsRoute
+  '/jobs/post': typeof JobsPostRoute
+  '/onboarding/artisan': typeof OnboardingArtisanRoute
+  '/profile/portfolio': typeof ProfilePortfolioRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/pro': typeof ProRoute
   '/search': typeof SearchRoute
+  '/admin/verification': typeof AdminVerificationRoute
   '/artisan/$id': typeof ArtisanIdRoute
+  '/artisans/jobs': typeof ArtisansJobsRoute
+  '/jobs/post': typeof JobsPostRoute
+  '/onboarding/artisan': typeof OnboardingArtisanRoute
+  '/profile/portfolio': typeof ProfilePortfolioRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
   '/pro': typeof ProRoute
   '/search': typeof SearchRoute
+  '/admin/verification': typeof AdminVerificationRoute
   '/artisan/$id': typeof ArtisanIdRoute
+  '/artisans/jobs': typeof ArtisansJobsRoute
+  '/jobs/post': typeof JobsPostRoute
+  '/onboarding/artisan': typeof OnboardingArtisanRoute
+  '/profile/portfolio': typeof ProfilePortfolioRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/' | '/pro' | '/search' | '/artisan/$id'
+  fullPaths:
+    | '/'
+    | '/pro'
+    | '/search'
+    | '/admin/verification'
+    | '/artisan/$id'
+    | '/artisans/jobs'
+    | '/jobs/post'
+    | '/onboarding/artisan'
+    | '/profile/portfolio'
   fileRoutesByTo: FileRoutesByTo
-  to: '/' | '/pro' | '/search' | '/artisan/$id'
-  id: '__root__' | '/' | '/pro' | '/search' | '/artisan/$id'
+  to:
+    | '/'
+    | '/pro'
+    | '/search'
+    | '/admin/verification'
+    | '/artisan/$id'
+    | '/artisans/jobs'
+    | '/jobs/post'
+    | '/onboarding/artisan'
+    | '/profile/portfolio'
+  id:
+    | '__root__'
+    | '/'
+    | '/pro'
+    | '/search'
+    | '/admin/verification'
+    | '/artisan/$id'
+    | '/artisans/jobs'
+    | '/jobs/post'
+    | '/onboarding/artisan'
+    | '/profile/portfolio'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   ProRoute: typeof ProRoute
   SearchRoute: typeof SearchRoute
+  AdminVerificationRoute: typeof AdminVerificationRoute
   ArtisanIdRoute: typeof ArtisanIdRoute
+  ArtisansJobsRoute: typeof ArtisansJobsRoute
+  JobsPostRoute: typeof JobsPostRoute
+  OnboardingArtisanRoute: typeof OnboardingArtisanRoute
+  ProfilePortfolioRoute: typeof ProfilePortfolioRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -92,11 +170,46 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof IndexRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/profile/portfolio': {
+      id: '/profile/portfolio'
+      path: '/profile/portfolio'
+      fullPath: '/profile/portfolio'
+      preLoaderRoute: typeof ProfilePortfolioRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/onboarding/artisan': {
+      id: '/onboarding/artisan'
+      path: '/onboarding/artisan'
+      fullPath: '/onboarding/artisan'
+      preLoaderRoute: typeof OnboardingArtisanRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/jobs/post': {
+      id: '/jobs/post'
+      path: '/jobs/post'
+      fullPath: '/jobs/post'
+      preLoaderRoute: typeof JobsPostRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/artisans/jobs': {
+      id: '/artisans/jobs'
+      path: '/artisans/jobs'
+      fullPath: '/artisans/jobs'
+      preLoaderRoute: typeof ArtisansJobsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/artisan/$id': {
       id: '/artisan/$id'
       path: '/artisan/$id'
       fullPath: '/artisan/$id'
       preLoaderRoute: typeof ArtisanIdRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/admin/verification': {
+      id: '/admin/verification'
+      path: '/admin/verification'
+      fullPath: '/admin/verification'
+      preLoaderRoute: typeof AdminVerificationRouteImport
       parentRoute: typeof rootRouteImport
     }
   }
@@ -106,7 +219,12 @@ const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   ProRoute: ProRoute,
   SearchRoute: SearchRoute,
+  AdminVerificationRoute: AdminVerificationRoute,
   ArtisanIdRoute: ArtisanIdRoute,
+  ArtisansJobsRoute: ArtisansJobsRoute,
+  JobsPostRoute: JobsPostRoute,
+  OnboardingArtisanRoute: OnboardingArtisanRoute,
+  ProfilePortfolioRoute: ProfilePortfolioRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)

@@ -11,6 +11,7 @@ class ReferralStatus(str, enum.Enum):
     registered = "registered"
     qualified = "qualified"
 
+
 class Referral(Base):
     __tablename__ = "referrals"
     id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)

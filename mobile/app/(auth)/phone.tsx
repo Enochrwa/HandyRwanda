@@ -1,9 +1,18 @@
-import React, { useState } from 'react';
-import { View, Text, TextInput, TouchableOpacity, StyleSheet, ActivityIndicator, Alert } from 'react-native';
 import { useRouter } from 'expo-router';
+import React, { useState } from 'react';
+import {
+  View,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  StyleSheet,
+  ActivityIndicator,
+  Alert,
+} from 'react-native';
+
 import i18n from '../../i18n';
-import { colors, typography, spacing, radius } from '../../src/theme';
 import api from '../../services/api';
+import { colors, typography, spacing, radius } from '../../src/theme';
 
 export default function PhoneScreen() {
   const router = useRouter();
@@ -28,11 +37,11 @@ export default function PhoneScreen() {
     try {
       await api.post('/auth/otp/request', {
         phone_number: phoneNumber,
-        email: email,
+        email,
         lang: i18n.locale,
       });
       router.push({ pathname: '/(auth)/otp', params: { email } });
-    } catch (error) {
+    } catch {
       Alert.alert('Error', 'Failed to request OTP. Please try again.');
     } finally {
       setLoading(false);
@@ -67,11 +76,7 @@ export default function PhoneScreen() {
         />
       </View>
 
-      <TouchableOpacity
-        style={styles.button}
-        onPress={handleRequestOTP}
-        disabled={loading}
-      >
+      <TouchableOpacity style={styles.button} onPress={handleRequestOTP} disabled={loading}>
         {loading ? (
           <ActivityIndicator color={colors.surface} />
         ) : (

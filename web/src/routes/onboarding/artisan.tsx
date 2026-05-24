@@ -1,6 +1,9 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { createFileRoute, useRouter } from "@tanstack/react-router";
 import { Header } from "@/components/Header";
+import { artisanService } from "@/services/artisanService";
+import { useAuthStore } from "@/store/authStore";
+import { Category } from "@/types/category";
 
 export const Route = createFileRoute("/onboarding/artisan")({
   component: ArtisanOnboarding,
@@ -8,22 +11,62 @@ export const Route = createFileRoute("/onboarding/artisan")({
 
 function ArtisanOnboarding() {
   const router = useRouter();
+  const { user } = useAuthStore();
   const [step, setStep] = useState(1);
+  const [loading, setLoading] = useState(false);
+  const [categories, setCategories] = useState<Category[]>([]);
   const [formData, setFormData] = useState({
     bio: "",
-    years_experience: "",
+    years_experience: "0",
     languages: ["rw"],
-    categories: [] as string[],
+    category_ids: [] as string[],
     service_radius: 15,
     location_label: "",
     national_id: "",
-    id_photo: null as string | null,
-    selfie_photo: null as string | null,
+    id_photo_base64: null as string | null,
+    selfie_photo_base64: null as string | null,
   });
 
-  const handleNext = () => {
-    if (step < 4) setStep(step + 1);
-    else router.navigate({ to: "/" });
+  useEffect(() => {
+    artisanService.getCategories().then(setCategories);
+  }, []);
+
+  const handleNext = async () => {
+    setLoading(true);
+    try {
+      if (step === 1) {
+        await artisanService.updateProfile({
+          bio: formData.bio,
+          years_experience: parseInt(formData.years_experience),
+          spoken_languages: formData.languages.join(","),
+        });
+      } else if (step === 2) {
+        await artisanService.updateSkills(formData.category_ids);
+      } else if (step === 3) {
+        await artisanService.updateProfile({
+          location_label: formData.location_label,
+          service_radius_km: formData.service_radius,
+          // Placeholder for real map coordinates
+          latitude: -1.9441,
+          longitude: 30.0619,
+        });
+      } else if (step === 4) {
+        if (formData.id_photo_base64 && formData.selfie_photo_base64) {
+          await artisanService.submitVerification({
+            national_id_number: formData.national_id,
+            national_id_doc_base64: formData.id_photo_base64,
+            selfie_base64: formData.selfie_photo_base64,
+          });
+        }
+        router.navigate({ to: "/" });
+        return;
+      }
+      setStep(step + 1);
+    } catch (err) {
+      console.error("Onboarding error:", err);
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
@@ -62,9 +105,10 @@ function ArtisanOnboarding() {
               </div>
               <button
                 onClick={handleNext}
-                className="w-full rounded-xl bg-primary py-4 font-bold text-white shadow-lift"
+                disabled={loading || !formData.location_label}
+                className="w-full rounded-xl bg-primary py-4 font-bold text-white shadow-lift disabled:opacity-50"
               >
-                Continue
+                {loading ? "Saving..." : "Continue"}
               </button>
             </div>
           )}
@@ -73,30 +117,32 @@ function ArtisanOnboarding() {
             <div className="space-y-6">
               <h1 className="text-2xl font-bold">Select your skills</h1>
               <div className="grid grid-cols-2 gap-4">
-                {["Plumbing", "Electrical", "Cleaning", "Carpentry"].map((cat) => (
+                {categories.map((cat) => (
                   <div
-                    key={cat}
+                    key={cat.id}
                     onClick={() => {
-                      const cats = formData.categories.includes(cat)
-                        ? formData.categories.filter((c) => c !== cat)
-                        : [...formData.categories, cat];
-                      setFormData({ ...formData, categories: cats });
+                      const cats = formData.category_ids.includes(cat.id)
+                        ? formData.category_ids.filter((id) => id !== cat.id)
+                        : [...formData.category_ids, cat.id];
+                      setFormData({ ...formData, category_ids: cats });
                     }}
                     className={`cursor-pointer rounded-2xl border-2 p-4 text-center transition-all ${
-                      formData.categories.includes(cat)
+                      formData.category_ids.includes(cat.id)
                         ? "border-primary bg-primary/5"
                         : "border-border hover:border-primary/50"
                     }`}
                   >
-                    <p className="font-bold">{cat}</p>
+                    <div className="text-2xl mb-1">{cat.icon_emoji}</div>
+                    <p className="font-bold">{cat.name_en}</p>
                   </div>
                 ))}
               </div>
               <button
                 onClick={handleNext}
-                className="w-full rounded-xl bg-primary py-4 font-bold text-white shadow-lift"
+                disabled={loading || formData.category_ids.length === 0}
+                className="w-full rounded-xl bg-primary py-4 font-bold text-white shadow-lift disabled:opacity-50"
               >
-                Next Step
+                {loading ? "Saving..." : "Next Step"}
               </button>
             </div>
           )}
@@ -192,9 +238,10 @@ function ArtisanOnboarding() {
 
               <button
                 onClick={handleNext}
-                className="w-full rounded-xl bg-primary py-4 font-bold text-white shadow-lift"
+                disabled={loading || !formData.national_id}
+                className="w-full rounded-xl bg-primary py-4 font-bold text-white shadow-lift disabled:opacity-50"
               >
-                Complete Onboarding
+                {loading ? "Completing..." : "Complete Onboarding"}
               </button>
             </div>
           )}

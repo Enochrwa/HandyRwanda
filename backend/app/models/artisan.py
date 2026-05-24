@@ -65,6 +65,8 @@ class ArtisanProfile(Base):
     hourly_rate = Column(Integer, nullable=True)
     fixed_rate = Column(Integer, nullable=True)
     spoken_languages = Column(String, nullable=True)  # Comma-separated or JSON
+    id_document_url = Column(String, nullable=True)
+    selfie_url = Column(String, nullable=True)
     verification_status: Column[VerificationStatus] = Column(
         Enum(VerificationStatus), default=VerificationStatus.unverified
     )

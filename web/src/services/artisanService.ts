@@ -143,3 +143,27 @@ export const reviews: Review[] = [
 export function formatRWF(n: number) {
   return n.toLocaleString("en-US");
 }
+
+import api from "./api";
+
+export const artisanService = {
+  async getCategories() {
+    const res = await api.get("/artisans/categories");
+    return res.data;
+  },
+
+  async updateProfile(data: Record<string, unknown>) {
+    const res = await api.post("/artisans/profile", data);
+    return res.data;
+  },
+
+  async updateSkills(categoryIds: string[]) {
+    const res = await api.post("/artisans/skills", categoryIds);
+    return res.data;
+  },
+
+  async submitVerification(data: Record<string, unknown>) {
+    const res = await api.post("/artisans/profile/me/id-verification", data);
+    return res.data;
+  },
+};

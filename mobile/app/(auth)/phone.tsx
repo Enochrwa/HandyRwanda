@@ -41,7 +41,7 @@ export default function PhoneScreen() {
         lang: i18n.locale,
       });
       router.push({ pathname: '/(auth)/otp', params: { email } });
-    } catch (error) {
+    } catch {
       Alert.alert('Error', 'Failed to request OTP. Please try again.');
     } finally {
       setLoading(false);

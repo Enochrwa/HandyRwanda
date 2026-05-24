@@ -13,8 +13,8 @@ from app.integrations.huggingface import get_job_category_match
 from app.integrations.supabase_storage import upload_image
 from app.models.artisan import ArtisanProfile, Category
 from app.models.job import Job, JobStatus
-from app.services.price_anchor_service import get_price_anchor
 from app.models.user import UserRole
+from app.services.price_anchor_service import get_price_anchor
 
 router = APIRouter(prefix="/jobs", tags=["jobs"])
 

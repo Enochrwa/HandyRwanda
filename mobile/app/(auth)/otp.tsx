@@ -40,7 +40,7 @@ export default function OTPScreen() {
 
       // In a real flow, check if user.full_name is "New User" and redirect to registration/onboarding
       router.replace('/(client)/home');
-    } catch (error) {
+    } catch {
       Alert.alert('Error', 'Invalid or expired OTP');
     } finally {
       setLoading(false);

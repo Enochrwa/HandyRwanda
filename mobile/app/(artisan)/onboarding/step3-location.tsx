@@ -2,7 +2,7 @@ import Slider from '@react-native-community/slider';
 import * as Location from 'expo-location';
 import { useRouter } from 'expo-router';
 import React, { useState, useEffect } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, Dimensions } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
 import MapView, { Marker, Circle, UrlTile } from 'react-native-maps';
 
 import api from '../../../services/api';

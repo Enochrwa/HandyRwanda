@@ -37,7 +37,7 @@ api.interceptors.response.use(
           await SecureStore.setItemAsync('access_token', access_token);
           api.defaults.headers.common.Authorization = `Bearer ${access_token}`;
           return api(originalRequest);
-        } catch (refreshError) {
+        } catch {
           // Refresh token also invalid, logout
           useAuthStore.getState().clearAuth();
         }

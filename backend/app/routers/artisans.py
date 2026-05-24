@@ -108,12 +108,18 @@ async def submit_id_verification(
     current_user: dict = Depends(require_role(UserRole.artisan)),
 ) -> Any:
     user_id = UUID(current_user["sub"])
-    await upload_image(payload.national_id_doc_base64, f"id-docs/{user_id}/national_id")
-    await upload_image(payload.selfie_base64, f"id-docs/{user_id}/selfie")
+    id_url = await upload_image(
+        payload.national_id_doc_base64, f"id-docs/{user_id}/national_id"
+    )
+    selfie_url = await upload_image(payload.selfie_base64, f"id-docs/{user_id}/selfie")
     await db.execute(
         update(ArtisanProfile)
         .where(ArtisanProfile.user_id == user_id)
-        .values(verification_status=VerificationStatus.pending)
+        .values(
+            verification_status=VerificationStatus.pending,
+            id_document_url=id_url,
+            selfie_url=selfie_url,
+        )
     )
     await db.commit()
     return {"message": "Verification documents submitted"}
@@ -141,6 +147,22 @@ async def update_skills(
         )
     await db.commit()
     return {"message": "Skills updated"}
+
+
+@router.delete("/portfolio/{photo_id}")
+async def delete_portfolio_photo(
+    photo_id: UUID,
+    db: AsyncSession = Depends(get_db),
+    current_user: dict = Depends(require_role(UserRole.artisan)),
+) -> Any:
+    user_id = UUID(current_user["sub"])
+    await db.execute(
+        delete(PortfolioPhoto).where(
+            PortfolioPhoto.id == photo_id, PortfolioPhoto.artisan_id == user_id
+        )
+    )
+    await db.commit()
+    return {"message": "Photo deleted"}
 
 
 @router.post("/portfolio")

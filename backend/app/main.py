@@ -1,6 +1,6 @@
 from fastapi import FastAPI
 
-from app.routers import auth, artisans, admin, jobs, bids
+from app.routers import admin, artisans, auth, bids, jobs
 
 app = FastAPI(title="HandyRwanda API", version="1.0.0")
 

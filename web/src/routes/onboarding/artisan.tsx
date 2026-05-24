@@ -14,11 +14,16 @@ function ArtisanOnboarding() {
     years_experience: "",
     languages: ["rw"],
     categories: [] as string[],
+    service_radius: 15,
+    location_label: "",
+    national_id: "",
+    id_photo: null as string | null,
+    selfie_photo: null as string | null,
   });
 
   const handleNext = () => {
     if (step < 4) setStep(step + 1);
-    else router.navigate({ to: "/artisan/home" });
+    else router.navigate({ to: "/" });
   };
 
   return (
@@ -72,13 +77,15 @@ function ArtisanOnboarding() {
                   <div
                     key={cat}
                     onClick={() => {
-                       const cats = formData.categories.includes(cat)
-                        ? formData.categories.filter(c => c !== cat)
+                      const cats = formData.categories.includes(cat)
+                        ? formData.categories.filter((c) => c !== cat)
                         : [...formData.categories, cat];
-                       setFormData({...formData, categories: cats});
+                      setFormData({ ...formData, categories: cats });
                     }}
                     className={`cursor-pointer rounded-2xl border-2 p-4 text-center transition-all ${
-                      formData.categories.includes(cat) ? "border-primary bg-primary/5" : "border-border hover:border-primary/50"
+                      formData.categories.includes(cat)
+                        ? "border-primary bg-primary/5"
+                        : "border-border hover:border-primary/50"
                     }`}
                   >
                     <p className="font-bold">{cat}</p>
@@ -94,18 +101,102 @@ function ArtisanOnboarding() {
             </div>
           )}
 
-          {/* Steps 3 & 4 would follow similar patterns for Location and ID */}
-          {step > 2 && (
-             <div className="space-y-6 text-center">
-                <h1 className="text-2xl font-bold">Verification & Location</h1>
-                <p className="text-muted-foreground">This is where you would upload your ID and set your service radius.</p>
-                <button
-                    onClick={handleNext}
-                    className="w-full rounded-xl bg-primary py-4 font-bold text-white shadow-lift"
-                >
-                    {step === 4 ? "Complete Onboarding" : "Next Step"}
-                </button>
-             </div>
+          {step === 3 && (
+            <div className="space-y-6">
+              <h1 className="text-2xl font-bold">Where do you work?</h1>
+              <div className="space-y-4">
+                <div>
+                  <label className="text-sm font-semibold text-muted-foreground">
+                    Your Base Location
+                  </label>
+                  <input
+                    type="text"
+                    placeholder="e.g., Kimironko, Kigali"
+                    className="mt-2 w-full rounded-xl border border-border bg-muted/20 p-4"
+                    value={formData.location_label}
+                    onChange={(e) => setFormData({ ...formData, location_label: e.target.value })}
+                  />
+                </div>
+                <div>
+                  <div className="flex justify-between text-sm font-semibold">
+                    <label>Service Radius</label>
+                    <span className="text-primary">{formData.service_radius} km</span>
+                  </div>
+                  <input
+                    type="range"
+                    min="1"
+                    max="50"
+                    className="mt-4 w-full accent-primary"
+                    value={formData.service_radius}
+                    onChange={(e) =>
+                      setFormData({ ...formData, service_radius: parseInt(e.target.value) })
+                    }
+                  />
+                  <p className="mt-2 text-xs text-muted-foreground">
+                    Clients within this radius will be able to find and book you.
+                  </p>
+                </div>
+                <div className="aspect-video w-full rounded-2xl bg-muted/30 flex items-center justify-center border-2 border-dashed border-border">
+                  <p className="text-sm text-muted-foreground">Map selection placeholder</p>
+                </div>
+              </div>
+              <button
+                onClick={handleNext}
+                className="w-full rounded-xl bg-primary py-4 font-bold text-white shadow-lift"
+              >
+                Continue
+              </button>
+            </div>
+          )}
+
+          {step === 4 && (
+            <div className="space-y-6">
+              <h1 className="text-2xl font-bold">Verify your identity</h1>
+              <p className="text-sm text-muted-foreground leading-relaxed">
+                To build trust on HandyRwanda, we require all artisans to verify their identity with
+                a National ID.
+              </p>
+
+              <div className="space-y-4">
+                <div>
+                  <label className="text-sm font-semibold">National ID Number</label>
+                  <input
+                    type="text"
+                    placeholder="1 19XX 8 XXXXXX X XX"
+                    className="mt-2 w-full rounded-xl border border-border bg-muted/20 p-4"
+                    value={formData.national_id}
+                    onChange={(e) => setFormData({ ...formData, national_id: e.target.value })}
+                  />
+                </div>
+
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="flex flex-col items-center justify-center rounded-2xl border-2 border-dashed border-border p-6 text-center hover:border-primary/50 transition-colors">
+                    <div className="mb-2 text-2xl">🪪</div>
+                    <p className="text-xs font-bold text-foreground">Photo of ID</p>
+                    <p className="mt-1 text-[10px] text-muted-foreground">Front side</p>
+                  </div>
+                  <div className="flex flex-col items-center justify-center rounded-2xl border-2 border-dashed border-border p-6 text-center hover:border-primary/50 transition-colors">
+                    <div className="mb-2 text-2xl">🤳</div>
+                    <p className="text-xs font-bold text-foreground">Selfie</p>
+                    <p className="mt-1 text-[10px] text-muted-foreground">Holding ID</p>
+                  </div>
+                </div>
+              </div>
+
+              <div className="rounded-xl bg-accentLight p-4">
+                <p className="text-xs text-accent leading-normal">
+                  Verification usually takes 24-48 hours. You can still browse jobs while we review
+                  your documents.
+                </p>
+              </div>
+
+              <button
+                onClick={handleNext}
+                className="w-full rounded-xl bg-primary py-4 font-bold text-white shadow-lift"
+              >
+                Complete Onboarding
+              </button>
+            </div>
           )}
         </div>
       </main>

@@ -1,8 +1,17 @@
-import React, { useState } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, ScrollView, ActivityIndicator, Alert } from 'react-native';
 import { useRouter, useLocalSearchParams } from 'expo-router';
-import { colors, typography, spacing, radius } from '../../../src/theme';
+import React, { useState } from 'react';
+import {
+  View,
+  Text,
+  StyleSheet,
+  TouchableOpacity,
+  ScrollView,
+  ActivityIndicator,
+  Alert,
+} from 'react-native';
+
 import api from '../../../services/api';
+import { colors, typography, spacing, radius } from '../../../src/theme';
 
 export default function ConfirmJob() {
   const router = useRouter();
@@ -19,11 +28,11 @@ export default function ConfirmJob() {
         latitude: parseFloat(params.latitude),
         longitude: parseFloat(params.longitude),
         location_label: 'Custom Location',
-        budget: params.budget ? parseInt(params.budget) : null,
+        budget: params.budget ? parseInt(params.budget as string, 10) : null,
         photos_base64: JSON.parse(params.photos || '[]'),
       });
       Alert.alert('Success', 'Job posted successfully!', [
-        { text: 'OK', onPress: () => router.replace('/(client)/home') }
+        { text: 'OK', onPress: () => router.replace('/(client)/home') },
       ]);
     } catch (error) {
       console.error(error);
@@ -53,7 +62,11 @@ export default function ConfirmJob() {
       </View>
 
       <TouchableOpacity style={styles.button} onPress={handleSubmit} disabled={loading}>
-        {loading ? <ActivityIndicator color="#fff" /> : <Text style={styles.buttonText}>Post Job (Free)</Text>}
+        {loading ? (
+          <ActivityIndicator color="#fff" />
+        ) : (
+          <Text style={styles.buttonText}>Post Job (Free)</Text>
+        )}
       </TouchableOpacity>
     </ScrollView>
   );
@@ -62,10 +75,22 @@ export default function ConfirmJob() {
 const styles = StyleSheet.create({
   container: { padding: spacing.lg, backgroundColor: colors.bg, flexGrow: 1 },
   title: { ...typography.heading, marginBottom: spacing.xl },
-  card: { backgroundColor: colors.surface, padding: spacing.lg, borderRadius: radius.md, borderWidth: 1, borderColor: '#E2E8F0' },
+  card: {
+    backgroundColor: colors.surface,
+    padding: spacing.lg,
+    borderRadius: radius.md,
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+  },
   label: { ...typography.caption, color: colors.textSecondary, marginBottom: 2 },
   value: { ...typography.body, fontWeight: '600', marginBottom: spacing.md },
   divider: { height: 1, backgroundColor: '#E2E8F0', marginBottom: spacing.md },
-  button: { backgroundColor: colors.primary, padding: spacing.md, borderRadius: radius.md, alignItems: 'center', marginTop: spacing.xl },
+  button: {
+    backgroundColor: colors.primary,
+    padding: spacing.md,
+    borderRadius: radius.md,
+    alignItems: 'center',
+    marginTop: spacing.xl,
+  },
   buttonText: { ...typography.subheading, color: colors.surface },
 });

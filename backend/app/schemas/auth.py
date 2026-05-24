@@ -1,4 +1,3 @@
-
 from pydantic import BaseModel, EmailStr
 
 from app.models.user import UserRole
@@ -9,12 +8,15 @@ class OTPRequest(BaseModel):
     email: EmailStr
     lang: str = "rw"
 
+
 class OTPVerify(BaseModel):
     email: EmailStr
     otp_code: str
 
+
 class RefreshRequest(BaseModel):
     refresh_token: str
+
 
 class UserBase(BaseModel):
     id: str
@@ -25,6 +27,7 @@ class UserBase(BaseModel):
 
     class Config:
         from_attributes = True
+
 
 class AuthResponse(BaseModel):
     access_token: str

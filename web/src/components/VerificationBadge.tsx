@@ -18,7 +18,8 @@ export function VerificationBadge({ status, className }: { status: Status; class
     id_verified: {
       icon: <ShieldCheck className="h-3 w-3" />,
       label: "ID Verified",
-      color: "bg-[color:var(--verified)]/10 text-[color:var(--verified)] border-[color:var(--verified)]/20",
+      color:
+        "bg-[color:var(--verified)]/10 text-[color:var(--verified)] border-[color:var(--verified)]/20",
     },
     pro_verified: {
       icon: <Award className="h-3 w-3" />,
@@ -40,7 +41,7 @@ export function VerificationBadge({ status, className }: { status: Status; class
       className={cn(
         "inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider",
         config.color,
-        className
+        className,
       )}
     >
       {config.icon}

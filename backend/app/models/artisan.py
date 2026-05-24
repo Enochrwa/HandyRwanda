@@ -27,12 +27,21 @@ class VerificationStatus(str, enum.Enum):
     pro_verified = "pro_verified"
     rejected = "rejected"
 
+
 artisan_skills = Table(
     "artisan_skills",
     Base.metadata,
-    Column("artisan_id", UUID(as_uuid=True), ForeignKey("artisan_profiles.user_id"), primary_key=True),
-    Column("category_id", UUID(as_uuid=True), ForeignKey("categories.id"), primary_key=True),
+    Column(
+        "artisan_id",
+        UUID(as_uuid=True),
+        ForeignKey("artisan_profiles.user_id"),
+        primary_key=True,
+    ),
+    Column(
+        "category_id", UUID(as_uuid=True), ForeignKey("categories.id"), primary_key=True
+    ),
 )
+
 
 class Category(Base):
     __tablename__ = "categories"
@@ -43,6 +52,7 @@ class Category(Base):
     icon_emoji = Column(String(10), nullable=True)
     is_active = Column(Boolean, default=True)
     created_at = Column(DateTime(timezone=True), server_default=func.now())
+
 
 class ArtisanProfile(Base):
     __tablename__ = "artisan_profiles"
@@ -72,10 +82,13 @@ class ArtisanProfile(Base):
     user = relationship("User", backref="artisan_profile")
     categories = relationship("Category", secondary=artisan_skills, backref="artisans")
 
+
 class PortfolioPhoto(Base):
     __tablename__ = "portfolio_photos"
     id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
-    artisan_id = Column(UUID(as_uuid=True), ForeignKey("artisan_profiles.user_id"), nullable=False)
+    artisan_id = Column(
+        UUID(as_uuid=True), ForeignKey("artisan_profiles.user_id"), nullable=False
+    )
     image_url = Column(String, nullable=False)
     job_type = Column(String(100), nullable=True)
     description = Column(String(500), nullable=True)

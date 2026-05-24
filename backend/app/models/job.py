@@ -16,32 +16,41 @@ class JobStatus(str, enum.Enum):
     cancelled = "cancelled"
     disputed = "disputed"
 
+
 class BidStatus(str, enum.Enum):
     pending = "pending"
     accepted = "accepted"
     rejected = "rejected"
 
+
 class Job(Base):
     __tablename__ = "jobs"
     id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     client_id = Column(UUID(as_uuid=True), ForeignKey("users.id"), nullable=False)
-    category_id = Column(UUID(as_uuid=True), ForeignKey("categories.id"), nullable=False)
+    category_id = Column(
+        UUID(as_uuid=True), ForeignKey("categories.id"), nullable=False
+    )
     title = Column(String(200), nullable=False)
     description = Column(String, nullable=False)
-    location = Column(String, nullable=True)  # Geography handled by PostGIS in actual DB
+    location = Column(
+        String, nullable=True
+    )  # Geography handled by PostGIS in actual DB
     location_label = Column(String(200), nullable=True)
     scheduled_time = Column(DateTime(timezone=True), nullable=True)
     budget = Column(Integer, nullable=True)
     status: Column[JobStatus] = Column(Enum(JobStatus), default=JobStatus.open)
-    photos_urls: Column[list[str]] = Column(ARRAY(String), nullable=True)
+    images: Column[list[str]] = Column(ARRAY(String), nullable=True)
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     updated_at = Column(DateTime(timezone=True), onupdate=func.now())
+
 
 class Bid(Base):
     __tablename__ = "bids"
     id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     job_id = Column(UUID(as_uuid=True), ForeignKey("jobs.id"), nullable=False)
-    artisan_id = Column(UUID(as_uuid=True), ForeignKey("artisan_profiles.user_id"), nullable=False)
+    artisan_id = Column(
+        UUID(as_uuid=True), ForeignKey("artisan_profiles.user_id"), nullable=False
+    )
     proposed_price = Column(Integer, nullable=False)
     message = Column(String(500), nullable=True)
     proposed_start_time = Column(DateTime(timezone=True), nullable=True)

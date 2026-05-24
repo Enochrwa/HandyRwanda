@@ -1,21 +1,23 @@
-import uuid
 from datetime import datetime
-from typing import Any, List
+from typing import Any
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, HTTPException, Query
+from fastapi import APIRouter, Depends, HTTPException
+from pydantic import BaseModel
 from sqlalchemy import select, text
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.database import get_db
 from app.dependencies.jwt_auth import get_current_user, require_role
+from app.integrations.huggingface import get_job_category_match
 from app.integrations.supabase_storage import upload_image
+from app.models.artisan import ArtisanProfile, Category
 from app.models.job import Job, JobStatus
-from app.models.user import User, UserRole
-from app.models.artisan import ArtisanProfile
-from pydantic import BaseModel
+from app.services.price_anchor_service import get_price_anchor
+from app.models.user import UserRole
 
 router = APIRouter(prefix="/jobs", tags=["jobs"])
+
 
 class JobCreate(BaseModel):
     category_id: UUID
@@ -26,15 +28,35 @@ class JobCreate(BaseModel):
     location_label: str
     scheduled_time: datetime | None = None
     budget: int | None = None
-    photos_base64: List[str] = []
+    photos_base64: list[str] = []
+
 
 @router.post("")
 async def create_job(
     payload: JobCreate,
     db: AsyncSession = Depends(get_db),
-    current_user: dict = Depends(require_role(UserRole.client))
+    current_user: dict = Depends(require_role(UserRole.client)),
 ) -> Any:
     user_id = UUID(current_user["sub"])
+
+    # Sprint 3: Category Suggestion (AI matching)
+    # If client hasn't specified a valid category, we could suggest one based on title/description
+    if str(payload.category_id) == "00000000-0000-0000-0000-000000000000":
+        # Get all active categories to use as candidate labels
+        cats_res = await db.execute(select(Category).where(Category.is_active))
+        all_cats = cats_res.scalars().all()
+        candidate_labels = [c.name_en for c in all_cats]
+
+        if candidate_labels:
+            match_res = await get_job_category_match(
+                f"{payload.title} {payload.description}", candidate_labels
+            )
+            if match_res and "labels" in match_res and len(match_res["labels"]) > 0:
+                top_label = match_res["labels"][0]
+                for c in all_cats:
+                    if c.name_en == top_label:
+                        payload.category_id = c.id  # type: ignore
+                        break
 
     # Upload photos
     photo_urls = []
@@ -52,7 +74,7 @@ async def create_job(
         scheduled_time=payload.scheduled_time,
         budget=payload.budget,
         images=photo_urls,
-        status=JobStatus.open
+        status=JobStatus.open,  # type: ignore
     )
     db.add(job)
     await db.commit()
@@ -62,11 +84,12 @@ async def create_job(
 
     return job
 
+
 @router.get("")
 async def list_my_jobs(
     status: JobStatus | None = None,
     db: AsyncSession = Depends(get_db),
-    current_user: dict = Depends(get_current_user)
+    current_user: dict = Depends(get_current_user),
 ) -> Any:
     user_id = UUID(current_user["sub"])
     query = select(Job).where(Job.client_id == user_id)
@@ -75,10 +98,11 @@ async def list_my_jobs(
     result = await db.execute(query.order_by(Job.created_at.desc()))
     return result.scalars().all()
 
+
 @router.get("/available")
 async def list_available_jobs(
     db: AsyncSession = Depends(get_db),
-    current_user: dict = Depends(require_role(UserRole.artisan))
+    current_user: dict = Depends(require_role(UserRole.artisan)),
 ) -> Any:
     user_id = UUID(current_user["sub"])
 
@@ -107,22 +131,39 @@ async def list_available_jobs(
     result = await db.execute(query, {"artisan_id": user_id})
     return [dict(row._mapping) for row in result]
 
+
 @router.get("/{job_id}")
 async def get_job_detail(
     job_id: UUID,
-    db: AsyncSession = Depends(get_db)
+    db: AsyncSession = Depends(get_db),
+    current_user: dict = Depends(get_current_user),
 ) -> Any:
     result = await db.execute(select(Job).where(Job.id == job_id))
     job = result.scalar_one_or_none()
     if not job:
         raise HTTPException(status_code=404, detail="Job not found")
-    return job
+
+    # Sprint 3: Add price anchoring guidance for artisans
+    price_guidance = None
+    if current_user["role"] == UserRole.artisan:
+        # We use a default district for now, or extract from location label
+        district = "Kigali"
+        if job.location_label and "," in job.location_label:
+            district = job.location_label.split(",")[-1].strip()
+
+        price_guidance = await get_price_anchor(job.category_id, district, db)
+
+    return {
+        "job": job,
+        "price_guidance": price_guidance,
+    }
+
 
 @router.delete("/{job_id}")
 async def cancel_job(
     job_id: UUID,
     db: AsyncSession = Depends(get_db),
-    current_user: dict = Depends(require_role(UserRole.client))
+    current_user: dict = Depends(require_role(UserRole.client)),
 ) -> Any:
     user_id = UUID(current_user["sub"])
     result = await db.execute(
@@ -133,8 +174,10 @@ async def cancel_job(
         raise HTTPException(status_code=404, detail="Job not found")
 
     if job.status != JobStatus.open:
-        raise HTTPException(status_code=400, detail="Cannot cancel job in current status")
+        raise HTTPException(
+            status_code=400, detail="Cannot cancel job in current status"
+        )
 
-    job.status = JobStatus.cancelled
+    job.status = JobStatus.cancelled  # type: ignore
     await db.commit()
     return {"message": "Job cancelled"}

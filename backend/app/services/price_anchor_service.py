@@ -1,6 +1,7 @@
-from sqlalchemy import text
-from sqlalchemy.ext.asyncio import AsyncSession
 from uuid import UUID
+
+from sqlalchemy.ext.asyncio import AsyncSession
+
 
 async def get_price_anchor(category_id: UUID, district: str, db: AsyncSession) -> dict:
     """
@@ -13,5 +14,5 @@ async def get_price_anchor(category_id: UUID, district: str, db: AsyncSession) -
         "median": 10000,
         "max": 20000,
         "currency": "RWF",
-        "sample_size": 15
+        "sample_size": 15,
     }

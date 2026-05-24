@@ -1,11 +1,12 @@
+import Slider from '@react-native-community/slider';
+import * as Location from 'expo-location';
+import { useRouter } from 'expo-router';
 import React, { useState, useEffect } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, Dimensions } from 'react-native';
-import { useRouter } from 'expo-router';
 import MapView, { Marker, Circle, UrlTile } from 'react-native-maps';
-import * as Location from 'expo-location';
-import { colors, typography, spacing, radius } from '../../../src/theme';
+
 import api from '../../../services/api';
-import Slider from '@react-native-community/slider';
+import { colors, typography, spacing, radius } from '../../../src/theme';
 
 export default function LocationStep() {
   const router = useRouter();
@@ -20,10 +21,10 @@ export default function LocationStep() {
 
   useEffect(() => {
     (async () => {
-      let { status } = await Location.requestForegroundPermissionsAsync();
+      const { status } = await Location.requestForegroundPermissionsAsync();
       if (status !== 'granted') return;
 
-      let location = await Location.getCurrentPositionAsync({});
+      const location = await Location.getCurrentPositionAsync({});
       const newRegion = {
         ...region,
         latitude: location.coords.latitude,
@@ -40,7 +41,7 @@ export default function LocationStep() {
         latitude: marker.latitude,
         longitude: marker.longitude,
         service_radius_km: radiusKm,
-        location_label: "Selected on map",
+        location_label: 'Selected on map',
       });
       router.push('/(artisan)/onboarding/step4-id');
     } catch (error) {
@@ -58,14 +59,18 @@ export default function LocationStep() {
       <MapView
         style={styles.map}
         initialRegion={region}
-        onPress={(e) => setMarker(e.nativeEvent.coordinate)}
+        onPress={(e: any) => setMarker(e.nativeEvent.coordinate)}
       >
         <UrlTile
           urlTemplate="https://tile.openstreetmap.org/{z}/{x}/{y}.png"
           maximumZ={19}
           flipY={false}
         />
-        <Marker coordinate={marker} draggable onDragEnd={(e) => setMarker(e.nativeEvent.coordinate)} />
+        <Marker
+          coordinate={marker}
+          draggable
+          onDragEnd={(e: any) => setMarker(e.nativeEvent.coordinate)}
+        />
         <Circle
           center={marker}
           radius={radiusKm * 1000}

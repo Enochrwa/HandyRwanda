@@ -1,9 +1,10 @@
+import * as ImagePicker from 'expo-image-picker';
+import { useRouter } from 'expo-router';
 import React, { useState } from 'react';
 import { View, Text, TouchableOpacity, StyleSheet, Image, ScrollView, Alert } from 'react-native';
-import { useRouter } from 'expo-router';
-import * as ImagePicker from 'expo-image-picker';
-import { colors, typography, spacing, radius } from '../../../src/theme';
+
 import api from '../../../services/api';
+import { colors, typography, spacing, radius } from '../../../src/theme';
 
 export default function IDStep() {
   const router = useRouter();
@@ -12,8 +13,8 @@ export default function IDStep() {
   const [loading, setLoading] = useState(false);
 
   const pickImage = async (setter: (val: string) => void) => {
-    let result = await ImagePicker.launchImageLibraryAsync({
-      mediaTypes: ['images'],
+    const result = await ImagePicker.launchImageLibraryAsync({
+      mediaTypes: ImagePicker.MediaTypeOptions.Images,
       allowsEditing: true,
       quality: 0.5,
       base64: true,
@@ -73,8 +74,8 @@ export default function IDStep() {
       </View>
 
       <Text style={styles.disclaimer}>
-        Your documents are stored securely and used only for verification.
-        Verification usually takes 24–48 hours.
+        Your documents are stored securely and used only for verification. Verification usually
+        takes 24–48 hours.
       </Text>
 
       <TouchableOpacity

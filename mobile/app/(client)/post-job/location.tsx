@@ -1,8 +1,9 @@
+import * as Location from 'expo-location';
+import { useRouter, useLocalSearchParams } from 'expo-router';
 import React, { useState, useEffect } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
-import { useRouter, useLocalSearchParams } from 'expo-router';
 import MapView, { Marker, UrlTile } from 'react-native-maps';
-import * as Location from 'expo-location';
+
 import { colors, typography, spacing, radius } from '../../../src/theme';
 
 export default function JobLocation() {
@@ -18,10 +19,14 @@ export default function JobLocation() {
 
   useEffect(() => {
     (async () => {
-      let { status } = await Location.requestForegroundPermissionsAsync();
+      const { status } = await Location.requestForegroundPermissionsAsync();
       if (status !== 'granted') return;
-      let location = await Location.getCurrentPositionAsync({});
-      setRegion({ ...region, latitude: location.coords.latitude, longitude: location.coords.longitude });
+      const location = await Location.getCurrentPositionAsync({});
+      setRegion({
+        ...region,
+        latitude: location.coords.latitude,
+        longitude: location.coords.longitude,
+      });
       setMarker({ latitude: location.coords.latitude, longitude: location.coords.longitude });
     })();
   }, []);
@@ -43,9 +48,13 @@ export default function JobLocation() {
       <MapView
         style={styles.map}
         region={region}
-        onPress={(e) => setMarker(e.nativeEvent.coordinate)}
+        onPress={(e: any) => setMarker(e.nativeEvent.coordinate)}
       >
-        <UrlTile urlTemplate="https://tile.openstreetmap.org/{z}/{x}/{y}.png" maximumZ={19} flipY={false} />
+        <UrlTile
+          urlTemplate="https://tile.openstreetmap.org/{z}/{x}/{y}.png"
+          maximumZ={19}
+          flipY={false}
+        />
         <Marker coordinate={marker} />
       </MapView>
 
@@ -65,6 +74,11 @@ const styles = StyleSheet.create({
   subtitle: { ...typography.body, color: colors.textSecondary },
   map: { flex: 1 },
   footer: { padding: spacing.lg, backgroundColor: colors.surface },
-  button: { backgroundColor: colors.primary, padding: spacing.md, borderRadius: radius.md, alignItems: 'center' },
+  button: {
+    backgroundColor: colors.primary,
+    padding: spacing.md,
+    borderRadius: radius.md,
+    alignItems: 'center',
+  },
   buttonText: { ...typography.subheading, color: colors.surface },
 });

@@ -1,5 +1,6 @@
 import axios from 'axios';
 import * as SecureStore from 'expo-secure-store';
+
 import { useAuthStore } from '../store/authStore';
 
 // In production, this would come from an environment variable
@@ -43,7 +44,7 @@ api.interceptors.response.use(
       }
     }
     return Promise.reject(error);
-  }
+  },
 );
 
 export default api;

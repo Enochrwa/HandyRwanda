@@ -1,8 +1,9 @@
+import { useRouter } from 'expo-router';
 import React, { useState } from 'react';
 import { View, Text, TextInput, TouchableOpacity, StyleSheet, ScrollView } from 'react-native';
-import { useRouter } from 'expo-router';
-import { colors, typography, spacing, radius } from '../../../src/theme';
+
 import api from '../../../services/api';
+import { colors, typography, spacing, radius } from '../../../src/theme';
 
 export default function BioStep() {
   const router = useRouter();
@@ -14,7 +15,7 @@ export default function BioStep() {
     try {
       await api.post('/artisans/profile', {
         bio,
-        years_experience: parseInt(experience) || 0,
+        years_experience: parseInt(experience, 10) || 0,
         spoken_languages: languages.join(','),
       });
       router.push('/(artisan)/onboarding/step2-skills');
@@ -25,7 +26,7 @@ export default function BioStep() {
 
   const toggleLang = (lang: string) => {
     if (languages.includes(lang)) {
-      setLanguages(languages.filter(l => l !== lang));
+      setLanguages(languages.filter((l) => l !== lang));
     } else {
       setLanguages([...languages, lang]);
     }
@@ -68,7 +69,7 @@ export default function BioStep() {
             { id: 'en', label: 'English' },
             { id: 'fr', label: 'Français' },
             { id: 'sw', label: 'Swahili' },
-          ].map(lang => (
+          ].map((lang) => (
             <TouchableOpacity
               key={lang.id}
               style={[styles.chip, languages.includes(lang.id) && styles.activeChip]}

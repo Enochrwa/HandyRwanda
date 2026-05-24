@@ -7,8 +7,21 @@ export const Route = createFileRoute("/admin/verification")({
   component: VerificationDashboard,
 });
 
+interface PendingArtisan {
+  user: {
+    id: string;
+    full_name: string;
+    email: string;
+    phone_number: string;
+    avatar_url?: string;
+  };
+  profile: {
+    updated_at: string;
+  };
+}
+
 function VerificationDashboard() {
-  const [pending, setPending] = useState<any[]>([]);
+  const [pending, setPending] = useState<PendingArtisan[]>([]);
   const [loading, setLoading] = useState(true);
 
   const fetchPending = async () => {
@@ -66,7 +79,11 @@ function VerificationDashboard() {
                       <div className="flex items-center gap-3">
                         <div className="h-10 w-10 overflow-hidden rounded-full bg-muted">
                           {item.user.avatar_url ? (
-                            <img src={item.user.avatar_url} alt="" className="h-full w-full object-cover" />
+                            <img
+                              src={item.user.avatar_url}
+                              alt=""
+                              className="h-full w-full object-cover"
+                            />
                           ) : (
                             <User className="m-2 h-6 w-6 text-muted-foreground" />
                           )}

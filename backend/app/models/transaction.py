@@ -13,10 +13,12 @@ class TransactionType(str, enum.Enum):
     commission = "commission"
     refund = "refund"
 
+
 class TransactionStatus(str, enum.Enum):
     pending = "pending"
     completed = "completed"
     failed = "failed"
+
 
 class Transaction(Base):
     __tablename__ = "transactions"

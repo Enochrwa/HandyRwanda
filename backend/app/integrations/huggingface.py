@@ -1,41 +1,84 @@
-import httpx
 import os
+
+import httpx
+
+from dotenv import load_dotenv
+
+load_dotenv()
 
 HF_TOKEN = os.getenv("HUGGINGFACE_API_TOKEN")
 HEADERS = {"Authorization": f"Bearer {HF_TOKEN}"} if HF_TOKEN else {}
 
-async def get_job_category_match(job_description: str, candidate_labels: list[str]) -> list[dict]:
+
+async def get_job_category_match(
+    job_description: str, candidate_labels: list[str]
+) -> dict:
     """
     Suggest relevant service category using zero-shot classification.
+    Uses the new Hugging Face Inference Router.
     """
     if not HF_TOKEN:
-        return []
+        return {}
 
     payload = {
         "inputs": job_description,
-        "parameters": {"candidate_labels": candidate_labels}
+        "parameters": {"candidate_labels": candidate_labels},
     }
+
+    url = "https://router.huggingface.co/hf-inference/models/facebook/bart-large-mnli"
+
     async with httpx.AsyncClient() as client:
-        r = await client.post(
-            "https://api-inference.huggingface.co/models/facebook/bart-large-mnli",
-            headers=HEADERS, json=payload, timeout=15.0)
-        if r.status_code != 200:
-            return []
-        return r.json()
+        try:
+            r = await client.post(
+                url,
+                headers=HEADERS,
+                json=payload,
+                timeout=30.0,
+            )
+            r.raise_for_status()
+            return r.json()
+        except Exception:
+            return {}
+
 
 async def translate_message(text: str, src_lang: str, tgt_lang: str) -> str:
     """
-    Translate chat message using Helsinki-NLP models.
+    Translate chat message.
+    Uses NLLB-200 for better support of African languages like Kinyarwanda.
     """
     if not HF_TOKEN or src_lang == tgt_lang:
         return text
 
-    model = f"Helsinki-NLP/opus-mt-{src_lang}-{tgt_lang}"
+    # NLLB-200 requires specific language codes (e.g., 'kin_Latn' for Kinyarwanda)
+    # This is a simplified mapping for MVP
+    lang_map = {
+        "rw": "kin_Latn",
+        "en": "eng_Latn",
+        "fr": "fra_Latn",
+        "sw": "swh_Latn",
+    }
+
+    src = lang_map.get(src_lang, src_lang)
+    tgt = lang_map.get(tgt_lang, tgt_lang)
+
+    url = "https://router.huggingface.co/hf-inference/models/facebook/nllb-200-distilled-600M"
+
+    payload = {
+        "inputs": text,
+        "parameters": {"src_lang": src, "tgt_lang": tgt},
+    }
+
     async with httpx.AsyncClient() as client:
-        r = await client.post(
-            f"https://api-inference.huggingface.co/models/{model}",
-            headers=HEADERS, json={"inputs": text}, timeout=20.0)
-        if r.status_code != 200:
+        try:
+            r = await client.post(
+                url,
+                headers=HEADERS,
+                json=payload,
+                timeout=30.0,
+            )
+            if r.status_code != 200:
+                return text
+            result = r.json()
+            return result[0]["translation_text"] if isinstance(result, list) else text
+        except Exception:
             return text
-        result = r.json()
-        return result[0]["translation_text"] if isinstance(result, list) else text

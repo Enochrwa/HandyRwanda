@@ -14,14 +14,21 @@ function ArtisanJobFeed() {
         <div className="flex items-center justify-between">
           <h1 className="text-3xl font-extrabold">Available Jobs</h1>
           <div className="flex gap-2">
-             <span className="px-4 py-2 rounded-full bg-primary text-white text-sm font-bold">Nearby</span>
-             <span className="px-4 py-2 rounded-full bg-card border border-border text-sm font-bold">My Skills</span>
+            <span className="px-4 py-2 rounded-full bg-primary text-white text-sm font-bold">
+              Nearby
+            </span>
+            <span className="px-4 py-2 rounded-full bg-card border border-border text-sm font-bold">
+              My Skills
+            </span>
           </div>
         </div>
 
         <div className="mt-8 space-y-4">
           {[1, 2, 3, 4].map((i) => (
-            <div key={i} className="group cursor-pointer rounded-3xl border border-border bg-card p-6 shadow-sm hover:border-primary transition-all">
+            <div
+              key={i}
+              className="group cursor-pointer rounded-3xl border border-border bg-card p-6 shadow-sm hover:border-primary transition-all"
+            >
               <div className="flex justify-between items-start">
                 <div>
                   <div className="flex items-center gap-2">
@@ -31,19 +38,22 @@ function ArtisanJobFeed() {
                     <h2 className="text-xl font-bold">Leaking Kitchen Sink</h2>
                   </div>
                   <div className="mt-2 flex items-center gap-4 text-sm text-muted-foreground">
-                    <span className="flex items-center gap-1"><MapPin className="h-4 w-4" /> Kimironko (2.4 km)</span>
+                    <span className="flex items-center gap-1">
+                      <MapPin className="h-4 w-4" /> Kimironko (2.4 km)
+                    </span>
                     <span className="font-bold text-foreground">Budget: 15,000 RWF</span>
                   </div>
                 </div>
                 <div className="text-right">
-                   <p className="text-xs font-bold text-muted-foreground uppercase">Posted 2h ago</p>
-                   <button className="mt-3 flex items-center gap-1 font-bold text-primary">
-                     View Details <ChevronRight className="h-4 w-4" />
-                   </button>
+                  <p className="text-xs font-bold text-muted-foreground uppercase">Posted 2h ago</p>
+                  <button className="mt-3 flex items-center gap-1 font-bold text-primary">
+                    View Details <ChevronRight className="h-4 w-4" />
+                  </button>
                 </div>
               </div>
               <p className="mt-4 text-muted-foreground line-clamp-2">
-                The pipe under the kitchen sink is leaking heavily. Need someone to replace the washer or the whole pipe if necessary.
+                The pipe under the kitchen sink is leaking heavily. Need someone to replace the
+                washer or the whole pipe if necessary.
               </p>
             </div>
           ))}

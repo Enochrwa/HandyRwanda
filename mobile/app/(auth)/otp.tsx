@@ -1,9 +1,18 @@
-import React, { useState } from 'react';
-import { View, Text, TextInput, TouchableOpacity, StyleSheet, ActivityIndicator, Alert } from 'react-native';
 import { useRouter, useLocalSearchParams } from 'expo-router';
+import React, { useState } from 'react';
+import {
+  View,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  StyleSheet,
+  ActivityIndicator,
+  Alert,
+} from 'react-native';
+
 import i18n from '../../i18n';
-import { colors, typography, spacing, radius } from '../../src/theme';
 import api from '../../services/api';
+import { colors, typography, spacing, radius } from '../../src/theme';
 import { useAuthStore } from '../../store/authStore';
 
 export default function OTPScreen() {
@@ -22,7 +31,7 @@ export default function OTPScreen() {
     setLoading(true);
     try {
       const response = await api.post('/auth/otp/verify', {
-        email: email,
+        email,
         otp_code: otp,
       });
 
@@ -53,11 +62,7 @@ export default function OTPScreen() {
         autoFocus
       />
 
-      <TouchableOpacity
-        style={styles.button}
-        onPress={handleVerifyOTP}
-        disabled={loading}
-      >
+      <TouchableOpacity style={styles.button} onPress={handleVerifyOTP} disabled={loading}>
         {loading ? (
           <ActivityIndicator color={colors.surface} />
         ) : (
@@ -66,7 +71,9 @@ export default function OTPScreen() {
       </TouchableOpacity>
 
       <TouchableOpacity
-        onPress={() => api.post('/auth/otp/request', { email, lang: i18n.locale, phone_number: 'existing' })}
+        onPress={() =>
+          api.post('/auth/otp/request', { email, lang: i18n.locale, phone_number: 'existing' })
+        }
         style={styles.resendButton}
       >
         <Text style={styles.resendText}>{i18n.t('auth.resend')}</Text>

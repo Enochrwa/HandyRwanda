@@ -5,7 +5,7 @@ exclude = ["migrations"]
 
 [tool.ruff.lint]
 select = ["E", "F", "I", "N", "W", "B", "UP", "PL"]
-ignore = ["PLR2004", "B008", "E501", "B904"]
+ignore = ["PLR2004", "B008", "E501", "B904", "PLR0913"]
 
 [tool.ruff.format]
 quote-style = "double"

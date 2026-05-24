@@ -1,8 +1,19 @@
-import React, { useState, useEffect } from 'react';
-import { View, Text, StyleSheet, ScrollView, TextInput, TouchableOpacity, ActivityIndicator, Image, Alert } from 'react-native';
 import { useRouter, useLocalSearchParams } from 'expo-router';
-import { colors, typography, spacing, radius } from '../../../src/theme';
-import api from '../../../services/api';
+import React, { useState, useEffect } from 'react';
+import {
+  View,
+  Text,
+  StyleSheet,
+  ScrollView,
+  TextInput,
+  TouchableOpacity,
+  ActivityIndicator,
+  Image,
+  Alert,
+} from 'react-native';
+
+import api from '../../../../services/api';
+import { colors, typography, spacing, radius } from '../../../../src/theme';
 
 export default function JobDetailBid() {
   const router = useRouter();
@@ -14,7 +25,7 @@ export default function JobDetailBid() {
   const [submitting, setSubmitting] = useState(false);
 
   useEffect(() => {
-    api.get(`/jobs/${jobId}`).then(res => {
+    api.get(`/jobs/${jobId}`).then((res: any) => {
       setJob(res.data);
       setLoading(false);
     });
@@ -28,7 +39,7 @@ export default function JobDetailBid() {
     setSubmitting(true);
     try {
       await api.post(`/bids/jobs/${jobId}`, {
-        proposed_price: parseInt(bidPrice),
+        proposed_price: parseInt(bidPrice, 10),
         message,
       });
       router.replace(`/(artisan)/jobs/${jobId}/bid-sent`);
@@ -72,7 +83,11 @@ export default function JobDetailBid() {
           onChangeText={setMessage}
         />
         <TouchableOpacity style={styles.button} onPress={handleBid} disabled={submitting}>
-          {submitting ? <ActivityIndicator color="#fff" /> : <Text style={styles.buttonText}>Submit Bid</Text>}
+          {submitting ? (
+            <ActivityIndicator color="#fff" />
+          ) : (
+            <Text style={styles.buttonText}>Submit Bid</Text>
+          )}
         </TouchableOpacity>
       </View>
     </ScrollView>
@@ -85,10 +100,28 @@ const styles = StyleSheet.create({
   description: { ...typography.body, color: colors.textSecondary, marginBottom: spacing.lg },
   imageList: { flexDirection: 'row', marginBottom: spacing.xl },
   jobImage: { width: 200, height: 150, borderRadius: radius.md, marginRight: spacing.md },
-  bidForm: { backgroundColor: colors.surface, padding: spacing.lg, borderRadius: radius.md, borderWidth: 1, borderColor: '#E2E8F0' },
+  bidForm: {
+    backgroundColor: colors.surface,
+    padding: spacing.lg,
+    borderRadius: radius.md,
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+  },
   sectionTitle: { ...typography.subheading, marginBottom: spacing.md },
-  input: { backgroundColor: colors.bg, padding: spacing.md, borderRadius: radius.md, borderWidth: 1, borderColor: '#E2E8F0', marginBottom: spacing.md },
+  input: {
+    backgroundColor: colors.bg,
+    padding: spacing.md,
+    borderRadius: radius.md,
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+    marginBottom: spacing.md,
+  },
   textArea: { height: 80, textAlignVertical: 'top' },
-  button: { backgroundColor: colors.primary, padding: spacing.md, borderRadius: radius.md, alignItems: 'center' },
+  button: {
+    backgroundColor: colors.primary,
+    padding: spacing.md,
+    borderRadius: radius.md,
+    alignItems: 'center',
+  },
   buttonText: { ...typography.subheading, color: colors.surface },
 });

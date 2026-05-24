@@ -1,8 +1,17 @@
-import React, { useState, useEffect } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, Image, ScrollView, ActivityIndicator } from 'react-native';
 import * as ImagePicker from 'expo-image-picker';
-import { colors, typography, spacing, radius } from '../../../src/theme';
+import React, { useState, useEffect } from 'react';
+import {
+  View,
+  Text,
+  StyleSheet,
+  TouchableOpacity,
+  Image,
+  ScrollView,
+  ActivityIndicator,
+} from 'react-native';
+
 import api from '../../../services/api';
+import { colors, typography, spacing, radius } from '../../../src/theme';
 
 export default function PortfolioScreen() {
   const [photos, setPhotos] = useState<any[]>([]);
@@ -11,10 +20,8 @@ export default function PortfolioScreen() {
   const fetchPortfolio = async () => {
     try {
       const res = await api.get('/artisans/profile/me');
-      // In a real app, portfolio might be a separate field or relation
-      // For now, let's assume we have an endpoint for it or it's in profile
-      const userRes = await api.get(`/${res.data.user_id}/profile`);
-      setPhotos(userRes.data.portfolio);
+      const userRes = await api.get(`/auth/users/${res.data.user_id}/profile`);
+      setPhotos(userRes.data.portfolio || []);
     } catch (error) {
       console.error(error);
     } finally {
@@ -27,8 +34,8 @@ export default function PortfolioScreen() {
   }, []);
 
   const addPhoto = async () => {
-    let result = await ImagePicker.launchImageLibraryAsync({
-      mediaTypes: ['images'],
+    const result = await ImagePicker.launchImageLibraryAsync({
+      mediaTypes: ImagePicker.MediaTypeOptions.Images,
       allowsEditing: true,
       quality: 0.7,
       base64: true,
@@ -71,7 +78,7 @@ export default function PortfolioScreen() {
           <Text style={styles.addText}>Add Work</Text>
         </TouchableOpacity>
 
-        {photos.map(photo => (
+        {photos.map((photo) => (
           <View key={photo.id} style={styles.item}>
             <Image source={{ uri: photo.image_url }} style={styles.image} />
             <TouchableOpacity style={styles.delete} onPress={() => deletePhoto(photo.id)}>
@@ -97,7 +104,7 @@ const styles = StyleSheet.create({
   },
   header: {
     flexDirection: 'row',
-    justifyContent: 'between',
+    justifyContent: 'space-between',
     alignItems: 'baseline',
     marginBottom: spacing.lg,
   },

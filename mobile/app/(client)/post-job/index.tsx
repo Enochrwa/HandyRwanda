@@ -1,8 +1,16 @@
-import React, { useState, useEffect } from 'react';
-import { View, Text, TouchableOpacity, StyleSheet, ScrollView, ActivityIndicator } from 'react-native';
 import { useRouter } from 'expo-router';
-import { colors, typography, spacing, radius } from '../../../src/theme';
+import React, { useState, useEffect } from 'react';
+import {
+  View,
+  Text,
+  TouchableOpacity,
+  StyleSheet,
+  ScrollView,
+  ActivityIndicator,
+} from 'react-native';
+
 import api from '../../../services/api';
+import { colors, typography, spacing, radius } from '../../../src/theme';
 
 export default function PostJobCategory() {
   const router = useRouter();
@@ -10,7 +18,7 @@ export default function PostJobCategory() {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    api.get('/artisans/categories').then(res => {
+    api.get('/artisans/categories').then((res) => {
       setCategories(res.data);
       setLoading(false);
     });
@@ -31,12 +39,8 @@ export default function PostJobCategory() {
       <Text style={styles.subtitle}>Select a category to start your job post</Text>
 
       <View style={styles.grid}>
-        {categories.map(cat => (
-          <TouchableOpacity
-            key={cat.id}
-            style={styles.card}
-            onPress={() => handleSelect(cat.id)}
-          >
+        {categories.map((cat) => (
+          <TouchableOpacity key={cat.id} style={styles.card} onPress={() => handleSelect(cat.id)}>
             <Text style={styles.icon}>{cat.icon_emoji || '🛠️'}</Text>
             <Text style={styles.catName}>{cat.name_en}</Text>
           </TouchableOpacity>

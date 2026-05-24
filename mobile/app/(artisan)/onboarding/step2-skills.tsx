@@ -1,8 +1,16 @@
-import React, { useState, useEffect } from 'react';
-import { View, Text, TouchableOpacity, StyleSheet, ScrollView, ActivityIndicator } from 'react-native';
 import { useRouter } from 'expo-router';
-import { colors, typography, spacing, radius } from '../../../src/theme';
+import React, { useState, useEffect } from 'react';
+import {
+  View,
+  Text,
+  TouchableOpacity,
+  StyleSheet,
+  ScrollView,
+  ActivityIndicator,
+} from 'react-native';
+
 import api from '../../../services/api';
+import { colors, typography, spacing, radius } from '../../../src/theme';
 
 export default function SkillsStep() {
   const router = useRouter();
@@ -11,7 +19,7 @@ export default function SkillsStep() {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    api.get('/artisans/categories').then(res => {
+    api.get('/artisans/categories').then((res) => {
       setCategories(res.data);
       setLoading(false);
     });
@@ -19,7 +27,7 @@ export default function SkillsStep() {
 
   const toggleSkill = (id: string) => {
     if (selected.includes(id)) {
-      setSelected(selected.filter(s => s !== id));
+      setSelected(selected.filter((s) => s !== id));
     } else {
       setSelected([...selected, id]);
     }
@@ -42,7 +50,7 @@ export default function SkillsStep() {
       <Text style={styles.subtitle}>Step 2 of 4: Select Service Categories</Text>
 
       <View style={styles.grid}>
-        {categories.map(cat => (
+        {categories.map((cat) => (
           <TouchableOpacity
             key={cat.id}
             style={[styles.card, selected.includes(cat.id) && styles.activeCard]}

@@ -28,7 +28,7 @@ class RejectPayload(BaseModel):
 @router.get("/artisans/pending")
 async def list_pending_artisans(
     db: AsyncSession = Depends(get_db),
-    current_user: dict = Depends(require_role(UserRole.admin)),
+    current_user: dict[str, Any] = Depends(require_role(UserRole.admin)),
 ) -> Any:
     result = await db.execute(
         select(User, ArtisanProfile)
@@ -42,7 +42,7 @@ async def list_pending_artisans(
 async def approve_artisan(
     user_id: UUID,
     db: AsyncSession = Depends(get_db),
-    current_user: dict = Depends(require_role(UserRole.admin)),
+    current_user: dict[str, Any] = Depends(require_role(UserRole.admin)),
 ) -> Any:
     await db.execute(
         update(ArtisanProfile)
@@ -58,7 +58,7 @@ async def reject_artisan(
     user_id: UUID,
     payload: RejectPayload,
     db: AsyncSession = Depends(get_db),
-    current_user: dict = Depends(require_role(UserRole.admin)),
+    current_user: dict[str, Any] = Depends(require_role(UserRole.admin)),
 ) -> Any:
     await db.execute(
         update(ArtisanProfile)

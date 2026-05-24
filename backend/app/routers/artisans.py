@@ -49,7 +49,7 @@ class PortfolioCreate(BaseModel):
 async def update_profile(
     payload: ArtisanProfileUpdate,
     db: AsyncSession = Depends(get_db),
-    current_user: dict = Depends(require_role(UserRole.artisan)),
+    current_user: dict[str, Any] = Depends(require_role(UserRole.artisan)),
 ) -> Any:
     user_id = UUID(current_user["sub"])
     result = await db.execute(
@@ -73,14 +73,14 @@ async def update_profile(
             spoken_languages=payload.spoken_languages,
         )
         if location_wkt:
-            profile.location = location_wkt
+            profile.location = location_wkt  # type: ignore
         db.add(profile)
     else:
         for key, value in payload.dict(exclude_unset=True).items():
             if key not in ["latitude", "longitude"]:
                 setattr(profile, key, value)
         if location_wkt:
-            profile.location = location_wkt
+            profile.location = location_wkt  # type: ignore
 
     await db.commit()
     return {"message": "Profile updated"}
@@ -89,7 +89,7 @@ async def update_profile(
 @router.get("/profile/me")
 async def get_my_profile(
     db: AsyncSession = Depends(get_db),
-    current_user: dict = Depends(require_role(UserRole.artisan)),
+    current_user: dict[str, Any] = Depends(require_role(UserRole.artisan)),
 ) -> Any:
     user_id = UUID(current_user["sub"])
     result = await db.execute(
@@ -105,7 +105,7 @@ async def get_my_profile(
 async def submit_id_verification(
     payload: IDVerificationRequest,
     db: AsyncSession = Depends(get_db),
-    current_user: dict = Depends(require_role(UserRole.artisan)),
+    current_user: dict[str, Any] = Depends(require_role(UserRole.artisan)),
 ) -> Any:
     user_id = UUID(current_user["sub"])
     id_url = await upload_image(
@@ -135,7 +135,7 @@ async def list_categories(db: AsyncSession = Depends(get_db)) -> Any:
 async def update_skills(
     category_ids: list[UUID],
     db: AsyncSession = Depends(get_db),
-    current_user: dict = Depends(require_role(UserRole.artisan)),
+    current_user: dict[str, Any] = Depends(require_role(UserRole.artisan)),
 ) -> Any:
     user_id = UUID(current_user["sub"])
     await db.execute(
@@ -153,7 +153,7 @@ async def update_skills(
 async def delete_portfolio_photo(
     photo_id: UUID,
     db: AsyncSession = Depends(get_db),
-    current_user: dict = Depends(require_role(UserRole.artisan)),
+    current_user: dict[str, Any] = Depends(require_role(UserRole.artisan)),
 ) -> Any:
     user_id = UUID(current_user["sub"])
     await db.execute(
@@ -169,7 +169,7 @@ async def delete_portfolio_photo(
 async def add_portfolio_photo(
     payload: PortfolioCreate,
     db: AsyncSession = Depends(get_db),
-    current_user: dict = Depends(require_role(UserRole.artisan)),
+    current_user: dict[str, Any] = Depends(require_role(UserRole.artisan)),
 ) -> Any:
     user_id = UUID(current_user["sub"])
     url = await upload_image(payload.photo_base64, f"portfolio/{user_id}")

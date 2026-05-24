@@ -102,8 +102,8 @@ async def get_user_profile(user_id: UUID, db: AsyncSession = Depends(get_db)) ->
         raise HTTPException(status_code=404, detail="User not found")
 
     # Fetch artisan profile and portfolio if applicable
-    profile = None
-    portfolio = []
+    profile: ArtisanProfile | None = None
+    portfolio: list[PortfolioPhoto] = []
     if user.role == UserRole.artisan:
         p_res = await db.execute(
             select(ArtisanProfile).where(ArtisanProfile.user_id == user_id)
@@ -113,7 +113,7 @@ async def get_user_profile(user_id: UUID, db: AsyncSession = Depends(get_db)) ->
         port_res = await db.execute(
             select(PortfolioPhoto).where(PortfolioPhoto.artisan_id == user_id)
         )
-        portfolio = port_res.scalars().all()
+        portfolio = list(port_res.scalars().all())
 
     return {
         "id": user.id,

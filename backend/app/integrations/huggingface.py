@@ -1,4 +1,5 @@
 import os
+from typing import Any
 
 import httpx
 from dotenv import load_dotenv
@@ -11,7 +12,7 @@ HEADERS = {"Authorization": f"Bearer {HF_TOKEN}"} if HF_TOKEN else {}
 
 async def get_job_category_match(
     job_description: str, candidate_labels: list[str]
-) -> dict:
+) -> dict[str, Any]:
     """
     Suggest relevant service category using zero-shot classification.
     Uses the new Hugging Face Inference Router.
@@ -35,7 +36,7 @@ async def get_job_category_match(
                 timeout=30.0,
             )
             r.raise_for_status()
-            return r.json()
+            return r.json()  # type: ignore
         except Exception:
             return {}
 
@@ -78,6 +79,8 @@ async def translate_message(text: str, src_lang: str, tgt_lang: str) -> str:
             if r.status_code != 200:
                 return text
             result = r.json()
-            return result[0]["translation_text"] if isinstance(result, list) else text
+            if isinstance(result, list) and len(result) > 0:
+                return str(result[0].get("translation_text", text))
+            return text
         except Exception:
             return text

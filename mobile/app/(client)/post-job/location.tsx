@@ -45,16 +45,19 @@ export default function JobLocation() {
         <Text style={styles.subtitle}>Drop a pin at the job location</Text>
       </View>
 
+      {/* @ts-ignore */}
       <MapView
         style={styles.map}
         region={region}
         onPress={(e: any) => setMarker(e.nativeEvent.coordinate)}
       >
+        {/* @ts-ignore */}
         <UrlTile
           urlTemplate="https://tile.openstreetmap.org/{z}/{x}/{y}.png"
           maximumZ={19}
           flipY={false}
         />
+        {/* @ts-ignore */}
         <Marker coordinate={marker} />
       </MapView>
 

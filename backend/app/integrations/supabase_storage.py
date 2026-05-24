@@ -9,7 +9,9 @@ SUPABASE_KEY = os.getenv("SUPABASE_SERVICE_ROLE_KEY")
 BUCKET = "artisan-media"
 
 
-async def upload_image(base64_data: str, folder: str, filename: str = None) -> str:
+async def upload_image(
+    base64_data: str, folder: str, filename: str | None = None
+) -> str:
     """Upload base64 image to Supabase Storage. Returns public URL."""
     if not filename:
         filename = f"{uuid.uuid4()}.jpg"

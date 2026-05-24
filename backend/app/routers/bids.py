@@ -27,7 +27,7 @@ async def submit_bid(
     job_id: UUID,
     payload: BidCreate,
     db: AsyncSession = Depends(get_db),
-    current_user: dict = Depends(require_role(UserRole.artisan)),
+    current_user: dict[str, Any] = Depends(require_role(UserRole.artisan)),
 ) -> Any:
     user_id = UUID(current_user["sub"])
 
@@ -56,7 +56,7 @@ async def submit_bid(
 async def list_bids(
     job_id: UUID,
     db: AsyncSession = Depends(get_db),
-    current_user: dict = Depends(get_current_user),
+    current_user: dict[str, Any] = Depends(get_current_user),
 ) -> Any:
     user_id = UUID(current_user["sub"])
     user_role = current_user.get("role")
@@ -98,7 +98,7 @@ async def list_bids(
 async def accept_bid(
     bid_id: UUID,
     db: AsyncSession = Depends(get_db),
-    current_user: dict = Depends(require_role(UserRole.client)),
+    current_user: dict[str, Any] = Depends(require_role(UserRole.client)),
 ) -> Any:
     user_id = UUID(current_user["sub"])
 
@@ -114,7 +114,7 @@ async def accept_bid(
 
     # Update statuses
     bid.status = BidStatus.accepted
-    job.status = JobStatus.booked  # type: ignore
+    job.status = JobStatus.booked
 
     # Reject other bids
     await db.execute(
@@ -128,7 +128,7 @@ async def accept_bid(
         job_id=job.id,
         client_id=user_id,
         artisan_id=bid.artisan_id,
-        status=BookingStatus.pending,
+        status=BookingStatus.pending_payment,
         agreed_price=bid.proposed_price,
         scheduled_at=bid.proposed_start_time,
     )
@@ -142,7 +142,7 @@ async def accept_bid(
 async def reject_bid(
     bid_id: UUID,
     db: AsyncSession = Depends(get_db),
-    current_user: dict = Depends(require_role(UserRole.client)),
+    current_user: dict[str, Any] = Depends(require_role(UserRole.client)),
 ) -> Any:
     await db.execute(
         update(Bid).where(Bid.id == bid_id).values(status=BidStatus.rejected)

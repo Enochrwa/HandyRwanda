@@ -15,7 +15,7 @@ import { colors, typography, spacing, radius } from '../../../src/theme';
 
 export default function ConfirmJob() {
   const router = useRouter();
-  const params = useLocalSearchParams<any>();
+  const params = useLocalSearchParams<Record<string, string>>();
   const [loading, setLoading] = useState(false);
 
   const handleSubmit = async () => {

@@ -14,7 +14,7 @@ import { colors, typography, spacing, radius } from '../../../src/theme';
 
 export default function SkillsStep() {
   const router = useRouter();
-  const [categories, setCategories] = useState<any[]>([]);
+  const [categories, setCategories] = useState<Record<string, unknown>[]>([]);
   const [selected, setSelected] = useState<string[]>([]);
   const [loading, setLoading] = useState(true);
 

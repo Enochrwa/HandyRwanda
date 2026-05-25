@@ -1,20 +1,24 @@
+# File: backend/requirements.txt
 fastapi
 uvicorn[standard]
 sqlalchemy[asyncio]
-asyncpg
-geoalchemy2
+aiosqlite
 pydantic[email]
-psycopg2-binary
 alembic
 python-jose[cryptography]
 passlib[bcrypt]
 python-multipart
 httpx
 slowapi
-upstash-redis
-resend
 python-dotenv
 pytest
 pytest-asyncio
 ruff
 mypy
+
+# Production/cloud only (install separately or via requirements-prod.txt):
+# asyncpg
+# geoalchemy2
+# psycopg2-binary
+# upstash-redis
+# resend

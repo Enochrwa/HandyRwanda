@@ -14,7 +14,7 @@ import { colors, typography, spacing, radius } from '../../../src/theme';
 
 export default function ArtisanJobFeed() {
   const router = useRouter();
-  const [jobs, setJobs] = useState<any[]>([]);
+  const [jobs, setJobs] = useState<Record<string, unknown>[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -24,7 +24,7 @@ export default function ArtisanJobFeed() {
     });
   }, []);
 
-  const renderItem = ({ item }: { item: any }) => (
+  const renderItem = ({ item }: { item: Record<string, unknown> }) => (
     <TouchableOpacity style={styles.card} onPress={() => router.push(`/(artisan)/jobs/${item.id}`)}>
       <View style={styles.header}>
         <Text style={styles.jobTitle}>{item.title}</Text>

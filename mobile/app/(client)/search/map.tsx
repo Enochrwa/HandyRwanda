@@ -10,9 +10,14 @@ import { colors, typography, spacing, radius } from '../../../src/theme';
 
 export default function ArtisanMapSearch() {
   const router = useRouter();
-  const [region, setRegion] = useState<any>(null);
-  const [artisans, setArtisans] = useState<any[]>([]);
-  const [selectedArtisan, setSelectedArtisan] = useState<any>(null);
+  const [region, setRegion] = useState<{
+    latitude: number;
+    longitude: number;
+    latitudeDelta: number;
+    longitudeDelta: number;
+  } | null>(null);
+  const [artisans, setArtisans] = useState<Record<string, unknown>[]>([]);
+  const [selectedArtisan, setSelectedArtisan] = useState<Record<string, unknown> | null>(null);
   const bottomSheetRef = useRef<BottomSheet>(null);
 
   useEffect(() => {
@@ -42,7 +47,7 @@ export default function ArtisanMapSearch() {
     }
   };
 
-  const onMarkerPress = (artisan: any) => {
+  const onMarkerPress = (artisan: Record<string, unknown>) => {
     setSelectedArtisan(artisan);
     bottomSheetRef.current?.expand();
   };
@@ -51,42 +56,46 @@ export default function ArtisanMapSearch() {
 
   return (
     <View style={styles.container}>
-      {/* @ts-ignore */}
+      {/* @ts-expect-error - react-native-maps types */}
       <MapView
         style={styles.map}
         initialRegion={region}
-        onRegionChangeComplete={(r: any) => fetchArtisans(r.latitude, r.longitude)}
+        onRegionChangeComplete={(r: { latitude: number; longitude: number }) =>
+          fetchArtisans(r.latitude, r.longitude)
+        }
       >
-        {/* @ts-ignore */}
+        {/* @ts-expect-error - react-native-maps types */}
         <UrlTile
           urlTemplate="https://tile.openstreetmap.org/{z}/{x}/{y}.png"
           maximumZ={19}
           flipY={false}
         />
         {artisans.map((a) => (
-          /* @ts-ignore */
-          <Marker
-            key={a.id}
-            coordinate={{
-              latitude: a.lat || region.latitude,
-              longitude: a.lng || region.longitude,
-            }}
-            onPress={() => onMarkerPress(a)}
-          >
-            <View style={styles.customMarker}>
-              {a.avatar_url ? (
-                <Image source={{ uri: a.avatar_url }} style={styles.markerImage} />
-              ) : (
-                <View style={styles.markerPlaceholder} />
-              )}
-            </View>
-          </Marker>
+          <View key={a.id}>
+            {/* @ts-expect-error - react-native-maps types */}
+            <Marker
+              coordinate={{
+                latitude: (a.lat as number) || region.latitude,
+                longitude: (a.lng as number) || region.longitude,
+              }}
+              onPress={() => onMarkerPress(a)}
+            >
+              <View style={styles.customMarker}>
+                {a.avatar_url ? (
+                  <Image source={{ uri: a.avatar_url }} style={styles.markerImage} />
+                ) : (
+                  <View style={styles.markerPlaceholder} />
+                )}
+              </View>
+            </Marker>
+          </View>
         ))}
+        )
       </MapView>
 
-      {/* @ts-ignore */}
+      {/* @ts-expect-error - gorhom/bottom-sheet types */}
       <BottomSheet ref={bottomSheetRef} index={-1} snapPoints={['30%']} enablePanDownToClose>
-        {/* @ts-ignore */}
+        {/* @ts-expect-error - gorhom/bottom-sheet types */}
         <BottomSheetView style={styles.sheetContent}>
           {selectedArtisan && (
             <View>

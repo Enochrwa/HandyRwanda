@@ -33,7 +33,7 @@ export default function LocationStep() {
       setRegion(newRegion);
       setMarker({ latitude: location.coords.latitude, longitude: location.coords.longitude });
     })();
-  }, []);
+  }, [region]);
 
   const handleNext = async () => {
     try {
@@ -56,25 +56,29 @@ export default function LocationStep() {
         <Text style={styles.subtitle}>Step 3 of 4: Set Service Area</Text>
       </View>
 
-      {/* @ts-ignore */}
+      {/* @ts-expect-error - react-native-maps types */}
       <MapView
         style={styles.map}
         initialRegion={region}
-        onPress={(e: any) => setMarker(e.nativeEvent.coordinate)}
+        onPress={(e: { nativeEvent: { coordinate: { latitude: number; longitude: number } } }) =>
+          setMarker(e.nativeEvent.coordinate)
+        }
       >
-        {/* @ts-ignore */}
+        {/* @ts-expect-error - react-native-maps types */}
         <UrlTile
           urlTemplate="https://tile.openstreetmap.org/{z}/{x}/{y}.png"
           maximumZ={19}
           flipY={false}
         />
-        {/* @ts-ignore */}
+        {/* @ts-expect-error - react-native-maps types */}
         <Marker
           coordinate={marker}
           draggable
-          onDragEnd={(e: any) => setMarker(e.nativeEvent.coordinate)}
+          onDragEnd={(e: {
+            nativeEvent: { coordinate: { latitude: number; longitude: number } };
+          }) => setMarker(e.nativeEvent.coordinate)}
         />
-        {/* @ts-ignore */}
+        {/* @ts-expect-error - react-native-maps types */}
         <Circle
           center={marker}
           radius={radiusKm * 1000}
@@ -85,7 +89,7 @@ export default function LocationStep() {
 
       <View style={styles.footer}>
         <Text style={styles.label}>Service Radius: {radiusKm} km</Text>
-        {/* @ts-ignore */}
+        {/* @ts-expect-error - react-native-community/slider types */}
         <Slider
           style={styles.slider}
           minimumValue={1}

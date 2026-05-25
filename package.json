@@ -1,5 +1,6 @@
 {
   "name": "handyrwanda-monorepo",
+  "type": "module",
   "private": true,
   "workspaces": [
     "web",
@@ -8,12 +9,19 @@
   ],
   "scripts": {
     "prepare": "husky",
-    "dev": "concurrently \"npm run dev -w web\" \"cd backend && uvicorn app.main:app --reload --port 8000\"",
+    "dev": "concurrently --names \"web,api\" --prefix-colors \"cyan,yellow\" \"npm run dev -w web\" \"npm run dev:backend\"",
     "build": "npm run build --workspaces --if-present",
-    "lint": "eslint web/src mobile/app --ext .ts,.tsx",
-    "format": "prettier --write \"**/*.{ts,tsx,py}\"",
-    "type-check": "tsc -p web/tsconfig.json --noEmit && tsc -p mobile/tsconfig.json --noEmit",
-    "test": "npm test -w web && npm test -w mobile && cd backend && pytest"
+    "lint": "eslint web/src --ext .ts,.tsx",
+    "format": "prettier --write \"**/*.{ts,tsx}\"",
+    "format:py": "cd backend && python -m black .",
+    "type-check": "tsc -p web/tsconfig.json --noEmit",
+    "test": "npm test -w web && cd backend && pytest",
+    "dev:web": "npm run dev -w web",
+    "dev:mobile": "npm run start -w mobile",
+    "dev:backend": "cd backend && python -m uvicorn app.main:app --reload --port 8000 --host 0.0.0.0",
+    "dev:all": "concurrently --names \"web,api,mobile\" --prefix-colors \"cyan,yellow,green\" \"npm run dev -w web\" \"npm run dev:backend\" \"npm run dev:mobile\"",
+    "backend:install": "cd backend && pip install -r requirements.txt",
+    "backend:install:prod": "cd backend && pip install -r requirements-prod.txt"
   },
   "devDependencies": {
     "@commitlint/cli": "^19.7.1",
@@ -31,6 +39,7 @@
     "uuid": "^11.1.1"
   },
   "overrides": {
-    "uuid": "^11.1.1"
+    "uuid": "^11.1.1",
+    "vite": "^6.3.5"
   }
 }

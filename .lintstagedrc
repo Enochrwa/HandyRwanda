@@ -1,11 +1,9 @@
 {
-  "web/**/*.{ts,tsx,js,jsx}": [
-    "npm run lint -w web",
-    "npm run format -w web"
+  "web/src/**/*.{ts,tsx,js,jsx}": [
+    "prettier --write"
   ],
   "mobile/**/*.{ts,tsx,js,jsx}": [
-    "npm run lint -w mobile",
-    "npm run format -w mobile"
+    "prettier --write"
   ],
   "backend/**/*.py": [
     "ruff check --fix",

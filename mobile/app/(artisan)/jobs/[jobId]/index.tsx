@@ -18,14 +18,14 @@ import { colors, typography, spacing, radius } from '../../../../src/theme';
 export default function JobDetailBid() {
   const router = useRouter();
   const { jobId } = useLocalSearchParams<{ jobId: string }>();
-  const [job, setJob] = useState<any>(null);
+  const [job, setJob] = useState<Record<string, unknown> | null>(null);
   const [loading, setLoading] = useState(true);
   const [bidPrice, setBidPrice] = useState('');
   const [message, setMessage] = useState('');
   const [submitting, setSubmitting] = useState(false);
 
   useEffect(() => {
-    api.get(`/jobs/${jobId}`).then((res: any) => {
+    api.get(`/jobs/${jobId}`).then((res: { data: Record<string, unknown> }) => {
       setJob(res.data);
       setLoading(false);
     });

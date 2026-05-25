@@ -151,7 +151,9 @@ async def get_job_detail(
         if job.location_label and "," in job.location_label:
             district = job.location_label.split(",")[-1].strip()
 
-        price_guidance = await get_price_anchor(UUID(str(job.category_id)), district, db)
+        price_guidance = await get_price_anchor(
+            UUID(str(job.category_id)), district, db
+        )
 
     return {
         "job": job,

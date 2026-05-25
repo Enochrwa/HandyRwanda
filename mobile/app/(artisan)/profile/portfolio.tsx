@@ -14,7 +14,7 @@ import api from '../../../services/api';
 import { colors, typography, spacing, radius } from '../../../src/theme';
 
 export default function PortfolioScreen() {
-  const [photos, setPhotos] = useState<any[]>([]);
+  const [photos, setPhotos] = useState<Record<string, unknown>[]>([]);
   const [loading, setLoading] = useState(true);
 
   const fetchPortfolio = async () => {

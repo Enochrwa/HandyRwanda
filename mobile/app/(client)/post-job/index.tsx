@@ -14,7 +14,7 @@ import { colors, typography, spacing, radius } from '../../../src/theme';
 
 export default function PostJobCategory() {
   const router = useRouter();
-  const [categories, setCategories] = useState<any[]>([]);
+  const [categories, setCategories] = useState<Record<string, unknown>[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {

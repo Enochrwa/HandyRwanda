@@ -125,4 +125,14 @@ const FormField = <
   );
 };
 
-export { Form, FormItem, FormLabel, FormControl, FormDescription, FormMessage, FormField };
+export {
+  Form,
+  FormItem,
+  FormLabel,
+  FormControl,
+  FormDescription,
+  FormMessage,
+  FormField,
+  FormItemContext,
+  FormFieldContext,
+};

@@ -1,5 +1,6 @@
 # File: backend/app/database.py
 import os
+from collections.abc import AsyncGenerator
 
 from dotenv import load_dotenv
 from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
@@ -36,7 +37,7 @@ class Base(DeclarativeBase):
     pass
 
 
-async def get_db():
+async def get_db() -> AsyncGenerator:
     async with AsyncSessionLocal() as session:
         yield session
 

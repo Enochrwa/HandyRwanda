@@ -73,6 +73,7 @@ export default function ArtisanMapSearch() {
         {artisans.map((a) => (
           <View key={a.id}>
             {/* @ts-expect-error - react-native-maps types */}
+            {/* @ts-expect-error - react-native-maps types */}
             <Marker
               coordinate={{
                 latitude: (a.lat as number) || region.latitude,

@@ -57,6 +57,7 @@ export default function LocationStep() {
       </View>
 
       {/* @ts-expect-error - react-native-maps types */}
+      {/* @ts-expect-error - react-native-maps types */}
       <MapView
         style={styles.map}
         initialRegion={region}
@@ -65,11 +66,13 @@ export default function LocationStep() {
         }
       >
         {/* @ts-expect-error - react-native-maps types */}
+        {/* @ts-expect-error - react-native-maps types */}
         <UrlTile
           urlTemplate="https://tile.openstreetmap.org/{z}/{x}/{y}.png"
           maximumZ={19}
           flipY={false}
         />
+        {/* @ts-expect-error - react-native-maps types */}
         {/* @ts-expect-error - react-native-maps types */}
         <Marker
           coordinate={marker}
@@ -78,6 +81,7 @@ export default function LocationStep() {
             nativeEvent: { coordinate: { latitude: number; longitude: number } };
           }) => setMarker(e.nativeEvent.coordinate)}
         />
+        {/* @ts-expect-error - react-native-maps types */}
         {/* @ts-expect-error - react-native-maps types */}
         <Circle
           center={marker}
@@ -89,6 +93,7 @@ export default function LocationStep() {
 
       <View style={styles.footer}>
         <Text style={styles.label}>Service Radius: {radiusKm} km</Text>
+        {/* @ts-expect-error - react-native-community/slider types */}
         {/* @ts-expect-error - react-native-community/slider types */}
         <Slider
           style={styles.slider}

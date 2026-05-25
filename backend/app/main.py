@@ -1,5 +1,6 @@
 # File: backend/app/main.py
 import os
+from collections.abc import AsyncGenerator
 from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
@@ -10,7 +11,7 @@ from app.routers import admin, artisans, auth, bids, jobs
 
 
 @asynccontextmanager
-async def lifespan(app: FastAPI):
+async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
     # Auto-create tables in dev (SQLite). No-op when DATABASE_URL points to PG.
     if not os.getenv("DATABASE_URL"):
         await init_db()

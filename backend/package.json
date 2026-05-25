@@ -5,6 +5,6 @@
     "lint": "ruff check .",
     "format": "ruff format .",
     "test": "pytest",
-    "type-check": "mypy ."
+    "type-check": "mypy --config-file pyproject.toml ."
   }
 }

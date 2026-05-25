@@ -12,15 +12,12 @@ Usage in models is identical to the PG originals:
 """
 
 import os
-from typing import Any
+from typing import Any, Literal, overload
 
 from sqlalchemy import JSON, String
 from sqlalchemy.types import TypeEngine
 
 _USE_PG = bool(os.getenv("DATABASE_URL"))
-
-
-from typing import overload, Literal
 
 
 @overload
@@ -31,12 +28,12 @@ def UUID(as_uuid: Literal[True] = ...) -> TypeEngine[Any]: ...
 def UUID(as_uuid: Literal[False]) -> TypeEngine[Any]: ...
 
 
-def UUID(as_uuid: bool = True) -> TypeEngine[Any]:  # noqa: N802
+def UUID(as_uuid: bool = True) -> Any:  # noqa: N802
     """PostgreSQL UUID → SQLite String(36)."""
     if _USE_PG:
         from sqlalchemy.dialects.postgresql import UUID as PG_UUID  # noqa: PLC0415
 
-        return PG_UUID(as_uuid=as_uuid)
+        return PG_UUID(as_uuid=as_uuid)  # type: ignore[call-overload]
     return String(36)
 
 

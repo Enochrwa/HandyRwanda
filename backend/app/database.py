@@ -3,7 +3,7 @@ import os
 from collections.abc import AsyncGenerator
 
 from dotenv import load_dotenv
-from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
+from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
 from sqlalchemy.orm import DeclarativeBase
 
 load_dotenv()
@@ -35,9 +35,6 @@ AsyncSessionLocal = async_sessionmaker(engine, expire_on_commit=False)
 
 class Base(DeclarativeBase):
     pass
-
-
-from sqlalchemy.ext.asyncio import AsyncSession
 
 
 async def get_db() -> AsyncGenerator[AsyncSession, None]:

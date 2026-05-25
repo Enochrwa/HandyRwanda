@@ -10,5 +10,5 @@ export default defineConfig({
     }),
     tsconfigPaths(),
     tailwindcss(),
-  ] as any,
+  ],
 });

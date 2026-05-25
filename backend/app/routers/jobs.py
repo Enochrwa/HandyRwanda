@@ -55,7 +55,7 @@ async def create_job(
                 top_label = match_res["labels"][0]
                 for c in all_cats:
                     if c.name_en == top_label:
-                        payload.category_id = c.id  # type: ignore[assignment]
+                        payload.category_id = c.id
                         break
 
     # Upload photos
@@ -180,6 +180,6 @@ async def cancel_job(
             status_code=400, detail="Cannot cancel job in current status"
         )
 
-    job.status = JobStatus.cancelled  # type: ignore[assignment]
+    job.status = JobStatus.cancelled
     await db.commit()
     return {"message": "Job cancelled"}

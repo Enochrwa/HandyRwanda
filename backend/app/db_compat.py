@@ -21,11 +21,11 @@ _USE_PG = bool(os.getenv("DATABASE_URL"))
 
 
 @overload
-def UUID(as_uuid: Literal[True] = ...) -> TypeEngine[Any]: ...
+def UUID(as_uuid: Literal[True] = ...) -> Any: ...
 
 
 @overload
-def UUID(as_uuid: Literal[False]) -> TypeEngine[Any]: ...
+def UUID(as_uuid: Literal[False]) -> Any: ...
 
 
 def UUID(as_uuid: bool = True) -> Any:  # noqa: N802
@@ -33,11 +33,11 @@ def UUID(as_uuid: bool = True) -> Any:  # noqa: N802
     if _USE_PG:
         from sqlalchemy.dialects.postgresql import UUID as PG_UUID  # noqa: PLC0415
 
-        return PG_UUID(as_uuid=as_uuid)  # type: ignore[call-overload]
+        return PG_UUID(as_uuid=as_uuid)
     return String(36)
 
 
-def ARRAY(item_type: TypeEngine[Any] | None = None) -> TypeEngine[Any]:  # noqa: N802
+def ARRAY(item_type: TypeEngine[Any] | None = None) -> Any:  # noqa: N802
     """PostgreSQL ARRAY → SQLite JSON."""
     if _USE_PG:
         from sqlalchemy import String as StringType  # noqa: PLC0415, N817
@@ -53,7 +53,7 @@ class _JSONBMeta(type):
     def __instancecheck__(cls, instance: Any) -> bool:
         return super().__instancecheck__(instance)
 
-    def _resolve(cls) -> TypeEngine[Any]:
+    def _resolve(cls) -> Any:
         if _USE_PG:
             from sqlalchemy.dialects.postgresql import (  # noqa: PLC0415
                 JSONB as PG_JSONB,
@@ -62,7 +62,7 @@ class _JSONBMeta(type):
             return PG_JSONB()
         return JSON()
 
-    def __call__(cls, *args: Any, **kwargs: Any) -> TypeEngine[Any]:
+    def __call__(cls, *args: Any, **kwargs: Any) -> Any:
         return cls._resolve()
 
 
@@ -72,7 +72,7 @@ class JSONB(metaclass=_JSONBMeta):  # noqa: N801
 
 def Geography(  # noqa: N802
     geometry_type: str = "POINT", srid: int = 4326
-) -> TypeEngine[Any]:
+) -> Any:
     """GeoAlchemy2 Geography → SQLite String (store as 'lon,lat')."""
     if _USE_PG:
         from geoalchemy2 import Geography as Geo  # noqa: PLC0415

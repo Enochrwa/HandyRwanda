@@ -56,8 +56,6 @@ export default function LocationStep() {
         <Text style={styles.subtitle}>Step 3 of 4: Set Service Area</Text>
       </View>
 
-      {/* @ts-expect-error - react-native-maps types */}
-      {/* @ts-expect-error - react-native-maps types */}
       <MapView
         style={styles.map}
         initialRegion={region}
@@ -65,15 +63,11 @@ export default function LocationStep() {
           setMarker(e.nativeEvent.coordinate)
         }
       >
-        {/* @ts-expect-error - react-native-maps types */}
-        {/* @ts-expect-error - react-native-maps types */}
         <UrlTile
           urlTemplate="https://tile.openstreetmap.org/{z}/{x}/{y}.png"
           maximumZ={19}
           flipY={false}
         />
-        {/* @ts-expect-error - react-native-maps types */}
-        {/* @ts-expect-error - react-native-maps types */}
         <Marker
           coordinate={marker}
           draggable
@@ -81,8 +75,6 @@ export default function LocationStep() {
             nativeEvent: { coordinate: { latitude: number; longitude: number } };
           }) => setMarker(e.nativeEvent.coordinate)}
         />
-        {/* @ts-expect-error - react-native-maps types */}
-        {/* @ts-expect-error - react-native-maps types */}
         <Circle
           center={marker}
           radius={radiusKm * 1000}
@@ -93,8 +85,6 @@ export default function LocationStep() {
 
       <View style={styles.footer}>
         <Text style={styles.label}>Service Radius: {radiusKm} km</Text>
-        {/* @ts-expect-error - react-native-community/slider types */}
-        {/* @ts-expect-error - react-native-community/slider types */}
         <Slider
           style={styles.slider}
           minimumValue={1}

@@ -45,7 +45,6 @@ export default function JobLocation() {
         <Text style={styles.subtitle}>Drop a pin at the job location</Text>
       </View>
 
-      {/* @ts-expect-error - react-native-maps types */}
       <MapView
         style={styles.map}
         region={region}
@@ -53,13 +52,11 @@ export default function JobLocation() {
           setMarker(e.nativeEvent.coordinate)
         }
       >
-        {/* @ts-expect-error - react-native-maps types */}
         <UrlTile
           urlTemplate="https://tile.openstreetmap.org/{z}/{x}/{y}.png"
           maximumZ={19}
           flipY={false}
         />
-        {/* @ts-expect-error - react-native-maps types */}
         <Marker coordinate={marker} />
       </MapView>
 

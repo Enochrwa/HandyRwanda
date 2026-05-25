@@ -20,6 +20,17 @@ from sqlalchemy.types import TypeEngine
 _USE_PG = bool(os.getenv("DATABASE_URL"))
 
 
+from typing import overload, Literal
+
+
+@overload
+def UUID(as_uuid: Literal[True] = ...) -> TypeEngine[Any]: ...
+
+
+@overload
+def UUID(as_uuid: Literal[False]) -> TypeEngine[Any]: ...
+
+
 def UUID(as_uuid: bool = True) -> TypeEngine[Any]:  # noqa: N802
     """PostgreSQL UUID → SQLite String(36)."""
     if _USE_PG:
@@ -54,11 +65,8 @@ class _JSONBMeta(type):
             return PG_JSONB()
         return JSON()
 
-    def __call__(cls, *args: Any, **kwargs: Any) -> TypeEngine[Any]:  # type: ignore[override]
+    def __call__(cls, *args: Any, **kwargs: Any) -> TypeEngine[Any]:
         return cls._resolve()
-
-    def __instancecheck__(cls, instance: Any) -> bool:  # noqa: F811
-        return super().__instancecheck__(instance)
 
 
 class JSONB(metaclass=_JSONBMeta):  # noqa: N801

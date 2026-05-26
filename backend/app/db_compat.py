@@ -2,6 +2,7 @@
 """
 SQLAlchemy compatibility shims that make PostgreSQL-specific types work on SQLite.
 """
+# ruff: noqa: PLC0415
 import os
 from typing import Any
 
@@ -11,7 +12,7 @@ _USE_PG = bool(os.getenv("DATABASE_URL"))
 
 def UUID(as_uuid: bool = True) -> Any:  # noqa: N802
     if _USE_PG:
-        from sqlalchemy.dialects.postgresql import UUID as PG_UUID  # noqa: PLC0415
+        from sqlalchemy.dialects.postgresql import UUID as PG_UUID
         if as_uuid:
             return PG_UUID(as_uuid=True)
         return PG_UUID(as_uuid=False)
@@ -19,8 +20,8 @@ def UUID(as_uuid: bool = True) -> Any:  # noqa: N802
 
 def ARRAY(item_type: Any = None) -> Any:  # noqa: N802
     if _USE_PG:
-        from sqlalchemy import String as StringType  # noqa: PLC0415, N817
-        from sqlalchemy.dialects.postgresql import ARRAY as PG_ARRAY  # noqa: PLC0415
+        from sqlalchemy import String as StringType  # noqa: N817
+        from sqlalchemy.dialects.postgresql import ARRAY as PG_ARRAY
         return PG_ARRAY(item_type if item_type is not None else StringType)
     return JSON()
 
@@ -30,9 +31,7 @@ class _JSONBMeta(type):
 
     def _resolve(cls) -> Any:
         if _USE_PG:
-            from sqlalchemy.dialects.postgresql import (
-                JSONB as PG_JSONB,  # noqa: PLC0415
-            )
+            from sqlalchemy.dialects.postgresql import JSONB as PG_JSONB
             return PG_JSONB()
         return JSON()
 
@@ -44,6 +43,6 @@ class JSONB(metaclass=_JSONBMeta):  # noqa: N801
 
 def Geography(geometry_type: str = "POINT", srid: int = 4326) -> Any:  # noqa: N802
     if _USE_PG:
-        from geoalchemy2 import Geography as Geo  # noqa: PLC0415
+        from geoalchemy2 import Geography as Geo
         return Geo(geometry_type=geometry_type, srid=srid)
     return String(50)

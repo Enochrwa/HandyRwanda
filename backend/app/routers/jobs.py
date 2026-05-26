@@ -1,5 +1,5 @@
 from datetime import datetime
-from typing import Any
+from typing import Any, cast
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, HTTPException
@@ -55,7 +55,7 @@ async def create_job(
                 top_label = match_res["labels"][0]
                 for c in all_cats:
                     if c.name_en == top_label:
-                        payload.category_id = c.id
+                        payload.category_id = cast(Any, c).id
                         break
 
     # Upload photos
@@ -180,6 +180,6 @@ async def cancel_job(
             status_code=400, detail="Cannot cancel job in current status"
         )
 
-    job.status = JobStatus.cancelled
+    job.status = cast(Any, JobStatus.cancelled)
     await db.commit()
     return {"message": "Job cancelled"}

@@ -4,11 +4,17 @@ SQLAlchemy compatibility shims that make PostgreSQL-specific types work on SQLit
 """
 # ruff: noqa: PLC0415
 import os
-from typing import Any
+from typing import Any, Literal, overload
 
 from sqlalchemy import JSON, String
 
 _USE_PG = bool(os.getenv("DATABASE_URL"))
+
+@overload
+def UUID(as_uuid: Literal[True] = ...) -> Any: ...
+
+@overload
+def UUID(as_uuid: Literal[False]) -> Any: ...
 
 def UUID(as_uuid: bool = True) -> Any:  # noqa: N802
     if _USE_PG:

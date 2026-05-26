@@ -17,6 +17,7 @@ def UUID(as_uuid: Literal[True] = ...) -> Any: ...
 def UUID(as_uuid: Literal[False]) -> Any: ...
 
 def UUID(as_uuid: bool = True) -> Any:  # noqa: N802
+    """PostgreSQL UUID → SQLite String(36)."""
     if _USE_PG:
         from sqlalchemy.dialects.postgresql import UUID as PG_UUID
         if as_uuid:
@@ -25,6 +26,7 @@ def UUID(as_uuid: bool = True) -> Any:  # noqa: N802
     return String(36)
 
 def ARRAY(item_type: Any = None) -> Any:  # noqa: N802
+    """PostgreSQL ARRAY → SQLite JSON."""
     if _USE_PG:
         from sqlalchemy import String as StringType  # noqa: N817
         from sqlalchemy.dialects.postgresql import ARRAY as PG_ARRAY
@@ -32,6 +34,8 @@ def ARRAY(item_type: Any = None) -> Any:  # noqa: N802
     return JSON()
 
 class _JSONBMeta(type):
+    """Make JSONB usable as both Column(JSONB, ...) and Column(JSONB(), ...)."""
+
     def __instancecheck__(cls, instance: Any) -> bool:
         return super().__instancecheck__(instance)
 
@@ -45,9 +49,10 @@ class _JSONBMeta(type):
         return cls._resolve()
 
 class JSONB(metaclass=_JSONBMeta):  # noqa: N801
-    """Transparent JSONB shim."""
+    """Transparent JSONB shim: works as Column(JSONB) or Column(JSONB())."""
 
 def Geography(geometry_type: str = "POINT", srid: int = 4326) -> Any:  # noqa: N802
+    """GeoAlchemy2 Geography → SQLite String (store as 'lon,lat')."""
     if _USE_PG:
         from geoalchemy2 import Geography as Geo
         return Geo(geometry_type=geometry_type, srid=srid)

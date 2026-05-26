@@ -1,7 +1,6 @@
 import enum
 import uuid
 
-from geoalchemy2 import Geography
 from sqlalchemy import (
     Boolean,
     Column,
@@ -18,6 +17,7 @@ from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import relationship
 
 from app.database import Base
+from app.db_compat import Geography
 
 
 class VerificationStatus(str, enum.Enum):

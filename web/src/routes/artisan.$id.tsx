@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { createFileRoute, notFound, Link } from "@tanstack/react-router";
+import { createFileRoute, notFound, Link, useNavigate } from "@tanstack/react-router";
 import {
   Star,
   MapPin,
@@ -15,10 +15,15 @@ import {
 import { Header } from "@/components/Header";
 import { BookingSheet } from "@/components/BookingSheet";
 import { artisans, reviews, formatRWF } from "@/services/artisanService";
+import { useAuthStore } from "@/store/authStore";
+import { useQuery } from "@tanstack/react-query";
+import api from "@/services/api";
+import { toast } from "sonner";
+import { AuthModal } from "@/components/AuthModal";
+import heroWork from "@/assets/hero-work.jpg";
 import portfolio1 from "@/assets/portfolio-1.jpg";
 import portfolio2 from "@/assets/portfolio-2.jpg";
 import portfolio3 from "@/assets/portfolio-3.jpg";
-import heroWork from "@/assets/hero-work.jpg";
 
 export const Route = createFileRoute("/artisan/$id")({
   loader: ({ params }) => {
@@ -55,6 +60,29 @@ const portfolio = [portfolio1, portfolio2, portfolio3];
 function Profile() {
   const { a } = Route.useLoaderData();
   const [open, setOpen] = useState(false);
+  const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
+  const { isAuthenticated } = useAuthStore();
+  const navigate = useNavigate();
+
+  const { data: conversations } = useQuery({
+    queryKey: ["conversations"],
+    queryFn: () => api.get("/messages/conversations").then((res) => res.data),
+    enabled: isAuthenticated,
+  });
+
+  const handleMessageClick = () => {
+    if (!isAuthenticated) {
+      setIsAuthModalOpen(true);
+      return;
+    }
+
+    const conversation = conversations?.find((c: any) => c.other_user.id === a.id);
+    if (conversation) {
+      navigate({ to: "/messages", search: { booking: conversation.booking_id } });
+    } else {
+      toast.info("Book this artisan first to send a message");
+    }
+  };
 
   return (
     <div className="min-h-dvh pb-28">
@@ -75,7 +103,16 @@ function Profile() {
             className="absolute -top-10 left-6 h-20 w-20 rounded-full object-cover ring-4 ring-card shadow-card"
           />
           <div className="ml-24">
-            <h1 className="text-2xl font-extrabold leading-tight">{a.name}</h1>
+            <div className="flex items-center justify-between">
+              <h1 className="text-2xl font-extrabold leading-tight">{a.name}</h1>
+              <button
+                onClick={handleMessageClick}
+                className="p-2 rounded-full bg-muted hover:bg-muted/80 text-foreground transition-colors"
+                aria-label="Message artisan"
+              >
+                <MessageCircle className="h-5 w-5" />
+              </button>
+            </div>
             <div className="mt-1 flex flex-wrap items-center gap-2">
               {a.categories.map((c: string) => (
                 <span
@@ -232,6 +269,7 @@ function Profile() {
       </div>
 
       <BookingSheet a={a} open={open} onClose={() => setOpen(false)} />
+      <AuthModal isOpen={isAuthModalOpen} onClose={() => setIsAuthModalOpen(false)} />
     </div>
   );
 }

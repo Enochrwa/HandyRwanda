@@ -1,8 +1,15 @@
-import { createFileRoute } from "@tanstack/react-router";
-import { TrendingUp, Star, MapPin, Clock, Award, Flame, Trophy, ArrowRight } from "lucide-react";
+import { createFileRoute, useNavigate } from "@tanstack/react-router";
+import { TrendingUp, Star, MapPin, Clock, Award, Flame, Trophy, ArrowRight, Loader2, ChevronDown, ChevronUp } from "lucide-react";
 import { Header } from "@/components/Header";
 import { formatRWF } from "@/services/artisanService";
-import { useState } from "react";
+import { useState, useEffect } from "react";
+import { useAuthStore } from "@/store/authStore";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { proService } from "@/services/proService";
+import { toast } from "sonner";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
 
 export const Route = createFileRoute("/pro")({
   head: () => ({
@@ -18,43 +25,73 @@ export const Route = createFileRoute("/pro")({
 });
 
 function Pro() {
-  const [online, setOnline] = useState(true);
+  const { isAuthenticated, user } = useAuthStore();
+  const navigate = useNavigate();
+  const queryClient = useQueryClient();
+
+  useEffect(() => {
+    if (!isAuthenticated) {
+      navigate({ to: "/" });
+    }
+  }, [isAuthenticated, navigate]);
+
+  const { data, isLoading } = useQuery({
+    queryKey: ["artisan-dashboard"],
+    queryFn: proService.getDashboard,
+    enabled: isAuthenticated && user?.role === "artisan",
+  });
+
+  const toggleMutation = useMutation({
+    mutationFn: proService.toggleAvailability,
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["artisan-dashboard"] });
+      toast.success("Availability updated");
+    },
+    onError: (err: any) => {
+      toast.error(err?.response?.data?.detail ?? "Failed to update availability");
+    },
+  });
+
+  if (!isAuthenticated || user?.role !== "artisan") {
+    return null;
+  }
 
   return (
     <div className="min-h-dvh">
       <Header />
       <main className="mx-auto max-w-4xl px-4 pb-16 pt-6 sm:px-6">
         <p className="text-sm font-semibold uppercase tracking-wider text-primary">
-          Muraho, Jean-Pierre 👋
+          Muraho, {user?.fullName} 👋
         </p>
         <h1 className="mt-1 text-3xl font-extrabold">Today’s dashboard</h1>
 
         {/* Availability toggle */}
         <button
-          onClick={() => setOnline((o) => !o)}
+          onClick={() => toggleMutation.mutate(!data?.is_available)}
+          disabled={toggleMutation.isPending}
           className={[
             "mt-5 flex w-full items-center justify-between rounded-2xl border-2 p-5 text-left transition",
-            online ? "border-success/30 bg-success/10" : "border-border bg-muted",
+            data?.is_available ? "border-success/30 bg-success/10" : "border-border bg-muted",
           ].join(" ")}
         >
           <div>
             <div className="text-sm font-semibold uppercase tracking-wide text-muted-foreground">
-              {online ? "You’re visible to clients" : "You’re hidden from search"}
+              {data?.is_available ? "You’re visible to clients" : "You’re hidden from search"}
             </div>
             <div className="mt-1 text-lg font-bold">
-              {online ? "Available now" : "Tap to go online"}
+              {data?.is_available ? "Available now" : "Tap to go online"}
             </div>
           </div>
           <div
             className={[
               "relative h-9 w-16 rounded-full transition",
-              online ? "bg-success" : "bg-muted-foreground/30",
+              data?.is_available ? "bg-success" : "bg-muted-foreground/30",
             ].join(" ")}
           >
             <span
               className={[
                 "absolute top-1 h-7 w-7 rounded-full bg-card shadow-card transition-all",
-                online ? "left-8" : "left-1",
+                data?.is_available ? "left-8" : "left-1",
               ].join(" ")}
             />
           </div>
@@ -65,13 +102,19 @@ function Pro() {
           <div className="text-sm font-semibold uppercase tracking-wider text-muted-foreground">
             This month
           </div>
-          <div className="mt-1 text-4xl font-extrabold text-success">
-            {formatRWF(47500)}{" "}
-            <span className="text-lg font-semibold text-muted-foreground">RWF</span>
+          {isLoading ? (
+            <div className="mt-2 h-10 w-48 animate-pulse rounded bg-muted" />
+          ) : (
+            <div className="mt-1 text-4xl font-extrabold text-success">
+              {formatRWF(data?.earnings_this_month ?? 0)}{" "}
+              <span className="text-lg font-semibold text-muted-foreground">RWF</span>
+            </div>
+          )}
+          <div className="mt-1 text-sm font-medium text-muted-foreground">
+            {data?.jobs_count ?? 0} jobs · ⭐ {data?.avg_rating?.toFixed(1) ?? "0.0"} avg
           </div>
-          <div className="mt-1 text-sm font-medium text-muted-foreground">8 jobs · ⭐ 4.9 avg</div>
 
-          {/* Sparkline */}
+          {/* Sparkline (Placeholder svg) */}
           <svg viewBox="0 0 200 50" className="mt-4 h-14 w-full" preserveAspectRatio="none">
             <defs>
               <linearGradient id="g" x1="0" x2="0" y1="0" y2="1">
@@ -96,9 +139,9 @@ function Pro() {
           {/* Achievements */}
           <div className="mt-4 flex flex-wrap gap-2">
             {[
-              { icon: Trophy, label: "10 jobs done" },
+              { icon: Trophy, label: `${data?.jobs_count ?? 0} jobs done` },
               { icon: Star, label: "5-star streak" },
-              { icon: Flame, label: "3 jobs this week" },
+              { icon: Flame, label: "Active artisan" },
               { icon: Award, label: "Verified pro" },
             ].map(({ icon: Icon, label }) => (
               <span
@@ -115,52 +158,44 @@ function Pro() {
         <section className="mt-6">
           <h2 className="text-lg font-bold">Today’s schedule</h2>
           <div className="mt-3 space-y-2">
-            <ScheduleRow time="09:00" title="Plumbing · Kimironko" status="confirmed" />
-            <ScheduleRow time="14:00" title="Free" status="free" />
-            <ScheduleRow time="16:30" title="Electrical · Remera" status="pending" />
+            {isLoading ? (
+              Array.from({ length: 2 }).map((_, i) => (
+                <div key={i} className="h-20 animate-pulse rounded-2xl bg-muted" />
+              ))
+            ) : data?.schedule?.length > 0 ? (
+              data.schedule.map((item: any) => (
+                <ScheduleRow
+                  key={item.id}
+                  time={item.time ? new Date(item.time).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : "N/A"}
+                  title={`${item.title} · ${item.client_name}`}
+                  status={item.status === 'confirmed' ? 'confirmed' : 'pending'}
+                />
+              ))
+            ) : (
+              <div className="rounded-2xl border border-dashed border-border p-8 text-center text-muted-foreground">
+                No jobs scheduled for today
+              </div>
+            )}
           </div>
-        </section>
-
-        {/* Booking timeline */}
-        <section className="mt-8 rounded-2xl border border-border bg-card p-5 shadow-card">
-          <h2 className="text-lg font-bold">Job timeline · Amina’s kitchen</h2>
-          <p className="text-sm text-muted-foreground">Tomorrow · 10:00 am</p>
-          <ol className="mt-4 space-y-3">
-            <Step done label="Booking confirmed" />
-            <Step done label="Payment secured" />
-            <Step active label="Artisan on the way" />
-            <Step label="Job started" />
-            <Step label="Job completed" />
-            <Step label="Payment released" />
-          </ol>
         </section>
 
         {/* Nearby open jobs */}
         <section className="mt-8">
           <h2 className="text-lg font-bold">Open jobs nearby</h2>
           <div className="mt-3 grid gap-3 sm:grid-cols-2">
-            {[
-              { cat: "Plumbing", area: "Kicukiro", dist: 1.2, budget: 10000 },
-              { cat: "Electrical", area: "Nyamirambo", dist: 2.4, budget: 15000 },
-              { cat: "Plumbing", area: "Remera", dist: 3.1, budget: 8000 },
-            ].map((j, i) => (
-              <article key={i} className="rounded-2xl border border-border bg-card p-4 shadow-card">
-                <div className="flex items-center gap-2 text-xs font-semibold text-muted-foreground">
-                  <MapPin className="h-3.5 w-3.5" /> {j.area} · {j.dist} km
-                  <span className="ml-auto inline-flex items-center gap-1 rounded-full bg-success/10 px-2 py-0.5 text-success">
-                    <Clock className="h-3 w-3" /> New
-                  </span>
-                </div>
-                <h3 className="mt-2 font-bold">{j.cat} job</h3>
-                <p className="mt-1 text-sm text-muted-foreground">
-                  Client budget:{" "}
-                  <span className="font-semibold text-foreground">{formatRWF(j.budget)} RWF</span>
-                </p>
-                <button className="mt-3 flex w-full items-center justify-center gap-2 rounded-xl bg-primary px-3 py-2.5 font-bold text-primary-foreground hover:bg-primary/90">
-                  Submit Bid <ArrowRight className="h-4 w-4" />
-                </button>
-              </article>
-            ))}
+            {isLoading ? (
+              Array.from({ length: 2 }).map((_, i) => (
+                <div key={i} className="h-48 animate-pulse rounded-2xl bg-muted" />
+              ))
+            ) : data?.nearby_jobs?.length > 0 ? (
+              data.nearby_jobs.map((j: any) => (
+                <NearbyJobCard key={j.id} job={j} />
+              ))
+            ) : (
+              <div className="col-span-full rounded-2xl border border-dashed border-border p-8 text-center text-muted-foreground">
+                No open jobs nearby
+              </div>
+            )}
           </div>
         </section>
 
@@ -172,17 +207,92 @@ function Pro() {
             </h2>
           </div>
           <p className="mt-2 text-sm text-muted-foreground">
-            Complete your profile to start receiving jobs.
-          </p>
-          <div className="mt-3 h-2 w-full overflow-hidden rounded-full bg-muted">
-            <div className="h-full w-3/4 bg-primary" />
-          </div>
-          <p className="mt-2 text-xs font-semibold text-muted-foreground">
-            Profile 75% complete · add a portfolio photo to finish
+            Keep your profile updated to increase your chances of being hired.
           </p>
         </section>
       </main>
     </div>
+  );
+}
+
+function NearbyJobCard({ job }: { job: any }) {
+  const [expanded, setExpanded] = useState(false);
+  const [price, setPrice] = useState(job.budget?.toString() || "");
+  const [note, setNote] = useState("");
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const queryClient = useQueryClient();
+
+  const handleSubmit = async () => {
+    if (!price) {
+      toast.error("Please enter a price");
+      return;
+    }
+    setIsSubmitting(true);
+    try {
+      await proService.submitBid(job.id, parseInt(price), note);
+      toast.success("Bid submitted!");
+      setExpanded(false);
+      queryClient.invalidateQueries({ queryKey: ["artisan-dashboard"] });
+    } catch (error: any) {
+      toast.error(error.response?.data?.detail || "Failed to submit bid");
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  return (
+    <article className="rounded-2xl border border-border bg-card p-4 shadow-card h-fit">
+      <div className="flex items-center gap-2 text-xs font-semibold text-muted-foreground">
+        <MapPin className="h-3.5 w-3.5" /> {job.location_label || "Unknown"} · {job.distance} km
+        <span className="ml-auto inline-flex items-center gap-1 rounded-full bg-success/10 px-2 py-0.5 text-success">
+          <Clock className="h-3 w-3" /> New
+        </span>
+      </div>
+      <h3 className="mt-2 font-bold">{job.category} · {job.title}</h3>
+      <p className="mt-1 text-sm text-muted-foreground line-clamp-2">
+        {job.description}
+      </p>
+      <p className="mt-2 text-sm text-muted-foreground">
+        Budget: <span className="font-semibold text-foreground">{formatRWF(job.budget || 0)} RWF</span>
+      </p>
+
+      {!expanded ? (
+        <button
+          onClick={() => setExpanded(true)}
+          className="mt-3 flex w-full items-center justify-center gap-2 rounded-xl bg-primary px-3 py-2.5 font-bold text-primary-foreground hover:bg-primary/90"
+        >
+          Submit Bid <ArrowRight className="h-4 w-4" />
+        </button>
+      ) : (
+        <div className="mt-4 space-y-3 border-t pt-4">
+          <div className="space-y-1">
+            <label className="text-xs font-bold uppercase text-muted-foreground">Your Price (RWF)</label>
+            <Input
+              type="number"
+              value={price}
+              onChange={(e) => setPrice(e.target.value)}
+              placeholder="Enter your price"
+            />
+          </div>
+          <div className="space-y-1">
+            <label className="text-xs font-bold uppercase text-muted-foreground">Short Note</label>
+            <Textarea
+              value={note}
+              onChange={(e) => setNote(e.target.value)}
+              placeholder="Tell the client why you're a good fit..."
+              className="resize-none h-20"
+            />
+          </div>
+          <div className="flex gap-2">
+            <Button variant="outline" className="flex-1" onClick={() => setExpanded(false)}>Cancel</Button>
+            <Button className="flex-1" onClick={handleSubmit} disabled={isSubmitting}>
+              {isSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+              Send Bid
+            </Button>
+          </div>
+        </div>
+      )}
+    </article>
   );
 }
 
@@ -193,20 +303,19 @@ function ScheduleRow({
 }: {
   time: string;
   title: string;
-  status: "confirmed" | "pending" | "free";
+  status: "confirmed" | "pending";
 }) {
   return (
     <div className="flex items-center gap-4 rounded-2xl border border-border bg-card p-4">
       <div className="w-14 shrink-0">
         <div className="text-base font-extrabold">{time}</div>
       </div>
-      <div className="flex-1 font-semibold">{title}</div>
+      <div className="flex-1 font-semibold text-sm truncate">{title}</div>
       <span
         className={[
           "rounded-full px-2.5 py-1 text-[11px] font-bold uppercase tracking-wide",
           status === "confirmed" && "bg-success/15 text-success",
           status === "pending" && "bg-accent/20 text-foreground",
-          status === "free" && "bg-muted text-muted-foreground",
         ]
           .filter(Boolean)
           .join(" ")}
@@ -214,36 +323,5 @@ function ScheduleRow({
         {status}
       </span>
     </div>
-  );
-}
-
-function Step({ label, done, active }: { label: string; done?: boolean; active?: boolean }) {
-  return (
-    <li className="flex items-center gap-3">
-      <span
-        className={[
-          "grid h-6 w-6 place-items-center rounded-full border-2",
-          done
-            ? "border-success bg-success text-card"
-            : active
-              ? "border-success bg-success/20 animate-pulse-dot"
-              : "border-border bg-card",
-        ].join(" ")}
-      >
-        {done && <span className="text-[10px] font-extrabold">✓</span>}
-      </span>
-      <span
-        className={[
-          "text-sm",
-          done
-            ? "font-semibold text-foreground line-through decoration-success/40"
-            : active
-              ? "font-bold text-foreground"
-              : "text-muted-foreground",
-        ].join(" ")}
-      >
-        {label}
-      </span>
-    </li>
   );
 }

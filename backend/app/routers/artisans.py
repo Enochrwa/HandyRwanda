@@ -3,7 +3,7 @@ from uuid import UUID
 
 from fastapi import APIRouter, Depends, HTTPException, Query
 from pydantic import BaseModel
-from sqlalchemy import delete, select, text, update
+from sqlalchemy import delete, func, select, text, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.database import get_db
@@ -16,7 +16,9 @@ from app.models.artisan import (
     VerificationStatus,
     artisan_skills,
 )
-from app.models.user import UserRole
+from app.models.booking import Booking, BookingStatus
+from app.models.job import Job, JobStatus
+from app.models.user import User, UserRole
 
 router = APIRouter(prefix="/artisans", tags=["artisans"])
 
@@ -84,6 +86,18 @@ async def update_profile(
 
     await db.commit()
     return {"message": "Profile updated"}
+
+
+@router.get("/portfolio/me")
+async def get_my_portfolio(
+    db: AsyncSession = Depends(get_db),
+    current_user: dict[str, Any] = Depends(require_role(UserRole.artisan)),
+) -> Any:
+    user_id = UUID(current_user["sub"])
+    result = await db.execute(
+        select(PortfolioPhoto).where(PortfolioPhoto.artisan_id == user_id)
+    )
+    return result.scalars().all()
 
 
 @router.get("/profile/me")
@@ -182,6 +196,128 @@ async def add_portfolio_photo(
     db.add(photo)
     await db.commit()
     return photo
+
+
+class AvailabilityUpdate(BaseModel):
+    available_now: bool
+
+
+@router.patch("/availability")
+async def toggle_availability(
+    payload: AvailabilityUpdate,
+    db: AsyncSession = Depends(get_db),
+    current_user: dict[str, Any] = Depends(require_role(UserRole.artisan)),
+) -> Any:
+    user_id = UUID(current_user["sub"])
+    await db.execute(
+        update(ArtisanProfile)
+        .where(ArtisanProfile.user_id == user_id)
+        .values(is_available=payload.available_now)
+    )
+    await db.commit()
+    return {"message": "Availability updated"}
+
+
+@router.get("/dashboard")
+async def get_artisan_dashboard(
+    db: AsyncSession = Depends(get_db),
+    current_user: dict[str, Any] = Depends(require_role(UserRole.artisan)),
+) -> Any:
+    user_id = UUID(current_user["sub"])
+
+    # Earnings this month
+    earnings_query = text("""
+        SELECT COALESCE(SUM(agreed_price), 0) as total
+        FROM bookings
+        WHERE artisan_id = :artisan_id
+        AND status = 'completed'
+        AND created_at >= date_trunc('month', current_timestamp)
+    """)
+    earnings_res = await db.execute(earnings_query, {"artisan_id": user_id})
+    earnings_this_month = earnings_res.scalar_one()
+
+    # Jobs count
+    jobs_count_query = select(func.count(Booking.id)).where(
+        Booking.artisan_id == user_id, Booking.status == BookingStatus.completed
+    )
+    jobs_count_res = await db.execute(jobs_count_query)
+    jobs_count = jobs_count_res.scalar_one()
+
+    # Avg rating
+    profile_res = await db.execute(
+        select(ArtisanProfile.average_rating).where(ArtisanProfile.user_id == user_id)
+    )
+    avg_rating = profile_res.scalar_one_or_none() or 0.0
+
+    # Today's schedule
+    schedule_query = (
+        select(Booking, Job, User.full_name)
+        .join(Job, Booking.job_id == Job.id)
+        .join(User, Job.client_id == User.id)
+        .where(
+            Booking.artisan_id == user_id,
+            Booking.status.in_([BookingStatus.confirmed, BookingStatus.in_progress]),
+            func.date(Job.scheduled_time) == func.current_date(),
+        )
+        .order_by(Job.scheduled_time)
+    )
+    schedule_res = await db.execute(schedule_query)
+    schedule = []
+    for booking, job, client_name in schedule_res:
+        schedule.append(
+            {
+                "id": str(booking.id),
+                "title": job.title,
+                "client_name": client_name,
+                "time": job.scheduled_time.isoformat() if job.scheduled_time else None,
+                "status": booking.status,
+            }
+        )
+
+    # Nearby jobs
+    profile_loc_res = await db.execute(
+        select(ArtisanProfile.location, ArtisanProfile.service_radius_km).where(
+            ArtisanProfile.user_id == user_id
+        )
+    )
+    profile_row = profile_loc_res.one_or_none()
+
+    nearby_jobs = []
+    if profile_row and profile_row.location:
+        nearby_query = text("""
+            SELECT j.id, j.title, j.budget, j.description, j.location_label, c.name as category_name,
+                ST_Distance(j.location::geography, :loc::geography) / 1000 AS distance_km
+            FROM jobs j
+            JOIN categories c ON j.category_id = c.id
+            WHERE j.status = 'open'
+            AND ST_DWithin(j.location::geography, :loc::geography, :radius * 1000)
+            ORDER BY j.created_at DESC
+            LIMIT 5
+        """)
+        nearby_res = await db.execute(
+            nearby_query,
+            {"loc": profile_row.location, "radius": profile_row.service_radius_km},
+        )
+        for row in nearby_res:
+            nearby_jobs.append(
+                {
+                    "id": str(row.id),
+                    "title": row.title,
+                    "budget": row.budget,
+                    "description": row.description,
+                    "location_label": row.location_label,
+                    "category": row.category_name,
+                    "distance": round(row.distance_km, 1),
+                }
+            )
+
+    return {
+        "earnings_this_month": earnings_this_month,
+        "jobs_count": jobs_count,
+        "avg_rating": avg_rating,
+        "schedule": schedule,
+        "nearby_jobs": nearby_jobs,
+    }
 
 
 @router.get("/search")

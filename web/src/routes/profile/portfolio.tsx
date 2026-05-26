@@ -80,8 +80,11 @@ function PortfolioManagement() {
     const file = e.target.files?.[0];
     if (file) {
       setSelectedFile(file);
-      const url = URL.createObjectURL(file);
-      setPreviewUrl(url);
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        setPreviewUrl(reader.result as string);
+      };
+      reader.readAsDataURL(file);
     }
   };
 
@@ -157,7 +160,7 @@ function PortfolioManagement() {
                 >
                   <img
                     src={photo.image_url}
-                    alt={photo.description || "Portfolio work"}
+                    alt="Portfolio work"
                     className="h-full w-full object-cover transition-transform group-hover:scale-105"
                   />
                   <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-4">
@@ -169,7 +172,7 @@ function PortfolioManagement() {
                       <Trash2 className="h-6 w-6" />
                     </button>
                   </div>
-                  {photo.description && (
+                  {!!photo.description && (
                     <div className="absolute bottom-0 inset-x-0 bg-gradient-to-t from-black/60 to-transparent p-4 opacity-0 group-hover:opacity-100 transition-opacity">
                       <p className="text-white text-xs font-medium truncate">{photo.description}</p>
                     </div>
@@ -211,7 +214,13 @@ function PortfolioManagement() {
               </div>
             ) : (
               <div className="relative aspect-video w-full rounded-xl overflow-hidden border border-border">
-                <img src={previewUrl} className="h-full w-full object-cover" alt="Preview" />
+                {previewUrl ? (
+                  <img
+                    src={previewUrl}
+                    className="h-full w-full object-cover"
+                    alt="Upload preview"
+                  />
+                ) : null}
                 <button
                   onClick={resetUpload}
                   className="absolute top-2 right-2 p-1 bg-black/50 text-white rounded-full hover:bg-black/70"

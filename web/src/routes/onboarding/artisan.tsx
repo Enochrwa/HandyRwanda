@@ -5,18 +5,19 @@ import { artisanService } from "@/services/artisanService";
 import { useAuthStore } from "@/store/authStore";
 import { Category } from "@/types/category";
 import { MapPin, Camera, User, Check, Loader2, X } from "lucide-react";
-import { MapContainer, TileLayer, Marker, useMapEvents } from 'react-leaflet';
-import 'leaflet/dist/leaflet.css';
-import L from 'leaflet';
+import { MapContainer, TileLayer, Marker, useMapEvents } from "react-leaflet";
+import "leaflet/dist/leaflet.css";
+import L from "leaflet";
 import { toast } from "sonner";
 
 // Fix Leaflet default marker icon bug
-import markerIcon2x from 'leaflet/dist/images/marker-icon-2x.png';
-import markerIcon from 'leaflet/dist/images/marker-icon.png';
-import markerShadow from 'leaflet/dist/images/marker-shadow.png';
+import markerIcon2x from "leaflet/dist/images/marker-icon-2x.png";
+import markerIcon from "leaflet/dist/images/marker-icon.png";
+import markerShadow from "leaflet/dist/images/marker-shadow.png";
 
+// eslint-disable-next-line @typescript-eslint/ban-ts-comment
 // @ts-ignore
-delete L.Icon.Default.prototype._getIconUrl;
+delete (L.Icon.Default.prototype as Record<string, unknown>)._getIconUrl;
 L.Icon.Default.mergeOptions({
   iconRetinaUrl: markerIcon2x,
   iconUrl: markerIcon,
@@ -27,16 +28,22 @@ export const Route = createFileRoute("/onboarding/artisan")({
   component: ArtisanOnboarding,
 });
 
-function MapPicker({ onSelect, lat, lng }: { onSelect: (lat: number, lng: number) => void, lat: number, lng: number }) {
+function MapPicker({
+  onSelect,
+  lat,
+  lng,
+}: {
+  onSelect: (lat: number, lng: number) => void;
+  lat: number;
+  lng: number;
+}) {
   const map = useMapEvents({
     click(e) {
       onSelect(e.latlng.lat, e.latlng.lng);
     },
   });
 
-  return (
-    <Marker position={[lat, lng]} />
-  );
+  return <Marker position={[lat, lng]} />;
 }
 
 function ArtisanOnboarding() {
@@ -76,21 +83,24 @@ function ArtisanOnboarding() {
       const reader = new FileReader();
       reader.onload = () => {
         const result = reader.result as string;
-        resolve(result.split(',')[1]);
+        resolve(result.split(",")[1]);
       };
       reader.onerror = reject;
       reader.readAsDataURL(file);
     });
   };
 
-  const handleFileChange = async (type: 'id' | 'selfie', e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleFileChange = async (
+    type: "id" | "selfie",
+    e: React.ChangeEvent<HTMLInputElement>,
+  ) => {
     const file = e.target.files?.[0];
     if (file) {
       try {
         const base64 = await fileToBase64(file);
         const previewUrl = URL.createObjectURL(file);
 
-        if (type === 'id') {
+        if (type === "id") {
           setFormData({ ...formData, id_photo_base64: base64 });
           setPreviews({ ...previews, id: previewUrl });
         } else {
@@ -134,8 +144,9 @@ function ArtisanOnboarding() {
         return;
       }
       setStep(step + 1);
-    } catch (err: any) {
-      toast.error(err?.response?.data?.detail ?? "Failed to save progress");
+    } catch (err: unknown) {
+      const error = err as { response?: { data?: { detail?: string } } };
+      toast.error(error?.response?.data?.detail ?? "Failed to save progress");
     } finally {
       setLoading(false);
     }
@@ -144,7 +155,8 @@ function ArtisanOnboarding() {
   const isStep1Valid = formData.bio.length > 10;
   const isStep2Valid = formData.category_ids.length > 0;
   const isStep3Valid = formData.location_label.length > 2;
-  const isStep4Valid = formData.national_id.length > 5 && formData.id_photo_base64 && formData.selfie_photo_base64;
+  const isStep4Valid =
+    formData.national_id.length > 5 && formData.id_photo_base64 && formData.selfie_photo_base64;
 
   return (
     <div className="min-h-screen bg-muted/30 pb-12">
@@ -215,9 +227,9 @@ function ArtisanOnboarding() {
                     <p className="font-bold">{cat.name_en}</p>
                     {formData.category_ids.includes(cat.id) && (
                       <div className="mt-1 flex justify-center">
-                         <div className="bg-primary rounded-full p-0.5">
-                            <Check className="h-3 w-3 text-white" />
-                         </div>
+                        <div className="bg-primary rounded-full p-0.5">
+                          <Check className="h-3 w-3 text-white" />
+                        </div>
                       </div>
                     )}
                   </div>
@@ -270,12 +282,14 @@ function ArtisanOnboarding() {
                   </p>
                 </div>
                 <div className="space-y-2">
-                   <label className="text-sm font-semibold text-muted-foreground">Pick exact location on map</label>
-                   <div className="aspect-video w-full rounded-2xl overflow-hidden border-2 border-border z-0">
+                  <label className="text-sm font-semibold text-muted-foreground">
+                    Pick exact location on map
+                  </label>
+                  <div className="aspect-video w-full rounded-2xl overflow-hidden border-2 border-border z-0">
                     <MapContainer
                       center={[-1.9441, 30.0619]}
                       zoom={12}
-                      style={{ height: '100%', width: '100%' }}
+                      style={{ height: "100%", width: "100%" }}
                     >
                       <TileLayer
                         attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
@@ -284,13 +298,15 @@ function ArtisanOnboarding() {
                       <MapPicker
                         lat={formData.latitude}
                         lng={formData.longitude}
-                        onSelect={(lat, lng) => setFormData({ ...formData, latitude: lat, longitude: lng })}
+                        onSelect={(lat, lng) =>
+                          setFormData({ ...formData, latitude: lat, longitude: lng })
+                        }
                       />
                     </MapContainer>
-                   </div>
-                   <p className="text-[10px] text-muted-foreground">
-                     Lat: {formData.latitude.toFixed(4)}, Lng: {formData.longitude.toFixed(4)}
-                   </p>
+                  </div>
+                  <p className="text-[10px] text-muted-foreground">
+                    Lat: {formData.latitude.toFixed(4)}, Lng: {formData.longitude.toFixed(4)}
+                  </p>
                 </div>
               </div>
               <button
@@ -330,7 +346,11 @@ function ArtisanOnboarding() {
                     className="group relative flex flex-col items-center justify-center rounded-2xl border-2 border-dashed border-border p-6 text-center hover:border-primary/50 transition-colors cursor-pointer overflow-hidden aspect-square"
                   >
                     {previews.id ? (
-                      <img src={previews.id} className="absolute inset-0 h-full w-full object-cover" alt="ID Preview" />
+                      <img
+                        src={previews.id}
+                        className="absolute inset-0 h-full w-full object-cover"
+                        alt="ID Preview"
+                      />
                     ) : (
                       <>
                         <div className="mb-2 text-2xl">🪪</div>
@@ -344,12 +364,12 @@ function ArtisanOnboarding() {
                       className="hidden"
                       accept="image/*"
                       capture="environment"
-                      onChange={(e) => handleFileChange('id', e)}
+                      onChange={(e) => handleFileChange("id", e)}
                     />
                     {previews.id && (
-                       <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 flex items-center justify-center transition-opacity">
-                          <Camera className="h-8 w-8 text-white" />
-                       </div>
+                      <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 flex items-center justify-center transition-opacity">
+                        <Camera className="h-8 w-8 text-white" />
+                      </div>
                     )}
                   </div>
 
@@ -358,7 +378,11 @@ function ArtisanOnboarding() {
                     className="group relative flex flex-col items-center justify-center rounded-2xl border-2 border-dashed border-border p-6 text-center hover:border-primary/50 transition-colors cursor-pointer overflow-hidden aspect-square"
                   >
                     {previews.selfie ? (
-                      <img src={previews.selfie} className="absolute inset-0 h-full w-full object-cover" alt="Selfie Preview" />
+                      <img
+                        src={previews.selfie}
+                        className="absolute inset-0 h-full w-full object-cover"
+                        alt="Selfie Preview"
+                      />
                     ) : (
                       <>
                         <div className="mb-2 text-2xl">🤳</div>
@@ -372,12 +396,12 @@ function ArtisanOnboarding() {
                       className="hidden"
                       accept="image/*"
                       capture="user"
-                      onChange={(e) => handleFileChange('selfie', e)}
+                      onChange={(e) => handleFileChange("selfie", e)}
                     />
                     {previews.selfie && (
-                       <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 flex items-center justify-center transition-opacity">
-                          <User className="h-8 w-8 text-white" />
-                       </div>
+                      <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 flex items-center justify-center transition-opacity">
+                        <User className="h-8 w-8 text-white" />
+                      </div>
                     )}
                   </div>
                 </div>
@@ -385,7 +409,8 @@ function ArtisanOnboarding() {
 
               <div className="rounded-xl bg-accent/10 p-4 border border-accent/20">
                 <p className="text-xs text-accent leading-normal font-medium">
-                  Photos are encrypted and only used for verification. This usually takes 24-48 hours.
+                  Photos are encrypted and only used for verification. This usually takes 24-48
+                  hours.
                 </p>
               </div>
 

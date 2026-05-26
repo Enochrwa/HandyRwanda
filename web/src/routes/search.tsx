@@ -11,17 +11,18 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Input } from "@/components/ui/input";
 import { Switch } from "@/components/ui/switch";
 import { Button } from "@/components/ui/button";
-import { MapContainer, TileLayer, Marker, Popup } from 'react-leaflet';
-import L from 'leaflet';
-import 'leaflet/dist/leaflet.css';
+import { MapContainer, TileLayer, Marker, Popup } from "react-leaflet";
+import L from "leaflet";
+import "leaflet/dist/leaflet.css";
 
 // Fix Leaflet default marker icon bug
-import markerIcon2x from 'leaflet/dist/images/marker-icon-2x.png';
-import markerIcon from 'leaflet/dist/images/marker-icon.png';
-import markerShadow from 'leaflet/dist/images/marker-shadow.png';
+import markerIcon2x from "leaflet/dist/images/marker-icon-2x.png";
+import markerIcon from "leaflet/dist/images/marker-icon.png";
+import markerShadow from "leaflet/dist/images/marker-shadow.png";
 
+// eslint-disable-next-line @typescript-eslint/ban-ts-comment
 // @ts-ignore
-delete L.Icon.Default.prototype._getIconUrl;
+delete (L.Icon.Default.prototype as Record<string, unknown>)._getIconUrl;
 L.Icon.Default.mergeOptions({
   iconRetinaUrl: markerIcon2x,
   iconUrl: markerIcon,
@@ -63,36 +64,42 @@ const initialFilters: FilterState = {
 };
 
 type FilterAction =
-  | { type: 'TOGGLE_DISTRICT', payload: string }
-  | { type: 'TOGGLE_CATEGORY', payload: string }
-  | { type: 'SET_MIN_PRICE', payload: string }
-  | { type: 'SET_MAX_PRICE', payload: string }
-  | { type: 'SET_AVAILABLE_NOW', payload: boolean }
-  | { type: 'SET_MIN_RATING', payload: number }
-  | { type: 'RESET' };
+  | { type: "TOGGLE_DISTRICT"; payload: string }
+  | { type: "TOGGLE_CATEGORY"; payload: string }
+  | { type: "SET_MIN_PRICE"; payload: string }
+  | { type: "SET_MAX_PRICE"; payload: string }
+  | { type: "SET_AVAILABLE_NOW"; payload: boolean }
+  | { type: "SET_MIN_RATING"; payload: number }
+  | { type: "RESET" };
 
 function filterReducer(state: FilterState, action: FilterAction): FilterState {
   switch (action.type) {
-    case 'TOGGLE_DISTRICT':
+    case "TOGGLE_DISTRICT":
       return {
         ...state,
         districts: state.districts.includes(action.payload)
-          ? state.districts.filter(d => d !== action.payload)
-          : [...state.districts, action.payload]
+          ? state.districts.filter((d) => d !== action.payload)
+          : [...state.districts, action.payload],
       };
-    case 'TOGGLE_CATEGORY':
+    case "TOGGLE_CATEGORY":
       return {
         ...state,
         categories: state.categories.includes(action.payload)
-          ? state.categories.filter(c => c !== action.payload)
-          : [...state.categories, action.payload]
+          ? state.categories.filter((c) => c !== action.payload)
+          : [...state.categories, action.payload],
       };
-    case 'SET_MIN_PRICE': return { ...state, minPrice: action.payload };
-    case 'SET_MAX_PRICE': return { ...state, maxPrice: action.payload };
-    case 'SET_AVAILABLE_NOW': return { ...state, availableNow: action.payload };
-    case 'SET_MIN_RATING': return { ...state, minRating: action.payload };
-    case 'RESET': return initialFilters;
-    default: return state;
+    case "SET_MIN_PRICE":
+      return { ...state, minPrice: action.payload };
+    case "SET_MAX_PRICE":
+      return { ...state, maxPrice: action.payload };
+    case "SET_AVAILABLE_NOW":
+      return { ...state, availableNow: action.payload };
+    case "SET_MIN_RATING":
+      return { ...state, minRating: action.payload };
+    case "RESET":
+      return initialFilters;
+    default:
+      return state;
   }
 }
 
@@ -104,25 +111,26 @@ function SearchPage() {
   const [filterState, dispatch] = useReducer(filterReducer, initialFilters);
 
   const { data, isLoading } = useQuery({
-    queryKey: ['artisans', q, activeChip, filterState],
+    queryKey: ["artisans", q, activeChip, filterState],
     queryFn: async () => {
       const params = new URLSearchParams();
-      if (q) params.append('q', q);
-      params.append('sort', activeChip);
-      if (filterState.districts.length) params.append('districts', filterState.districts.join(','));
-      if (filterState.categories.length) params.append('categories', filterState.categories.join(','));
-      if (filterState.minPrice) params.append('min_price', filterState.minPrice);
-      if (filterState.maxPrice) params.append('max_price', filterState.maxPrice);
-      if (filterState.availableNow) params.append('available_now', 'true');
-      if (filterState.minRating > 0) params.append('min_rating', filterState.minRating.toString());
+      if (q) params.append("q", q);
+      params.append("sort", activeChip);
+      if (filterState.districts.length) params.append("districts", filterState.districts.join(","));
+      if (filterState.categories.length)
+        params.append("categories", filterState.categories.join(","));
+      if (filterState.minPrice) params.append("min_price", filterState.minPrice);
+      if (filterState.maxPrice) params.append("max_price", filterState.maxPrice);
+      if (filterState.availableNow) params.append("available_now", "true");
+      if (filterState.minRating > 0) params.append("min_rating", filterState.minRating.toString());
 
       // Using the search endpoint defined in Task 4a
       // Note: we need to provide latitude/longitude for the backend search endpoint.
       // Default to Kigali center for now.
-      params.append('latitude', '-1.9441');
-      params.append('longitude', '30.0619');
+      params.append("latitude", "-1.9441");
+      params.append("longitude", "30.0619");
 
-      const res = await api.get('/artisans/search', { params });
+      const res = await api.get("/artisans/search", { params });
       return res.data;
     },
     placeholderData: keepPreviousData,
@@ -135,6 +143,7 @@ function SearchPage() {
     }
 
     // Map backend results to frontend Artisan type if necessary
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     return apiResults.map((a: any) => ({
       id: a.id,
       name: a.full_name || a.name,
@@ -144,8 +153,8 @@ function SearchPage() {
       reviews: a.total_reviews || 0,
       district: a.location_label || "Kigali",
       distanceKm: a.distance_km || 0,
-      verified: a.verification_status === 'verified',
-      pro: a.community_score > 80,
+      verified: a.verification_status === "verified",
+      pro: (a.community_score || 0) > 80,
       availableNow: a.is_available,
       hourlyRate: a.hourly_rate,
       lat: a.lat,
@@ -227,46 +236,55 @@ function SearchPage() {
         {view === "map" ? (
           <div className="mt-4 grid gap-4 lg:grid-cols-[1fr_360px]">
             <div className="relative h-[600px] overflow-hidden rounded-2xl border border-border shadow-card z-0">
-               <MapContainer
+              <MapContainer
                 center={[-1.9441, 30.0619]}
                 zoom={13}
-                style={{ height: '100%', width: '100%' }}
+                style={{ height: "100%", width: "100%" }}
                 scrollWheelZoom={true}
               >
                 <TileLayer
                   attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
                   url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
                 />
-                {results.filter((a: any) => a.lat && a.lng).map((a: any) => (
-                  <Marker key={a.id} position={[a.lat, a.lng]}>
-                    <Popup className="custom-popup">
-                      <div className="flex items-center gap-3 p-1">
-                        <img src={a.photo} alt={a.name} className="h-10 w-10 rounded-full object-cover" />
-                        <div>
-                          <div className="font-bold text-sm">{a.name}</div>
-                          <div className="text-xs text-muted-foreground">{a.category}</div>
-                          <div className="flex items-center gap-1 text-xs mt-0.5">
-                            <Star className="h-3 w-3 fill-accent text-accent" />
-                            <span className="font-bold">{a.rating}</span>
+                {results
+                  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+                  .filter((a: any) => a.lat && a.lng)
+                  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+                  .map((a: any) => (
+                    <Marker key={a.id} position={[a.lat, a.lng]}>
+                      <Popup className="custom-popup">
+                        <div className="flex items-center gap-3 p-1">
+                          <img
+                            src={a.photo}
+                            alt={a.name}
+                            className="h-10 w-10 rounded-full object-cover"
+                          />
+                          <div>
+                            <div className="font-bold text-sm">{a.name}</div>
+                            <div className="text-xs text-muted-foreground">{a.category}</div>
+                            <div className="flex items-center gap-1 text-xs mt-0.5">
+                              <Star className="h-3 w-3 fill-accent text-accent" />
+                              <span className="font-bold">{a.rating}</span>
+                            </div>
+                            <Link
+                              to="/artisan/$id"
+                              params={{ id: a.id }}
+                              className="text-xs text-primary font-bold hover:underline mt-1 block"
+                            >
+                              View Profile
+                            </Link>
                           </div>
-                          <Link
-                            to="/artisan/$id"
-                            params={{ id: a.id }}
-                            className="text-xs text-primary font-bold hover:underline mt-1 block"
-                          >
-                            View Profile
-                          </Link>
                         </div>
-                      </div>
-                    </Popup>
-                  </Marker>
-                ))}
+                      </Popup>
+                    </Marker>
+                  ))}
               </MapContainer>
               <div className="absolute bottom-4 left-4 z-[1000] inline-flex items-center gap-2 rounded-full bg-card/90 px-3 py-2 text-xs font-semibold shadow-card backdrop-blur">
                 <MapPin className="h-4 w-4 text-primary" /> Kigali center
               </div>
             </div>
             <div className="hidden lg:block space-y-3 max-h-[600px] overflow-y-auto pr-2 scrollbar-hide">
+              {/* eslint-disable-next-line @typescript-eslint/no-explicit-any */}
               {results.map((a: any) => (
                 <ArtisanCard key={a.id} a={a} />
               ))}
@@ -289,12 +307,13 @@ function SearchPage() {
                   <Button asChild>
                     <Link to="/jobs/post">Post a job</Link>
                   </Button>
-                  <Button variant="outline" onClick={() => dispatch({ type: 'RESET' })}>
+                  <Button variant="outline" onClick={() => dispatch({ type: "RESET" })}>
                     Reset filters
                   </Button>
                 </div>
               </div>
             ) : (
+              // eslint-disable-next-line @typescript-eslint/no-explicit-any
               results.map((a: any) => <ArtisanCard key={a.id} a={a} />)
             )}
           </div>
@@ -312,7 +331,7 @@ function SearchPage() {
               <div className="flex items-center justify-between py-4">
                 <Drawer.Title className="text-2xl font-bold">Filter</Drawer.Title>
                 <button
-                  onClick={() => dispatch({ type: 'RESET' })}
+                  onClick={() => dispatch({ type: "RESET" })}
                   className="text-sm font-bold text-primary hover:underline"
                 >
                   Reset All
@@ -322,16 +341,23 @@ function SearchPage() {
               <div className="space-y-8 mt-4">
                 {/* District */}
                 <section>
-                  <h3 className="text-sm font-bold uppercase tracking-wider text-muted-foreground mb-4">District</h3>
+                  <h3 className="text-sm font-bold uppercase tracking-wider text-muted-foreground mb-4">
+                    District
+                  </h3>
                   <div className="grid grid-cols-2 gap-3">
-                    {['Nyarugenge', 'Kicukiro', 'Gasabo'].map(district => (
+                    {["Nyarugenge", "Kicukiro", "Gasabo"].map((district) => (
                       <div key={district} className="flex items-center space-x-2">
                         <Checkbox
                           id={`dist-${district}`}
                           checked={filterState.districts.includes(district)}
-                          onCheckedChange={() => dispatch({ type: 'TOGGLE_DISTRICT', payload: district })}
+                          onCheckedChange={() =>
+                            dispatch({ type: "TOGGLE_DISTRICT", payload: district })
+                          }
                         />
-                        <label htmlFor={`dist-${district}`} className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70">
+                        <label
+                          htmlFor={`dist-${district}`}
+                          className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
+                        >
                           {district}
                         </label>
                       </div>
@@ -341,44 +367,63 @@ function SearchPage() {
 
                 {/* Category */}
                 <section>
-                  <h3 className="text-sm font-bold uppercase tracking-wider text-muted-foreground mb-4">Category</h3>
+                  <h3 className="text-sm font-bold uppercase tracking-wider text-muted-foreground mb-4">
+                    Category
+                  </h3>
                   <div className="grid grid-cols-2 gap-3">
-                    {['Plumbing', 'Electrical', 'Cleaning', 'Carpentry', 'Painting', 'Masonry'].map(cat => (
-                      <div key={cat} className="flex items-center space-x-2">
-                        <Checkbox
-                          id={`cat-${cat}`}
-                          checked={filterState.categories.includes(cat)}
-                          onCheckedChange={() => dispatch({ type: 'TOGGLE_CATEGORY', payload: cat })}
-                        />
-                        <label htmlFor={`cat-${cat}`} className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70">
-                          {cat}
-                        </label>
-                      </div>
-                    ))}
+                    {["Plumbing", "Electrical", "Cleaning", "Carpentry", "Painting", "Masonry"].map(
+                      (cat) => (
+                        <div key={cat} className="flex items-center space-x-2">
+                          <Checkbox
+                            id={`cat-${cat}`}
+                            checked={filterState.categories.includes(cat)}
+                            onCheckedChange={() =>
+                              dispatch({ type: "TOGGLE_CATEGORY", payload: cat })
+                            }
+                          />
+                          <label
+                            htmlFor={`cat-${cat}`}
+                            className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
+                          >
+                            {cat}
+                          </label>
+                        </div>
+                      ),
+                    )}
                   </div>
                 </section>
 
                 {/* Price Range */}
                 <section>
-                  <h3 className="text-sm font-bold uppercase tracking-wider text-muted-foreground mb-4">Hourly Rate (RWF)</h3>
+                  <h3 className="text-sm font-bold uppercase tracking-wider text-muted-foreground mb-4">
+                    Hourly Rate (RWF)
+                  </h3>
                   <div className="flex items-center gap-4">
                     <div className="flex-1 space-y-1.5">
-                      <label className="text-[10px] font-bold uppercase text-muted-foreground ml-1">From</label>
+                      <label className="text-[10px] font-bold uppercase text-muted-foreground ml-1">
+                        From
+                      </label>
                       <Input
                         type="number"
                         placeholder="0"
                         value={filterState.minPrice}
-                        onChange={(e) => dispatch({ type: 'SET_MIN_PRICE', payload: e.target.value })}
+                        onChange={(e) =>
+                          dispatch({ type: "SET_MIN_PRICE", payload: e.target.value })
+                        }
                       />
                     </div>
                     <div className="mt-6 text-muted-foreground">to</div>
                     <div className="flex-1 space-y-1.5">
-                      <label className="text-[10px] font-bold uppercase text-muted-foreground ml-1">To</label>
+                      <label className="text-[10px] font-bold uppercase text-muted-foreground ml-1">
+                        To
+                      </label>
                       <Input
                         type="number"
                         placeholder="50,000+"
                         value={filterState.maxPrice}
-                        onChange={(e) => dispatch({ type: 'SET_MAX_PRICE', payload: e.target.value })}
+                        onChange={(e) =>
+                          dispatch({ type: "SET_MAX_PRICE", payload: e.target.value })
+                        }
                       />
                     </div>
                   </div>
@@ -389,32 +434,40 @@ function SearchPage() {
                   <div className="flex items-center justify-between">
                     <div>
                       <h3 className="font-bold">Available Now</h3>
-                      <p className="text-xs text-muted-foreground">Only show artisans ready to work</p>
+                      <p className="text-xs text-muted-foreground">
+                        Only show artisans ready to work
+                      </p>
                     </div>
                     <Switch
                       checked={filterState.availableNow}
-                      onCheckedChange={(checked) => dispatch({ type: 'SET_AVAILABLE_NOW', payload: checked })}
+                      onCheckedChange={(checked) =>
+                        dispatch({ type: "SET_AVAILABLE_NOW", payload: checked })
+                      }
                     />
                   </div>
                 </section>
 
                 {/* Rating */}
                 <section>
-                  <h3 className="text-sm font-bold uppercase tracking-wider text-muted-foreground mb-4">Minimum Rating</h3>
+                  <h3 className="text-sm font-bold uppercase tracking-wider text-muted-foreground mb-4">
+                    Minimum Rating
+                  </h3>
                   <div className="flex gap-2">
-                    {[1, 2, 3, 4, 5].map(rating => (
+                    {[1, 2, 3, 4, 5].map((rating) => (
                       <button
                         key={rating}
-                        onClick={() => dispatch({ type: 'SET_MIN_RATING', payload: rating })}
+                        onClick={() => dispatch({ type: "SET_MIN_RATING", payload: rating })}
                         className={[
                           "flex-1 flex items-center justify-center gap-1 py-2 rounded-xl border-2 transition",
                           filterState.minRating === rating
                             ? "border-primary bg-primary/10 text-primary"
-                            : "border-border bg-card hover:bg-muted"
+                            : "border-border bg-card hover:bg-muted",
                         ].join(" ")}
                       >
                         <span className="font-bold">{rating}</span>
-                        <Star className={`h-3 w-3 ${filterState.minRating >= rating ? 'fill-accent text-accent' : ''}`} />
+                        <Star
+                          className={`h-3 w-3 ${filterState.minRating >= rating ? "fill-accent text-accent" : ""}`}
+                        />
                       </button>
                     ))}
                   </div>

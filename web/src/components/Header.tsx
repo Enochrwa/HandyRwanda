@@ -1,5 +1,12 @@
 import { Link } from "@tanstack/react-router";
-import { Search, Bell, LogOut, LayoutDashboard, User as UserIcon, MessageSquare } from "lucide-react";
+import {
+  Search,
+  Bell,
+  LogOut,
+  LayoutDashboard,
+  User as UserIcon,
+  MessageSquare,
+} from "lucide-react";
 import { useState, useMemo } from "react";
 import { toast } from "sonner";
 import { useAuthStore } from "@/store/authStore";
@@ -43,9 +50,13 @@ export function Header() {
     refetchInterval: 30000,
   });
 
-  const unreadCount = useMemo(() =>
-    conversations?.reduce((acc: number, curr: any) => acc + (curr.unread_count || 0), 0) || 0,
-    [conversations]
+  const unreadCount = useMemo(
+    () =>
+      conversations?.reduce(
+        (acc: number, curr: { unread_count?: number }) => acc + (curr.unread_count || 0),
+        0,
+      ) || 0,
+    [conversations],
   );
 
   return (

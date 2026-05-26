@@ -17,7 +17,7 @@ from app.models.artisan import (
     artisan_skills,
 )
 from app.models.booking import Booking, BookingStatus
-from app.models.job import Job, JobStatus
+from app.models.job import Job
 from app.models.user import User, UserRole
 
 router = APIRouter(prefix="/artisans", tags=["artisans"])

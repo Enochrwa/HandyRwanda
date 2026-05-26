@@ -76,7 +76,9 @@ function Profile() {
       return;
     }
 
-    const conversation = conversations?.find((c: any) => c.other_user.id === a.id);
+    const conversation = conversations?.find(
+      (c: { other_user: { id: string }; booking_id: string }) => c.other_user.id === a.id,
+    );
     if (conversation) {
       navigate({ to: "/messages", search: { booking: conversation.booking_id } });
     } else {

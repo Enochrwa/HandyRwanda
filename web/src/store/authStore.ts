@@ -28,7 +28,7 @@ const isTokenExpired = (token: string): boolean => {
       atob(base64)
         .split("")
         .map((c) => "%" + ("00" + c.charCodeAt(0).toString(16)).slice(-2))
-        .join("")
+        .join(""),
     );
     const { exp } = JSON.parse(jsonPayload);
     return exp * 1000 < Date.now();
@@ -63,6 +63,6 @@ export const useAuthStore = create<AuthStore>()(
           state.logout();
         }
       },
-    }
-  )
+    },
+  ),
 );

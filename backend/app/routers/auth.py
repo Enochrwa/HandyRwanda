@@ -1,8 +1,6 @@
 import os
-from typing import Any
+from typing import Any, Literal
 from uuid import UUID
-
-from typing import Literal
 
 from fastapi import APIRouter, Depends, HTTPException
 from jose import jwt
@@ -31,10 +29,14 @@ class RegisterRequest(BaseModel):
 async def register(payload: RegisterRequest, db: AsyncSession = Depends(get_db)):
     # 1. Check if email or phone already exists
     res = await db.execute(
-        select(User).where((User.email == payload.email) | (User.phone_number == payload.phone_number))
+        select(User).where(
+            (User.email == payload.email) | (User.phone_number == payload.phone_number)
+        )
     )
     if res.scalar_one_or_none():
-        raise HTTPException(status_code=409, detail="Email or phone number already registered")
+        raise HTTPException(
+            status_code=409, detail="Email or phone number already registered"
+        )
 
     # 2. Create User
     user = User(

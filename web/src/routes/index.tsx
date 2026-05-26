@@ -68,7 +68,8 @@ function Home() {
         {/* Greeting + search */}
         <section>
           <p className="text-sm font-semibold uppercase tracking-wider text-primary">
-            {greeting}{isAuthenticated ? `, ${user?.fullName.split(' ')[0]}` : ''} 👋
+            {greeting}
+            {isAuthenticated ? `, ${user?.fullName.split(" ")[0]}` : ""} 👋
           </p>
           <h1 className="mt-2 text-3xl font-extrabold leading-tight text-foreground sm:text-4xl">
             What do you need fixed today?
@@ -102,7 +103,8 @@ function Home() {
                 <div className="flex-1">
                   <p className="text-sm font-medium text-muted-foreground">Upcoming</p>
                   <p className="font-semibold text-foreground">
-                    Your {upcomingBooking.category} {upcomingBooking.artisan_name} is scheduled for {upcomingBooking.time_label}.
+                    Your {upcomingBooking.category} {upcomingBooking.artisan_name} is scheduled for{" "}
+                    {upcomingBooking.time_label}.
                   </p>
                 </div>
                 <Link
@@ -114,17 +116,16 @@ function Home() {
                 </Link>
               </div>
             </section>
-          ) : !isLoadingUpcoming && (
-            <section className="mt-6 overflow-hidden rounded-2xl border border-border bg-card p-4 shadow-card">
-               <div className="flex items-center gap-3">
+          ) : (
+            !isLoadingUpcoming && (
+              <section className="mt-6 overflow-hidden rounded-2xl border border-border bg-card p-4 shadow-card">
+                <div className="flex items-center gap-3">
                   <div className="grid h-11 w-11 place-items-center rounded-xl bg-muted text-muted-foreground">
                     <Calendar className="h-5 w-5" />
                   </div>
                   <div className="flex-1">
                     <p className="text-sm font-medium text-muted-foreground">Upcoming</p>
-                    <p className="font-semibold text-foreground">
-                      You have no upcoming bookings.
-                    </p>
+                    <p className="font-semibold text-foreground">You have no upcoming bookings.</p>
                   </div>
                   <Link
                     to="/search"
@@ -132,8 +133,9 @@ function Home() {
                   >
                     Browse
                   </Link>
-               </div>
-            </section>
+                </div>
+              </section>
+            )
           )
         ) : (
           <section className="mt-6 overflow-hidden rounded-2xl border border-border bg-card p-4 shadow-card">

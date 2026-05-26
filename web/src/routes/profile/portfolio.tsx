@@ -70,8 +70,9 @@ function PortfolioManagement() {
       toast.success("Photo removed");
       setIsDeleting(null);
     },
-    onError: (err: any) => {
-      toast.error(err?.response?.data?.detail ?? "Failed to delete photo");
+    onError: (err: unknown) => {
+      const error = err as { response?: { data?: { detail?: string } } };
+      toast.error(error?.response?.data?.detail ?? "Failed to delete photo");
     },
   });
 
@@ -110,8 +111,9 @@ function PortfolioManagement() {
       toast.success("Photo added!");
       setIsUploadOpen(false);
       resetUpload();
-    } catch (error: any) {
-      toast.error(error.response?.data?.detail || "Upload failed");
+    } catch (error: unknown) {
+      const err = error as { response?: { data?: { detail?: string } } };
+      toast.error(err.response?.data?.detail || "Upload failed");
     } finally {
       setIsUploading(false);
     }
@@ -144,38 +146,36 @@ function PortfolioManagement() {
             <span className="font-bold">Add Project</span>
           </button>
 
-          {isLoading ? (
-            Array.from({ length: 2 }).map((_, i) => (
-              <div key={i} className="aspect-square rounded-3xl animate-pulse bg-muted" />
-            ))
-          ) : (
-            photos?.map((photo) => (
-              <div
-                key={photo.id}
-                className="group relative aspect-square rounded-3xl overflow-hidden bg-muted border border-border"
-              >
-                <img
-                  src={photo.image_url}
-                  alt={photo.description || "Portfolio work"}
-                  className="h-full w-full object-cover transition-transform group-hover:scale-105"
-                />
-                <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-4">
-                  <button
-                    onClick={() => setIsDeleting(photo.id)}
-                    className="p-3 rounded-full bg-destructive text-destructive-foreground hover:scale-110 transition-transform"
-                    aria-label="Delete photo"
-                  >
-                    <Trash2 className="h-6 w-6" />
-                  </button>
-                </div>
-                {photo.description && (
-                  <div className="absolute bottom-0 inset-x-0 bg-gradient-to-t from-black/60 to-transparent p-4 opacity-0 group-hover:opacity-100 transition-opacity">
-                    <p className="text-white text-xs font-medium truncate">{photo.description}</p>
+          {isLoading
+            ? Array.from({ length: 2 }).map((_, i) => (
+                <div key={i} className="aspect-square rounded-3xl animate-pulse bg-muted" />
+              ))
+            : photos?.map((photo) => (
+                <div
+                  key={photo.id}
+                  className="group relative aspect-square rounded-3xl overflow-hidden bg-muted border border-border"
+                >
+                  <img
+                    src={photo.image_url}
+                    alt={photo.description || "Portfolio work"}
+                    className="h-full w-full object-cover transition-transform group-hover:scale-105"
+                  />
+                  <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-4">
+                    <button
+                      onClick={() => setIsDeleting(photo.id)}
+                      className="p-3 rounded-full bg-destructive text-destructive-foreground hover:scale-110 transition-transform"
+                      aria-label="Delete photo"
+                    >
+                      <Trash2 className="h-6 w-6" />
+                    </button>
                   </div>
-                )}
-              </div>
-            ))
-          )}
+                  {photo.description && (
+                    <div className="absolute bottom-0 inset-x-0 bg-gradient-to-t from-black/60 to-transparent p-4 opacity-0 group-hover:opacity-100 transition-opacity">
+                      <p className="text-white text-xs font-medium truncate">{photo.description}</p>
+                    </div>
+                  )}
+                </div>
+              ))}
         </div>
       </main>
 
@@ -198,7 +198,9 @@ function PortfolioManagement() {
                 className="aspect-video w-full flex flex-col items-center justify-center border-2 border-dashed border-border rounded-xl bg-muted/50 cursor-pointer hover:bg-muted transition-colors"
               >
                 <Camera className="h-10 w-10 text-muted-foreground mb-2" />
-                <span className="text-sm font-medium text-muted-foreground">Click to upload photo</span>
+                <span className="text-sm font-medium text-muted-foreground">
+                  Click to upload photo
+                </span>
                 <input
                   type="file"
                   ref={fileInputRef}
@@ -228,9 +230,7 @@ function PortfolioManagement() {
                 maxLength={120}
                 className="resize-none h-24"
               />
-              <p className="text-[10px] text-right text-muted-foreground">
-                {caption.length}/120
-              </p>
+              <p className="text-[10px] text-right text-muted-foreground">{caption.length}/120</p>
             </div>
           </div>
           <DialogFooter>
@@ -251,7 +251,8 @@ function PortfolioManagement() {
           <AlertDialogHeader>
             <AlertDialogTitle>Delete this photo?</AlertDialogTitle>
             <AlertDialogDescription>
-              This action cannot be undone. This photo will be permanently removed from your portfolio.
+              This action cannot be undone. This photo will be permanently removed from your
+              portfolio.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>

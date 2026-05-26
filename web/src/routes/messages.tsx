@@ -15,7 +15,7 @@ import { Badge } from "@/components/ui/badge";
 export const Route = createFileRoute("/messages")({
   validateSearch: (search: Record<string, unknown>): { booking?: string } => {
     return {
-      booking: typeof search.booking === 'string' ? search.booking : undefined,
+      booking: typeof search.booking === "string" ? search.booking : undefined,
     };
   },
   component: MessagesPage,
@@ -47,7 +47,7 @@ interface Message {
 function MessagesPage() {
   const { isAuthenticated, user } = useAuthStore();
   const navigate = useNavigate();
-  const { booking: selectedBookingId } = useSearch({ from: '/messages' });
+  const { booking: selectedBookingId } = useSearch({ from: "/messages" });
   const queryClient = useQueryClient();
   const [messageText, setMessageText] = useState("");
   const messagesEndRef = useRef<HTMLDivElement>(null);
@@ -74,22 +74,23 @@ function MessagesPage() {
 
   const sendMutation = useMutation({
     mutationFn: (content: string) =>
-      api.post(`/messages/${selectedBookingId}`, { content }).then(res => res.data),
+      api.post(`/messages/${selectedBookingId}`, { content }).then((res) => res.data),
     onSuccess: (newMessage) => {
       setMessageText("");
       queryClient.setQueryData(["messages", selectedBookingId], (old: Message[] | undefined) =>
-        old ? [...old, newMessage] : [newMessage]
+        old ? [...old, newMessage] : [newMessage],
       );
       queryClient.invalidateQueries({ queryKey: ["conversations"] });
     },
-    onError: (err: any) => {
-      toast.error(err?.response?.data?.detail ?? "Failed to send message");
-    }
+    onError: (err: unknown) => {
+      const error = err as { response?: { data?: { detail?: string } } };
+      toast.error(error?.response?.data?.detail ?? "Failed to send message");
+    },
   });
 
-  const activeConversation = useMemo(() =>
-    conversations?.find(c => c.booking_id === selectedBookingId),
-    [conversations, selectedBookingId]
+  const activeConversation = useMemo(
+    () => conversations?.find((c) => c.booking_id === selectedBookingId),
+    [conversations, selectedBookingId],
   );
 
   useEffect(() => {
@@ -109,7 +110,9 @@ function MessagesPage() {
       <Header />
       <main className="flex-1 overflow-hidden flex max-w-6xl mx-auto w-full border-x border-border">
         {/* Left Panel: Conversations */}
-        <div className={`w-full md:w-80 flex-shrink-0 flex flex-col border-r border-border bg-card ${selectedBookingId ? 'hidden md:flex' : 'flex'}`}>
+        <div
+          className={`w-full md:w-80 flex-shrink-0 flex flex-col border-r border-border bg-card ${selectedBookingId ? "hidden md:flex" : "flex"}`}
+        >
           <div className="p-4 border-b border-border">
             <h1 className="text-xl font-extrabold flex items-center gap-2">
               <MessageCircle className="h-5 w-5 text-primary" />
@@ -130,14 +133,18 @@ function MessagesPage() {
             ) : conversations?.length === 0 ? (
               <div className="flex flex-col items-center justify-center p-8 text-center h-full">
                 <div className="text-4xl mb-2">💬</div>
-                <p className="text-sm font-medium text-muted-foreground">No messages yet. Book an artisan to start chatting.</p>
+                <p className="text-sm font-medium text-muted-foreground">
+                  No messages yet. Book an artisan to start chatting.
+                </p>
               </div>
             ) : (
               conversations?.map((conv) => (
                 <button
                   key={conv.booking_id}
-                  onClick={() => navigate({ to: '/messages', search: { booking: conv.booking_id } })}
-                  className={`w-full p-4 flex gap-3 text-left hover:bg-muted/50 transition-colors border-b border-border/50 relative ${selectedBookingId === conv.booking_id ? 'bg-muted/80' : ''}`}
+                  onClick={() =>
+                    navigate({ to: "/messages", search: { booking: conv.booking_id } })
+                  }
+                  className={`w-full p-4 flex gap-3 text-left hover:bg-muted/50 transition-colors border-b border-border/50 relative ${selectedBookingId === conv.booking_id ? "bg-muted/80" : ""}`}
                 >
                   <Avatar className="h-12 w-12 flex-shrink-0">
                     <AvatarImage src={conv.other_user.avatar_url} />
@@ -147,23 +154,30 @@ function MessagesPage() {
                   </Avatar>
                   <div className="flex-1 min-w-0">
                     <div className="flex justify-between items-baseline mb-0.5">
-                      <span className="font-bold text-sm truncate">{conv.other_user.full_name}</span>
+                      <span className="font-bold text-sm truncate">
+                        {conv.other_user.full_name}
+                      </span>
                       <span className="text-[10px] text-muted-foreground">
-                        {formatDistanceToNow(new Date(conv.last_message.created_at), { addSuffix: true })}
+                        {formatDistanceToNow(new Date(conv.last_message.created_at), {
+                          addSuffix: true,
+                        })}
                       </span>
                     </div>
                     <p className="text-xs text-muted-foreground truncate pr-4">
                       {conv.last_message.content}
                     </p>
                     <div className="mt-1 flex items-center gap-2">
-                       <Badge variant="outline" className="text-[9px] h-4 py-0 px-1 uppercase tracking-tighter">
-                          {conv.booking_status.replace('_', ' ')}
-                       </Badge>
+                      <Badge
+                        variant="outline"
+                        className="text-[9px] h-4 py-0 px-1 uppercase tracking-tighter"
+                      >
+                        {conv.booking_status.replace("_", " ")}
+                      </Badge>
                     </div>
                   </div>
                   {conv.unread_count > 0 && (
                     <div className="absolute right-4 top-1/2 -translate-y-1/2 flex items-center justify-center">
-                       <div className="h-2 w-2 rounded-full bg-accent" />
+                      <div className="h-2 w-2 rounded-full bg-accent" />
                     </div>
                   )}
                 </button>
@@ -173,13 +187,15 @@ function MessagesPage() {
         </div>
 
         {/* Right Panel: Chat Thread */}
-        <div className={`flex-1 flex flex-col bg-background ${!selectedBookingId ? 'hidden md:flex' : 'flex'}`}>
+        <div
+          className={`flex-1 flex flex-col bg-background ${!selectedBookingId ? "hidden md:flex" : "flex"}`}
+        >
           {selectedBookingId ? (
             <>
               {/* Chat Header */}
               <div className="p-3 border-b border-border bg-card/50 backdrop-blur-sm flex items-center gap-3">
                 <button
-                  onClick={() => navigate({ to: '/messages', search: { booking: undefined } })}
+                  onClick={() => navigate({ to: "/messages", search: { booking: undefined } })}
                   className="p-2 -ml-1 rounded-full hover:bg-muted md:hidden"
                 >
                   <ArrowLeft className="h-5 w-5" />
@@ -187,13 +203,16 @@ function MessagesPage() {
                 <Avatar className="h-10 w-10">
                   <AvatarImage src={activeConversation?.other_user.avatar_url} />
                   <AvatarFallback className="bg-primary text-primary-foreground font-bold">
-                    {activeConversation?.other_user.full_name.charAt(0).toUpperCase() || '?'}
+                    {activeConversation?.other_user.full_name.charAt(0).toUpperCase() || "?"}
                   </AvatarFallback>
                 </Avatar>
                 <div>
-                  <h2 className="font-bold text-sm leading-tight">{activeConversation?.other_user.full_name}</h2>
+                  <h2 className="font-bold text-sm leading-tight">
+                    {activeConversation?.other_user.full_name}
+                  </h2>
                   <p className="text-[11px] text-muted-foreground font-medium uppercase tracking-wider">
-                    {activeConversation?.booking_status.replace('_', ' ')} · Ref: {selectedBookingId.slice(0, 8)}
+                    {activeConversation?.booking_status.replace("_", " ")} · Ref:{" "}
+                    {selectedBookingId.slice(0, 8)}
                   </p>
                 </div>
               </div>
@@ -211,7 +230,10 @@ function MessagesPage() {
                     const showAvatar = !isOwn && (!prevMsg || prevMsg.sender_id !== msg.sender_id);
 
                     return (
-                      <div key={msg.id} className={`flex ${isOwn ? 'justify-end' : 'justify-start'} items-end gap-2`}>
+                      <div
+                        key={msg.id}
+                        className={`flex ${isOwn ? "justify-end" : "justify-start"} items-end gap-2`}
+                      >
                         {!isOwn && (
                           <div className="w-8 flex-shrink-0">
                             {showAvatar && (
@@ -228,13 +250,15 @@ function MessagesPage() {
                           <div
                             className={`px-4 py-2 rounded-2xl text-sm ${
                               isOwn
-                                ? 'bg-primary text-primary-foreground rounded-br-sm'
-                                : 'bg-muted text-foreground rounded-bl-sm'
+                                ? "bg-primary text-primary-foreground rounded-br-sm"
+                                : "bg-muted text-foreground rounded-bl-sm"
                             }`}
                           >
                             {msg.content}
                           </div>
-                          <span className={`text-[9px] text-muted-foreground mt-1 ${isOwn ? 'text-right' : 'text-left'}`}>
+                          <span
+                            className={`text-[9px] text-muted-foreground mt-1 ${isOwn ? "text-right" : "text-left"}`}
+                          >
                             {formatDistanceToNow(new Date(msg.created_at), { addSuffix: true })}
                           </span>
                         </div>
@@ -254,18 +278,29 @@ function MessagesPage() {
                   className="flex-1 rounded-xl h-11"
                   disabled={sendMutation.isPending}
                 />
-                <Button type="submit" size="icon" className="h-11 w-11 rounded-xl" disabled={!messageText.trim() || sendMutation.isPending}>
-                  {sendMutation.isPending ? <Loader2 className="h-5 w-5 animate-spin" /> : <Send className="h-5 w-5" />}
+                <Button
+                  type="submit"
+                  size="icon"
+                  className="h-11 w-11 rounded-xl"
+                  disabled={!messageText.trim() || sendMutation.isPending}
+                >
+                  {sendMutation.isPending ? (
+                    <Loader2 className="h-5 w-5 animate-spin" />
+                  ) : (
+                    <Send className="h-5 w-5" />
+                  )}
                 </Button>
               </form>
             </>
           ) : (
             <div className="flex-1 flex flex-col items-center justify-center p-8 text-center text-muted-foreground">
-               <div className="h-20 w-20 rounded-full bg-muted flex items-center justify-center mb-4">
-                  <MessageCircle className="h-10 w-10 opacity-20" />
-               </div>
-               <h2 className="text-lg font-bold text-foreground">Your Conversations</h2>
-               <p className="max-w-xs mt-1">Select a conversation from the left to start messaging.</p>
+              <div className="h-20 w-20 rounded-full bg-muted flex items-center justify-center mb-4">
+                <MessageCircle className="h-10 w-10 opacity-20" />
+              </div>
+              <h2 className="text-lg font-bold text-foreground">Your Conversations</h2>
+              <p className="max-w-xs mt-1">
+                Select a conversation from the left to start messaging.
+              </p>
             </div>
           )}
         </div>

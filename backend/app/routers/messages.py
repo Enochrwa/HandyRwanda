@@ -3,14 +3,14 @@ from uuid import UUID
 
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
-from sqlalchemy import select, update, func, or_
+from sqlalchemy import func, or_, select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.database import get_db
 from app.dependencies.jwt_auth import require_role
 from app.models.booking import Booking
 from app.models.message import Message
-from app.models.user import User, UserRole
+from app.models.user import User
 
 router = APIRouter(prefix="/messages", tags=["messages"])
 
@@ -31,8 +31,7 @@ async def get_conversations(
 
     subquery = (
         select(
-            Message.booking_id,
-            func.max(Message.created_at).label("latest_message_at")
+            Message.booking_id, func.max(Message.created_at).label("latest_message_at")
         )
         .group_by(Message.booking_id)
         .subquery()
@@ -41,11 +40,18 @@ async def get_conversations(
     query = (
         select(Booking, Message, User)
         .join(subquery, Booking.id == subquery.c.booking_id)
-        .join(Message, (Message.booking_id == subquery.c.booking_id) & (Message.created_at == subquery.c.latest_message_at))
-        .join(User, or_(
-            (Booking.client_id == User.id) & (Booking.artisan_id == user_id),
-            (Booking.artisan_id == User.id) & (Booking.client_id == user_id)
-        ))
+        .join(
+            Message,
+            (Message.booking_id == subquery.c.booking_id)
+            & (Message.created_at == subquery.c.latest_message_at),
+        )
+        .join(
+            User,
+            or_(
+                (Booking.client_id == User.id) & (Booking.artisan_id == user_id),
+                (Booking.artisan_id == User.id) & (Booking.client_id == user_id),
+            ),
+        )
         .where(or_(Booking.client_id == user_id, Booking.artisan_id == user_id))
         .order_by(Message.created_at.desc())
     )
@@ -56,29 +62,30 @@ async def get_conversations(
     for booking, message, other_user in result:
         # Get unread count
         unread_res = await db.execute(
-            select(func.count(Message.id))
-            .where(
+            select(func.count(Message.id)).where(
                 Message.booking_id == booking.id,
                 Message.sender_id != user_id,
-                Message.is_read == False
+                Message.is_read.is_(False),
             )
         )
         unread_count = unread_res.scalar_one()
 
-        conversations.append({
-            "booking_id": str(booking.id),
-            "other_user": {
-                "id": str(other_user.id),
-                "full_name": other_user.full_name,
-                "avatar_url": other_user.avatar_url,
-            },
-            "last_message": {
-                "content": message.content,
-                "created_at": message.created_at.isoformat(),
-            },
-            "unread_count": unread_count,
-            "booking_status": booking.status,
-        })
+        conversations.append(
+            {
+                "booking_id": str(booking.id),
+                "other_user": {
+                    "id": str(other_user.id),
+                    "full_name": other_user.full_name,
+                    "avatar_url": other_user.avatar_url,
+                },
+                "last_message": {
+                    "content": message.content,
+                    "created_at": message.created_at.isoformat(),
+                },
+                "unread_count": unread_count,
+                "booking_status": booking.status,
+            }
+        )
 
     return conversations
 
@@ -95,12 +102,14 @@ async def get_messages(
     booking_res = await db.execute(
         select(Booking).where(
             Booking.id == booking_id,
-            or_(Booking.client_id == user_id, Booking.artisan_id == user_id)
+            or_(Booking.client_id == user_id, Booking.artisan_id == user_id),
         )
     )
     booking = booking_res.scalar_one_or_none()
     if not booking:
-        raise HTTPException(status_code=403, detail="Not authorized to view these messages")
+        raise HTTPException(
+            status_code=403, detail="Not authorized to view these messages"
+        )
 
     # Mark messages as read
     await db.execute(
@@ -112,7 +121,9 @@ async def get_messages(
 
     # Fetch all messages
     messages_res = await db.execute(
-        select(Message).where(Message.booking_id == booking_id).order_by(Message.created_at.asc())
+        select(Message)
+        .where(Message.booking_id == booking_id)
+        .order_by(Message.created_at.asc())
     )
     return messages_res.scalars().all()
 
@@ -130,12 +141,14 @@ async def send_message(
     booking_res = await db.execute(
         select(Booking).where(
             Booking.id == booking_id,
-            or_(Booking.client_id == user_id, Booking.artisan_id == user_id)
+            or_(Booking.client_id == user_id, Booking.artisan_id == user_id),
         )
     )
     booking = booking_res.scalar_one_or_none()
     if not booking:
-        raise HTTPException(status_code=403, detail="Not authorized to send messages in this booking")
+        raise HTTPException(
+            status_code=403, detail="Not authorized to send messages in this booking"
+        )
 
     message = Message(
         booking_id=booking_id,

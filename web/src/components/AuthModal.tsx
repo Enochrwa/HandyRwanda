@@ -4,12 +4,7 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
 import { toast } from "sonner";
 import { Loader2 } from "lucide-react";
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
   Form,
@@ -21,11 +16,7 @@ import {
 } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
-import {
-  InputOTP,
-  InputOTPGroup,
-  InputOTPSlot,
-} from "@/components/ui/input-otp";
+import { InputOTP, InputOTPGroup, InputOTPSlot } from "@/components/ui/input-otp";
 import {
   Select,
   SelectContent,
@@ -53,11 +44,7 @@ interface AuthModalProps {
   defaultTab?: "login" | "register";
 }
 
-export const AuthModal: React.FC<AuthModalProps> = ({
-  isOpen,
-  onClose,
-  defaultTab = "login",
-}) => {
+export const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, defaultTab = "login" }) => {
   const [activeTab, setActiveTab] = useState<string>(defaultTab);
   const [step, setStep] = useState<"request" | "verify">("request");
   const [email, setEmail] = useState("");
@@ -86,8 +73,9 @@ export const AuthModal: React.FC<AuthModalProps> = ({
       setEmail(values.email);
       setStep("verify");
       toast.success("OTP sent to your email");
-    } catch (error: any) {
-      toast.error(error.response?.data?.detail || "Failed to request OTP");
+    } catch (error: unknown) {
+      const err = error as { response?: { data?: { detail?: string } } };
+      toast.error(err.response?.data?.detail || "Failed to request OTP");
     } finally {
       setIsLoading(false);
     }
@@ -112,12 +100,13 @@ export const AuthModal: React.FC<AuthModalProps> = ({
           avatarUrl: user.avatar_url,
         },
         access_token,
-        refresh_token
+        refresh_token,
       );
       toast.success("Welcome back!");
       onClose();
-    } catch (error: any) {
-      toast.error(error.response?.data?.detail || "Invalid OTP");
+    } catch (error: unknown) {
+      const err = error as { response?: { data?: { detail?: string } } };
+      toast.error(err.response?.data?.detail || "Invalid OTP");
     } finally {
       setIsLoading(false);
     }
@@ -136,8 +125,9 @@ export const AuthModal: React.FC<AuthModalProps> = ({
       loginForm.setValue("email", values.email);
       setActiveTab("login");
       setStep("request");
-    } catch (error: any) {
-      toast.error(error.response?.data?.detail || "Registration failed");
+    } catch (error: unknown) {
+      const err = error as { response?: { data?: { detail?: string } } };
+      toast.error(err.response?.data?.detail || "Registration failed");
     } finally {
       setIsLoading(false);
     }
@@ -161,10 +151,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({
           <TabsContent value="login">
             {step === "request" ? (
               <Form {...loginForm}>
-                <form
-                  onSubmit={loginForm.handleSubmit(handleRequestOtp)}
-                  className="space-y-4"
-                >
+                <form onSubmit={loginForm.handleSubmit(handleRequestOtp)} className="space-y-4">
                   <FormField
                     control={loginForm.control}
                     name="email"
@@ -222,10 +209,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({
 
           <TabsContent value="register">
             <Form {...registerForm}>
-              <form
-                onSubmit={registerForm.handleSubmit(handleRegister)}
-                className="space-y-4"
-              >
+              <form onSubmit={registerForm.handleSubmit(handleRegister)} className="space-y-4">
                 <FormField
                   control={registerForm.control}
                   name="fullName"
@@ -271,10 +255,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({
                   render={({ field }) => (
                     <FormItem>
                       <FormLabel>I am a...</FormLabel>
-                      <Select
-                        onValueChange={field.onChange}
-                        defaultValue={field.value}
-                      >
+                      <Select onValueChange={field.onChange} defaultValue={field.value}>
                         <FormControl>
                           <SelectTrigger>
                             <SelectValue placeholder="Select a role" />

@@ -1,5 +1,17 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
-import { TrendingUp, Star, MapPin, Clock, Award, Flame, Trophy, ArrowRight, Loader2, ChevronDown, ChevronUp } from "lucide-react";
+import {
+  TrendingUp,
+  Star,
+  MapPin,
+  Clock,
+  Award,
+  Flame,
+  Trophy,
+  ArrowRight,
+  Loader2,
+  ChevronDown,
+  ChevronUp,
+} from "lucide-react";
 import { Header } from "@/components/Header";
 import { formatRWF } from "@/services/artisanService";
 import { useState, useEffect } from "react";
@@ -47,8 +59,9 @@ function Pro() {
       queryClient.invalidateQueries({ queryKey: ["artisan-dashboard"] });
       toast.success("Availability updated");
     },
-    onError: (err: any) => {
-      toast.error(err?.response?.data?.detail ?? "Failed to update availability");
+    onError: (err: unknown) => {
+      const error = err as { response?: { data?: { detail?: string } } };
+      toast.error(error?.response?.data?.detail ?? "Failed to update availability");
     },
   });
 
@@ -163,12 +176,20 @@ function Pro() {
                 <div key={i} className="h-20 animate-pulse rounded-2xl bg-muted" />
               ))
             ) : data?.schedule?.length > 0 ? (
+              // eslint-disable-next-line @typescript-eslint/no-explicit-any
               data.schedule.map((item: any) => (
                 <ScheduleRow
                   key={item.id}
-                  time={item.time ? new Date(item.time).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : "N/A"}
+                  time={
+                    item.time
+                      ? new Date(item.time).toLocaleTimeString([], {
+                          hour: "2-digit",
+                          minute: "2-digit",
+                        })
+                      : "N/A"
+                  }
                   title={`${item.title} · ${item.client_name}`}
-                  status={item.status === 'confirmed' ? 'confirmed' : 'pending'}
+                  status={item.status === "confirmed" ? "confirmed" : "pending"}
                 />
               ))
             ) : (
@@ -188,9 +209,8 @@ function Pro() {
                 <div key={i} className="h-48 animate-pulse rounded-2xl bg-muted" />
               ))
             ) : data?.nearby_jobs?.length > 0 ? (
-              data.nearby_jobs.map((j: any) => (
-                <NearbyJobCard key={j.id} job={j} />
-              ))
+              // eslint-disable-next-line @typescript-eslint/no-explicit-any
+              data.nearby_jobs.map((j: any) => <NearbyJobCard key={j.id} job={j} />)
             ) : (
               <div className="col-span-full rounded-2xl border border-dashed border-border p-8 text-center text-muted-foreground">
                 No open jobs nearby
@@ -215,6 +235,7 @@ function Pro() {
   );
 }
 
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
 function NearbyJobCard({ job }: { job: any }) {
   const [expanded, setExpanded] = useState(false);
   const [price, setPrice] = useState(job.budget?.toString() || "");
@@ -233,8 +254,9 @@ function NearbyJobCard({ job }: { job: any }) {
       toast.success("Bid submitted!");
       setExpanded(false);
       queryClient.invalidateQueries({ queryKey: ["artisan-dashboard"] });
-    } catch (error: any) {
-      toast.error(error.response?.data?.detail || "Failed to submit bid");
+    } catch (error: unknown) {
+      const err = error as { response?: { data?: { detail?: string } } };
+      toast.error(err.response?.data?.detail || "Failed to submit bid");
     } finally {
       setIsSubmitting(false);
     }
@@ -248,12 +270,13 @@ function NearbyJobCard({ job }: { job: any }) {
           <Clock className="h-3 w-3" /> New
         </span>
       </div>
-      <h3 className="mt-2 font-bold">{job.category} · {job.title}</h3>
-      <p className="mt-1 text-sm text-muted-foreground line-clamp-2">
-        {job.description}
-      </p>
+      <h3 className="mt-2 font-bold">
+        {job.category} · {job.title}
+      </h3>
+      <p className="mt-1 text-sm text-muted-foreground line-clamp-2">{job.description}</p>
       <p className="mt-2 text-sm text-muted-foreground">
-        Budget: <span className="font-semibold text-foreground">{formatRWF(job.budget || 0)} RWF</span>
+        Budget:{" "}
+        <span className="font-semibold text-foreground">{formatRWF(job.budget || 0)} RWF</span>
       </p>
 
       {!expanded ? (
@@ -266,7 +289,9 @@ function NearbyJobCard({ job }: { job: any }) {
       ) : (
         <div className="mt-4 space-y-3 border-t pt-4">
           <div className="space-y-1">
-            <label className="text-xs font-bold uppercase text-muted-foreground">Your Price (RWF)</label>
+            <label className="text-xs font-bold uppercase text-muted-foreground">
+              Your Price (RWF)
+            </label>
             <Input
               type="number"
               value={price}
@@ -284,7 +309,9 @@ function NearbyJobCard({ job }: { job: any }) {
             />
           </div>
           <div className="flex gap-2">
-            <Button variant="outline" className="flex-1" onClick={() => setExpanded(false)}>Cancel</Button>
+            <Button variant="outline" className="flex-1" onClick={() => setExpanded(false)}>
+              Cancel
+            </Button>
             <Button className="flex-1" onClick={handleSubmit} disabled={isSubmitting}>
               {isSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
               Send Bid

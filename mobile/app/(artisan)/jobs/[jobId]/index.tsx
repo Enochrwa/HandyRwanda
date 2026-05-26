@@ -29,6 +29,7 @@ export default function JobDetailBid() {
   const [submitting, setSubmitting] = useState(false);
 
   useEffect(() => {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     api.get(`/jobs/${jobId}`).then((res: { data: any }) => {
       setJob(res.data);
       setLoading(false);

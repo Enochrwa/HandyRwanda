@@ -1,6 +1,7 @@
 import { cva, type VariantProps as CvaVariantProps } from "class-variance-authority";
 import { cn } from "@/lib/utils";
 
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
 export type VariantProps<T extends (...args: any) => any> = CvaVariantProps<T>;
 
 export const buttonVariants = cva(

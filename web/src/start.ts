@@ -3,6 +3,7 @@ import { createStart, createMiddleware } from "@tanstack/react-start";
 import { renderErrorPage } from "./lib/error-page";
 
 const errorMiddleware = createMiddleware().server(
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   async ({ next }: { next: (...args: any[]) => any }) => {
     try {
       return await next();

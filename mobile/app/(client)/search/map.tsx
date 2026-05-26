@@ -8,11 +8,26 @@ import MapView, { Marker, UrlTile } from 'react-native-maps';
 import api from '../../../services/api';
 import { colors, typography, spacing, radius } from '../../../src/theme';
 
+interface ArtisanSearchResult {
+  id: string;
+  lat: number;
+  lng: number;
+  avatar_url?: string;
+  full_name: string;
+  average_rating: number;
+  distance_km: number;
+}
+
 export default function ArtisanMapSearch() {
   const router = useRouter();
-  const [region, setRegion] = useState<any>(null);
-  const [artisans, setArtisans] = useState<any[]>([]);
-  const [selectedArtisan, setSelectedArtisan] = useState<any>(null);
+  const [region, setRegion] = useState<{
+    latitude: number;
+    longitude: number;
+    latitudeDelta: number;
+    longitudeDelta: number;
+  } | null>(null);
+  const [artisans, setArtisans] = useState<ArtisanSearchResult[]>([]);
+  const [selectedArtisan, setSelectedArtisan] = useState<ArtisanSearchResult | null>(null);
   const bottomSheetRef = useRef<BottomSheet>(null);
 
   useEffect(() => {
@@ -42,7 +57,7 @@ export default function ArtisanMapSearch() {
     }
   };
 
-  const onMarkerPress = (artisan: any) => {
+  const onMarkerPress = (artisan: ArtisanSearchResult) => {
     setSelectedArtisan(artisan);
     bottomSheetRef.current?.expand();
   };
@@ -51,47 +66,48 @@ export default function ArtisanMapSearch() {
 
   return (
     <View style={styles.container}>
-      {/* @ts-ignore */}
       <MapView
         style={styles.map}
         initialRegion={region}
-        onRegionChangeComplete={(r: any) => fetchArtisans(r.latitude, r.longitude)}
+        onRegionChangeComplete={(r: { latitude: number; longitude: number }) =>
+          fetchArtisans(r.latitude, r.longitude)
+        }
       >
-        {/* @ts-ignore */}
         <UrlTile
           urlTemplate="https://tile.openstreetmap.org/{z}/{x}/{y}.png"
           maximumZ={19}
           flipY={false}
         />
         {artisans.map((a) => (
-          /* @ts-ignore */
-          <Marker
-            key={a.id}
-            coordinate={{
-              latitude: a.lat || region.latitude,
-              longitude: a.lng || region.longitude,
-            }}
-            onPress={() => onMarkerPress(a)}
-          >
-            <View style={styles.customMarker}>
-              {a.avatar_url ? (
-                <Image source={{ uri: a.avatar_url }} style={styles.markerImage} />
-              ) : (
-                <View style={styles.markerPlaceholder} />
-              )}
-            </View>
-          </Marker>
+          <View key={a.id}>
+            <Marker
+              coordinate={{
+                latitude: a.lat || region.latitude,
+                longitude: a.lng || region.longitude,
+              }}
+              onPress={() => onMarkerPress(a)}
+            >
+              <View style={styles.customMarker}>
+                {a.avatar_url ? (
+                  <Image source={{ uri: a.avatar_url }} style={styles.markerImage} />
+                ) : (
+                  <View style={styles.markerPlaceholder} />
+                )}
+              </View>
+            </Marker>
+          </View>
         ))}
+        )
       </MapView>
 
-      {/* @ts-ignore */}
       <BottomSheet ref={bottomSheetRef} index={-1} snapPoints={['30%']} enablePanDownToClose>
-        {/* @ts-ignore */}
         <BottomSheetView style={styles.sheetContent}>
           {selectedArtisan && (
             <View>
               <View style={styles.sheetHeader}>
-                <Image source={{ uri: selectedArtisan.avatar_url }} style={styles.sheetAvatar} />
+                {selectedArtisan.avatar_url && (
+                  <Image source={{ uri: selectedArtisan.avatar_url }} style={styles.sheetAvatar} />
+                )}
                 <View style={styles.sheetInfo}>
                   <Text style={styles.sheetName}>{selectedArtisan.full_name}</Text>
                   <Text style={styles.sheetStats}>

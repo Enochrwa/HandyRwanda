@@ -1,5 +1,5 @@
 from datetime import datetime
-from typing import Any
+from typing import Any, cast
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, HTTPException
@@ -55,7 +55,7 @@ async def create_job(
                 top_label = match_res["labels"][0]
                 for c in all_cats:
                     if c.name_en == top_label:
-                        payload.category_id = c.id  # type: ignore
+                        payload.category_id = cast(Any, c).id
                         break
 
     # Upload photos
@@ -151,7 +151,9 @@ async def get_job_detail(
         if job.location_label and "," in job.location_label:
             district = job.location_label.split(",")[-1].strip()
 
-        price_guidance = await get_price_anchor(UUID(str(job.category_id)), district, db)
+        price_guidance = await get_price_anchor(
+            UUID(str(job.category_id)), district, db
+        )
 
     return {
         "job": job,
@@ -178,6 +180,6 @@ async def cancel_job(
             status_code=400, detail="Cannot cancel job in current status"
         )
 
-    job.status = JobStatus.cancelled  # type: ignore
+    job.status = cast(Any, JobStatus.cancelled)
     await db.commit()
     return {"message": "Job cancelled"}

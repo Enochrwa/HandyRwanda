@@ -18,14 +18,19 @@ import { colors, typography, spacing, radius } from '../../../../src/theme';
 export default function JobDetailBid() {
   const router = useRouter();
   const { jobId } = useLocalSearchParams<{ jobId: string }>();
-  const [job, setJob] = useState<any>(null);
+  const [job, setJob] = useState<{
+    title: string;
+    description: string;
+    images?: string[];
+  } | null>(null);
   const [loading, setLoading] = useState(true);
   const [bidPrice, setBidPrice] = useState('');
   const [message, setMessage] = useState('');
   const [submitting, setSubmitting] = useState(false);
 
   useEffect(() => {
-    api.get(`/jobs/${jobId}`).then((res: any) => {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    api.get(`/jobs/${jobId}`).then((res: { data: any }) => {
       setJob(res.data);
       setLoading(false);
     });
@@ -51,7 +56,7 @@ export default function JobDetailBid() {
     }
   };
 
-  if (loading) return <ActivityIndicator style={{ flex: 1 }} />;
+  if (loading || !job) return <ActivityIndicator style={{ flex: 1 }} />;
 
   return (
     <ScrollView contentContainerStyle={styles.container}>

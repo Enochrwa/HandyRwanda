@@ -33,7 +33,7 @@ export default function LocationStep() {
       setRegion(newRegion);
       setMarker({ latitude: location.coords.latitude, longitude: location.coords.longitude });
     })();
-  }, []);
+  }, [region]);
 
   const handleNext = async () => {
     try {
@@ -56,25 +56,25 @@ export default function LocationStep() {
         <Text style={styles.subtitle}>Step 3 of 4: Set Service Area</Text>
       </View>
 
-      {/* @ts-ignore */}
       <MapView
         style={styles.map}
         initialRegion={region}
-        onPress={(e: any) => setMarker(e.nativeEvent.coordinate)}
+        onPress={(e: { nativeEvent: { coordinate: { latitude: number; longitude: number } } }) =>
+          setMarker(e.nativeEvent.coordinate)
+        }
       >
-        {/* @ts-ignore */}
         <UrlTile
           urlTemplate="https://tile.openstreetmap.org/{z}/{x}/{y}.png"
           maximumZ={19}
           flipY={false}
         />
-        {/* @ts-ignore */}
         <Marker
           coordinate={marker}
           draggable
-          onDragEnd={(e: any) => setMarker(e.nativeEvent.coordinate)}
+          onDragEnd={(e: {
+            nativeEvent: { coordinate: { latitude: number; longitude: number } };
+          }) => setMarker(e.nativeEvent.coordinate)}
         />
-        {/* @ts-ignore */}
         <Circle
           center={marker}
           radius={radiusKm * 1000}
@@ -85,7 +85,6 @@ export default function LocationStep() {
 
       <View style={styles.footer}>
         <Text style={styles.label}>Service Radius: {radiusKm} km</Text>
-        {/* @ts-ignore */}
         <Slider
           style={styles.slider}
           minimumValue={1}

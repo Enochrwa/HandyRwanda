@@ -12,9 +12,18 @@ import {
 import api from '../../../services/api';
 import { colors, typography, spacing, radius } from '../../../src/theme';
 
+interface JobItem {
+  id: string;
+  title: string;
+  description: string;
+  distance_km: number;
+  budget?: number;
+  created_at: string;
+}
+
 export default function ArtisanJobFeed() {
   const router = useRouter();
-  const [jobs, setJobs] = useState<any[]>([]);
+  const [jobs, setJobs] = useState<JobItem[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -24,7 +33,7 @@ export default function ArtisanJobFeed() {
     });
   }, []);
 
-  const renderItem = ({ item }: { item: any }) => (
+  const renderItem = ({ item }: { item: JobItem }) => (
     <TouchableOpacity style={styles.card} onPress={() => router.push(`/(artisan)/jobs/${item.id}`)}>
       <View style={styles.header}>
         <Text style={styles.jobTitle}>{item.title}</Text>

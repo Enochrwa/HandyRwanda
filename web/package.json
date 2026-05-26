@@ -4,7 +4,7 @@
   "sideEffects": false,
   "type": "module",
   "scripts": {
-    "dev": "vite dev",
+    "dev": "vite",
     "build": "vite build",
     "build:dev": "vite build --mode development",
     "preview": "vite preview",
@@ -14,7 +14,6 @@
     "type-check": "tsc --noEmit"
   },
   "dependencies": {
-    "@cloudflare/vite-plugin": "^1.25.5",
     "@hookform/resolvers": "^5.2.2",
     "@radix-ui/react-accordion": "^1.2.12",
     "@radix-ui/react-alert-dialog": "^1.1.15",
@@ -45,9 +44,8 @@
     "@tailwindcss/vite": "^4.2.1",
     "@tanstack/react-query": "^5.100.14",
     "@tanstack/react-router": "^1.170.8",
-    "@tanstack/react-start": "^1.168.12",
+    "@tanstack/react-start": "^1.168.13",
     "@tanstack/router-plugin": "^1.168.11",
-    "@tanstack/start-plugin-core": "^1.169.9",
     "axios": "^1.16.1",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
@@ -78,8 +76,8 @@
     "@testing-library/dom": "^10.4.1",
     "@testing-library/react": "^16.3.2",
     "@types/node": "^22.16.5",
-    "@types/react": "^19.2.0",
-    "@types/react-dom": "^19.2.0",
+    "@types/react": "~18.2.0",
+    "@types/react-dom": "~18.2.0",
     "@vitejs/plugin-react": "^5.2.0",
     "eslint": "^9.32.0",
     "eslint-config-prettier": "^10.1.8",
@@ -91,7 +89,10 @@
     "prettier": "^3.7.3",
     "typescript": "^5.8.3",
     "typescript-eslint": "^8.56.1",
-    "vite": "^7.3.1",
-    "vitest": "^4.1.7"
+    "vite": "^6.3.5",
+    "vitest": "^3.2.4"
+  },
+  "overrides": {
+    "vite": "^6.3.5"
   }
 }

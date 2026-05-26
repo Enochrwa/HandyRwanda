@@ -8,6 +8,16 @@ import MapView, { Marker, UrlTile } from 'react-native-maps';
 import api from '../../../services/api';
 import { colors, typography, spacing, radius } from '../../../src/theme';
 
+interface ArtisanSearchResult {
+  id: string;
+  lat: number;
+  lng: number;
+  avatar_url?: string;
+  full_name: string;
+  average_rating: number;
+  distance_km: number;
+}
+
 export default function ArtisanMapSearch() {
   const router = useRouter();
   const [region, setRegion] = useState<{
@@ -16,8 +26,8 @@ export default function ArtisanMapSearch() {
     latitudeDelta: number;
     longitudeDelta: number;
   } | null>(null);
-  const [artisans, setArtisans] = useState<Record<string, unknown>[]>([]);
-  const [selectedArtisan, setSelectedArtisan] = useState<Record<string, unknown> | null>(null);
+  const [artisans, setArtisans] = useState<ArtisanSearchResult[]>([]);
+  const [selectedArtisan, setSelectedArtisan] = useState<ArtisanSearchResult | null>(null);
   const bottomSheetRef = useRef<BottomSheet>(null);
 
   useEffect(() => {
@@ -47,7 +57,7 @@ export default function ArtisanMapSearch() {
     }
   };
 
-  const onMarkerPress = (artisan: Record<string, unknown>) => {
+  const onMarkerPress = (artisan: ArtisanSearchResult) => {
     setSelectedArtisan(artisan);
     bottomSheetRef.current?.expand();
   };
@@ -56,7 +66,6 @@ export default function ArtisanMapSearch() {
 
   return (
     <View style={styles.container}>
-      {/* @ts-expect-error - react-native-maps types */}
       <MapView
         style={styles.map}
         initialRegion={region}
@@ -64,7 +73,6 @@ export default function ArtisanMapSearch() {
           fetchArtisans(r.latitude, r.longitude)
         }
       >
-        {/* @ts-expect-error - react-native-maps types */}
         <UrlTile
           urlTemplate="https://tile.openstreetmap.org/{z}/{x}/{y}.png"
           maximumZ={19}
@@ -72,12 +80,10 @@ export default function ArtisanMapSearch() {
         />
         {artisans.map((a) => (
           <View key={a.id}>
-            {/* @ts-expect-error - react-native-maps types */}
-            {/* @ts-expect-error - react-native-maps types */}
             <Marker
               coordinate={{
-                latitude: (a.lat as number) || region.latitude,
-                longitude: (a.lng as number) || region.longitude,
+                latitude: a.lat || region.latitude,
+                longitude: a.lng || region.longitude,
               }}
               onPress={() => onMarkerPress(a)}
             >
@@ -94,14 +100,14 @@ export default function ArtisanMapSearch() {
         )
       </MapView>
 
-      {/* @ts-expect-error - gorhom/bottom-sheet types */}
       <BottomSheet ref={bottomSheetRef} index={-1} snapPoints={['30%']} enablePanDownToClose>
-        {/* @ts-expect-error - gorhom/bottom-sheet types */}
         <BottomSheetView style={styles.sheetContent}>
           {selectedArtisan && (
             <View>
               <View style={styles.sheetHeader}>
-                <Image source={{ uri: selectedArtisan.avatar_url }} style={styles.sheetAvatar} />
+                {selectedArtisan.avatar_url && (
+                  <Image source={{ uri: selectedArtisan.avatar_url }} style={styles.sheetAvatar} />
+                )}
                 <View style={styles.sheetInfo}>
                   <Text style={styles.sheetName}>{selectedArtisan.full_name}</Text>
                   <Text style={styles.sheetStats}>

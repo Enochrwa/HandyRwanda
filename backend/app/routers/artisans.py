@@ -1,4 +1,4 @@
-from typing import Any
+from typing import Any, cast
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, HTTPException, Query
@@ -73,14 +73,14 @@ async def update_profile(
             spoken_languages=payload.spoken_languages,
         )
         if location_wkt:
-            profile.location = location_wkt  # type: ignore
+            profile.location = cast(Any, location_wkt)
         db.add(profile)
     else:
         for key, value in payload.dict(exclude_unset=True).items():
             if key not in ["latitude", "longitude"]:
                 setattr(profile, key, value)
         if location_wkt:
-            profile.location = location_wkt  # type: ignore
+            profile.location = cast(Any, location_wkt)
 
     await db.commit()
     return {"message": "Profile updated"}

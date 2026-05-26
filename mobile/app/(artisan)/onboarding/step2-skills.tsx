@@ -12,9 +12,15 @@ import {
 import api from '../../../services/api';
 import { colors, typography, spacing, radius } from '../../../src/theme';
 
+interface Category {
+  id: string;
+  name_en: string;
+  icon_emoji?: string;
+}
+
 export default function SkillsStep() {
   const router = useRouter();
-  const [categories, setCategories] = useState<Record<string, unknown>[]>([]);
+  const [categories, setCategories] = useState<Category[]>([]);
   const [selected, setSelected] = useState<string[]>([]);
   const [loading, setLoading] = useState(true);
 

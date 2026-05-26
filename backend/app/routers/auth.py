@@ -26,7 +26,7 @@ class RegisterRequest(BaseModel):
 
 
 @router.post("/register", status_code=201)
-async def register(payload: RegisterRequest, db: AsyncSession = Depends(get_db)):
+async def register(payload: RegisterRequest, db: AsyncSession = Depends(get_db)) -> Any:
     # 1. Check if email or phone already exists
     res = await db.execute(
         select(User).where(

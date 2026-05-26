@@ -7,7 +7,7 @@ from sqlalchemy import func, or_, select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.database import get_db
-from app.dependencies.jwt_auth import require_role
+from app.dependencies.jwt_auth import get_current_user, require_role
 from app.models.booking import Booking
 from app.models.message import Message
 from app.models.user import User
@@ -22,7 +22,7 @@ class MessageCreate(BaseModel):
 @router.get("/conversations")
 async def get_conversations(
     db: AsyncSession = Depends(get_db),
-    current_user: dict[str, Any] = Depends(require_role(None)),  # Any role
+    current_user: dict[str, Any] = Depends(get_current_user),  # Any role
 ) -> Any:
     user_id = UUID(current_user["sub"])
 
@@ -94,7 +94,7 @@ async def get_conversations(
 async def get_messages(
     booking_id: UUID,
     db: AsyncSession = Depends(get_db),
-    current_user: dict[str, Any] = Depends(require_role(None)),
+    current_user: dict[str, Any] = Depends(get_current_user),
 ) -> Any:
     user_id = UUID(current_user["sub"])
 
@@ -133,7 +133,7 @@ async def send_message(
     booking_id: UUID,
     payload: MessageCreate,
     db: AsyncSession = Depends(get_db),
-    current_user: dict[str, Any] = Depends(require_role(None)),
+    current_user: dict[str, Any] = Depends(get_current_user),
 ) -> Any:
     user_id = UUID(current_user["sub"])
 
@@ -165,7 +165,7 @@ async def send_message(
 async def mark_as_read(
     booking_id: UUID,
     db: AsyncSession = Depends(get_db),
-    current_user: dict[str, Any] = Depends(require_role(None)),
+    current_user: dict[str, Any] = Depends(get_current_user),
 ) -> Any:
     user_id = UUID(current_user["sub"])
 

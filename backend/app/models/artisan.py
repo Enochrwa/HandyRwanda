@@ -1,6 +1,5 @@
 import enum
 import uuid
-
 from typing import Any
 
 from sqlalchemy import (

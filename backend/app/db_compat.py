@@ -1,5 +1,4 @@
 import uuid
-
 from typing import Any
 
 from sqlalchemy import String, TypeDecorator

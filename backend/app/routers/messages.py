@@ -7,7 +7,7 @@ from sqlalchemy import func, or_, select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.database import get_db
-from app.dependencies.jwt_auth import get_current_user, require_role
+from app.dependencies.jwt_auth import get_current_user
 from app.models.booking import Booking
 from app.models.message import Message
 from app.models.user import User

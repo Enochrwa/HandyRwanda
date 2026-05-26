@@ -213,14 +213,15 @@ function PortfolioManagement() {
                 />
               </div>
             ) : (
-              <div className="relative aspect-video w-full rounded-xl overflow-hidden border border-border">
-                {previewUrl ? (
-                  <img
-                    src={previewUrl}
-                    className="h-full w-full object-cover"
-                    alt="Upload preview"
+              <div className="relative aspect-video w-full rounded-xl overflow-hidden border border-border bg-muted">
+                {previewUrl && (
+                  <div
+                    style={{ backgroundImage: `url(${previewUrl})` }}
+                    className="h-full w-full bg-cover bg-center"
+                    role="img"
+                    aria-label="Upload preview"
                   />
-                ) : null}
+                )}
                 <button
                   onClick={resetUpload}
                   className="absolute top-2 right-2 p-1 bg-black/50 text-white rounded-full hover:bg-black/70"

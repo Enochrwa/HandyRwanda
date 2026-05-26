@@ -1,7 +1,7 @@
 import enum
 import uuid
+from typing import Any
 
-from geoalchemy2 import Geography
 from sqlalchemy import (
     Boolean,
     Column,
@@ -18,6 +18,7 @@ from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import relationship
 
 from app.database import Base
+from app.db_compat import Geography
 
 
 class VerificationStatus(str, enum.Enum):
@@ -45,7 +46,7 @@ artisan_skills = Table(
 
 class Category(Base):
     __tablename__ = "categories"
-    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    id: Column[uuid.UUID] = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     name_rw = Column(String(100), nullable=False)
     name_en = Column(String(100), nullable=False)
     name_fr = Column(String(100), nullable=False)
@@ -56,11 +57,11 @@ class Category(Base):
 
 class ArtisanProfile(Base):
     __tablename__ = "artisan_profiles"
-    user_id = Column(UUID(as_uuid=True), ForeignKey("users.id"), primary_key=True)
+    user_id: Column[uuid.UUID] = Column(UUID(as_uuid=True), ForeignKey("users.id"), primary_key=True)
     bio = Column(String(500), nullable=True)
     years_experience = Column(Integer, default=0)
     service_radius_km = Column(Integer, default=10)
-    location = Column(Geography(geometry_type="POINT", srid=4326), nullable=True)
+    location: Column[Any] = Column(Geography(geometry_type="POINT", srid=4326), nullable=True)
     location_label = Column(String(200), nullable=True)
     hourly_rate = Column(Integer, nullable=True)
     fixed_rate = Column(Integer, nullable=True)
@@ -87,8 +88,8 @@ class ArtisanProfile(Base):
 
 class PortfolioPhoto(Base):
     __tablename__ = "portfolio_photos"
-    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
-    artisan_id = Column(
+    id: Column[uuid.UUID] = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    artisan_id: Column[uuid.UUID] = Column(
         UUID(as_uuid=True), ForeignKey("artisan_profiles.user_id"), nullable=False
     )
     image_url = Column(String, nullable=False)

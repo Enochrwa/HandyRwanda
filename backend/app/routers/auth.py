@@ -1,9 +1,10 @@
 import os
-from typing import Any
+from typing import Any, Literal
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, HTTPException
 from jose import jwt
+from pydantic import BaseModel, EmailStr
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -15,6 +16,49 @@ from app.schemas.auth import AuthResponse, OTPRequest, OTPVerify, RefreshRequest
 from app.services import auth_service
 
 router = APIRouter(prefix="/auth", tags=["auth"])
+
+
+class RegisterRequest(BaseModel):
+    full_name: str
+    phone_number: str
+    email: EmailStr
+    role: Literal["client", "artisan"] = "client"
+
+
+@router.post("/register", status_code=201)
+async def register(payload: RegisterRequest, db: AsyncSession = Depends(get_db)) -> Any:
+    # 1. Check if email or phone already exists
+    res = await db.execute(
+        select(User).where(
+            (User.email == payload.email) | (User.phone_number == payload.phone_number)
+        )
+    )
+    if res.scalar_one_or_none():
+        raise HTTPException(
+            status_code=409, detail="Email or phone number already registered"
+        )
+
+    # 2. Create User
+    user = User(
+        full_name=payload.full_name,
+        phone_number=payload.phone_number,
+        email=payload.email,
+        role=UserRole(payload.role),
+    )
+    db.add(user)
+    await db.flush()
+
+    # 3. If artisan, create profile
+    if user.role == UserRole.artisan:
+        profile = ArtisanProfile(user_id=user.id)
+        db.add(profile)
+
+    await db.commit()
+
+    # 4. Trigger OTP
+    await auth_service.request_otp(payload.email, "en")
+
+    return {"message": "Registration successful. OTP sent to email."}
 
 
 @router.post("/otp/request")

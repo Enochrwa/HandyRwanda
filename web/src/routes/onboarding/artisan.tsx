@@ -1,16 +1,53 @@
-import { useState, useEffect } from "react";
-import { createFileRoute, useRouter } from "@tanstack/react-router";
+import { useState, useEffect, useRef } from "react";
+import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { Header } from "@/components/Header";
 import { artisanService } from "@/services/artisanService";
 import { useAuthStore } from "@/store/authStore";
 import { Category } from "@/types/category";
+import { MapPin, Camera, User, Check, Loader2, X } from "lucide-react";
+import { MapContainer, TileLayer, Marker, useMapEvents } from "react-leaflet";
+import "leaflet/dist/leaflet.css";
+import L from "leaflet";
+import { toast } from "sonner";
+
+// Fix Leaflet default marker icon bug
+import markerIcon2x from "leaflet/dist/images/marker-icon-2x.png";
+import markerIcon from "leaflet/dist/images/marker-icon.png";
+import markerShadow from "leaflet/dist/images/marker-shadow.png";
+
+// eslint-disable-next-line @typescript-eslint/ban-ts-comment
+// @ts-ignore
+delete (L.Icon.Default.prototype as Record<string, unknown>)._getIconUrl;
+L.Icon.Default.mergeOptions({
+  iconRetinaUrl: markerIcon2x,
+  iconUrl: markerIcon,
+  shadowUrl: markerShadow,
+});
 
 export const Route = createFileRoute("/onboarding/artisan")({
   component: ArtisanOnboarding,
 });
 
+function MapPicker({
+  onSelect,
+  lat,
+  lng,
+}: {
+  onSelect: (lat: number, lng: number) => void;
+  lat: number;
+  lng: number;
+}) {
+  const map = useMapEvents({
+    click(e) {
+      onSelect(e.latlng.lat, e.latlng.lng);
+    },
+  });
+
+  return <Marker position={[lat, lng]} />;
+}
+
 function ArtisanOnboarding() {
-  const router = useRouter();
+  const navigate = useNavigate();
   const { user } = useAuthStore();
   const [step, setStep] = useState(1);
   const [loading, setLoading] = useState(false);
@@ -22,14 +59,59 @@ function ArtisanOnboarding() {
     category_ids: [] as string[],
     service_radius: 15,
     location_label: "",
+    latitude: -1.9441,
+    longitude: 30.0619,
     national_id: "",
     id_photo_base64: null as string | null,
     selfie_photo_base64: null as string | null,
   });
 
+  const [previews, setPreviews] = useState({
+    id: null as string | null,
+    selfie: null as string | null,
+  });
+
+  const idInputRef = useRef<HTMLInputElement>(null);
+  const selfieInputRef = useRef<HTMLInputElement>(null);
+
   useEffect(() => {
     artisanService.getCategories().then(setCategories);
   }, []);
+
+  const fileToBase64 = (file: File): Promise<string> => {
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = () => {
+        const result = reader.result as string;
+        resolve(result.split(",")[1]);
+      };
+      reader.onerror = reject;
+      reader.readAsDataURL(file);
+    });
+  };
+
+  const handleFileChange = async (
+    type: "id" | "selfie",
+    e: React.ChangeEvent<HTMLInputElement>,
+  ) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      try {
+        const base64 = await fileToBase64(file);
+        const previewUrl = URL.createObjectURL(file);
+
+        if (type === "id") {
+          setFormData({ ...formData, id_photo_base64: base64 });
+          setPreviews({ ...previews, id: previewUrl });
+        } else {
+          setFormData({ ...formData, selfie_photo_base64: base64 });
+          setPreviews({ ...previews, selfie: previewUrl });
+        }
+      } catch (err) {
+        toast.error("Failed to process image");
+      }
+    }
+  };
 
   const handleNext = async () => {
     setLoading(true);
@@ -46,9 +128,8 @@ function ArtisanOnboarding() {
         await artisanService.updateProfile({
           location_label: formData.location_label,
           service_radius_km: formData.service_radius,
-          // Placeholder for real map coordinates
-          latitude: -1.9441,
-          longitude: 30.0619,
+          latitude: formData.latitude,
+          longitude: formData.longitude,
         });
       } else if (step === 4) {
         if (formData.id_photo_base64 && formData.selfie_photo_base64) {
@@ -58,16 +139,24 @@ function ArtisanOnboarding() {
             selfie_base64: formData.selfie_photo_base64,
           });
         }
-        router.navigate({ to: "/" });
+        toast.success("Registration complete! Welcome to HandyRwanda.");
+        navigate({ to: "/" });
         return;
       }
       setStep(step + 1);
-    } catch (err) {
-      console.error("Onboarding error:", err);
+    } catch (err: unknown) {
+      const error = err as { response?: { data?: { detail?: string } } };
+      toast.error(error?.response?.data?.detail ?? "Failed to save progress");
     } finally {
       setLoading(false);
     }
   };
+
+  const isStep1Valid = formData.bio.length > 10;
+  const isStep2Valid = formData.category_ids.length > 0;
+  const isStep3Valid = formData.location_label.length > 2;
+  const isStep4Valid =
+    formData.national_id.length > 5 && formData.id_photo_base64 && formData.selfie_photo_base64;
 
   return (
     <div className="min-h-screen bg-muted/30 pb-12">
@@ -98,16 +187,18 @@ function ArtisanOnboarding() {
                 <textarea
                   className="mt-2 w-full rounded-xl border border-border bg-muted/20 p-4 focus:border-primary focus:ring-1 focus:ring-primary"
                   rows={4}
-                  placeholder="Describe your skills..."
+                  placeholder="Describe your skills and experience..."
                   value={formData.bio}
                   onChange={(e) => setFormData({ ...formData, bio: e.target.value })}
                 />
+                <p className="text-[10px] mt-1 text-muted-foreground">Minimum 10 characters.</p>
               </div>
               <button
                 onClick={handleNext}
-                disabled={loading || !formData.location_label}
-                className="w-full rounded-xl bg-primary py-4 font-bold text-white shadow-lift disabled:opacity-50"
+                disabled={loading || !isStep1Valid}
+                className="w-full rounded-xl bg-primary py-4 font-bold text-white shadow-lift disabled:opacity-50 flex items-center justify-center gap-2"
               >
+                {loading && <Loader2 className="h-4 w-4 animate-spin" />}
                 {loading ? "Saving..." : "Continue"}
               </button>
             </div>
@@ -134,14 +225,22 @@ function ArtisanOnboarding() {
                   >
                     <div className="text-2xl mb-1">{cat.icon_emoji}</div>
                     <p className="font-bold">{cat.name_en}</p>
+                    {formData.category_ids.includes(cat.id) && (
+                      <div className="mt-1 flex justify-center">
+                        <div className="bg-primary rounded-full p-0.5">
+                          <Check className="h-3 w-3 text-white" />
+                        </div>
+                      </div>
+                    )}
                   </div>
                 ))}
               </div>
               <button
                 onClick={handleNext}
-                disabled={loading || formData.category_ids.length === 0}
-                className="w-full rounded-xl bg-primary py-4 font-bold text-white shadow-lift disabled:opacity-50"
+                disabled={loading || !isStep2Valid}
+                className="w-full rounded-xl bg-primary py-4 font-bold text-white shadow-lift disabled:opacity-50 flex items-center justify-center gap-2"
               >
+                {loading && <Loader2 className="h-4 w-4 animate-spin" />}
                 {loading ? "Saving..." : "Next Step"}
               </button>
             </div>
@@ -153,7 +252,7 @@ function ArtisanOnboarding() {
               <div className="space-y-4">
                 <div>
                   <label className="text-sm font-semibold text-muted-foreground">
-                    Your Base Location
+                    Your Base Location (Area Name)
                   </label>
                   <input
                     type="text"
@@ -182,14 +281,40 @@ function ArtisanOnboarding() {
                     Clients within this radius will be able to find and book you.
                   </p>
                 </div>
-                <div className="aspect-video w-full rounded-2xl bg-muted/30 flex items-center justify-center border-2 border-dashed border-border">
-                  <p className="text-sm text-muted-foreground">Map selection placeholder</p>
+                <div className="space-y-2">
+                  <label className="text-sm font-semibold text-muted-foreground">
+                    Pick exact location on map
+                  </label>
+                  <div className="aspect-video w-full rounded-2xl overflow-hidden border-2 border-border z-0">
+                    <MapContainer
+                      center={[-1.9441, 30.0619]}
+                      zoom={12}
+                      style={{ height: "100%", width: "100%" }}
+                    >
+                      <TileLayer
+                        attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
+                        url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+                      />
+                      <MapPicker
+                        lat={formData.latitude}
+                        lng={formData.longitude}
+                        onSelect={(lat, lng) =>
+                          setFormData({ ...formData, latitude: lat, longitude: lng })
+                        }
+                      />
+                    </MapContainer>
+                  </div>
+                  <p className="text-[10px] text-muted-foreground">
+                    Lat: {formData.latitude.toFixed(4)}, Lng: {formData.longitude.toFixed(4)}
+                  </p>
                 </div>
               </div>
               <button
                 onClick={handleNext}
-                className="w-full rounded-xl bg-primary py-4 font-bold text-white shadow-lift"
+                disabled={loading || !isStep3Valid}
+                className="w-full rounded-xl bg-primary py-4 font-bold text-white shadow-lift flex items-center justify-center gap-2"
               >
+                {loading && <Loader2 className="h-4 w-4 animate-spin" />}
                 Continue
               </button>
             </div>
@@ -216,31 +341,85 @@ function ArtisanOnboarding() {
                 </div>
 
                 <div className="grid grid-cols-2 gap-4">
-                  <div className="flex flex-col items-center justify-center rounded-2xl border-2 border-dashed border-border p-6 text-center hover:border-primary/50 transition-colors">
-                    <div className="mb-2 text-2xl">🪪</div>
-                    <p className="text-xs font-bold text-foreground">Photo of ID</p>
-                    <p className="mt-1 text-[10px] text-muted-foreground">Front side</p>
+                  <div
+                    onClick={() => idInputRef.current?.click()}
+                    className="group relative flex flex-col items-center justify-center rounded-2xl border-2 border-dashed border-border p-6 text-center hover:border-primary/50 transition-colors cursor-pointer overflow-hidden aspect-square"
+                  >
+                    {previews.id ? (
+                      <img
+                        src={previews.id}
+                        className="absolute inset-0 h-full w-full object-cover"
+                        alt="ID Preview"
+                      />
+                    ) : (
+                      <>
+                        <div className="mb-2 text-2xl">🪪</div>
+                        <p className="text-xs font-bold text-foreground">Photo of ID</p>
+                        <p className="mt-1 text-[10px] text-muted-foreground">Front side</p>
+                      </>
+                    )}
+                    <input
+                      type="file"
+                      ref={idInputRef}
+                      className="hidden"
+                      accept="image/*"
+                      capture="environment"
+                      onChange={(e) => handleFileChange("id", e)}
+                    />
+                    {previews.id && (
+                      <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 flex items-center justify-center transition-opacity">
+                        <Camera className="h-8 w-8 text-white" />
+                      </div>
+                    )}
                   </div>
-                  <div className="flex flex-col items-center justify-center rounded-2xl border-2 border-dashed border-border p-6 text-center hover:border-primary/50 transition-colors">
-                    <div className="mb-2 text-2xl">🤳</div>
-                    <p className="text-xs font-bold text-foreground">Selfie</p>
-                    <p className="mt-1 text-[10px] text-muted-foreground">Holding ID</p>
+
+                  <div
+                    onClick={() => selfieInputRef.current?.click()}
+                    className="group relative flex flex-col items-center justify-center rounded-2xl border-2 border-dashed border-border p-6 text-center hover:border-primary/50 transition-colors cursor-pointer overflow-hidden aspect-square"
+                  >
+                    {previews.selfie ? (
+                      <img
+                        src={previews.selfie}
+                        className="absolute inset-0 h-full w-full object-cover"
+                        alt="Selfie Preview"
+                      />
+                    ) : (
+                      <>
+                        <div className="mb-2 text-2xl">🤳</div>
+                        <p className="text-xs font-bold text-foreground">Selfie</p>
+                        <p className="mt-1 text-[10px] text-muted-foreground">Holding ID</p>
+                      </>
+                    )}
+                    <input
+                      type="file"
+                      ref={selfieInputRef}
+                      className="hidden"
+                      accept="image/*"
+                      capture="user"
+                      onChange={(e) => handleFileChange("selfie", e)}
+                    />
+                    {previews.selfie && (
+                      <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 flex items-center justify-center transition-opacity">
+                        <User className="h-8 w-8 text-white" />
+                      </div>
+                    )}
                   </div>
                 </div>
               </div>
 
-              <div className="rounded-xl bg-accentLight p-4">
-                <p className="text-xs text-accent leading-normal">
-                  Verification usually takes 24-48 hours. You can still browse jobs while we review
-                  your documents.
+              <div className="rounded-xl bg-accent/10 p-4 border border-accent/20">
+                <p className="text-xs text-accent leading-normal font-medium">
+                  Photos are encrypted and only used for verification. This usually takes 24-48
+                  hours.
                 </p>
               </div>
 
               <button
                 onClick={handleNext}
-                disabled={loading || !formData.national_id}
-                className="w-full rounded-xl bg-primary py-4 font-bold text-white shadow-lift disabled:opacity-50"
+                disabled={loading || !isStep4Valid}
+                className="w-full rounded-xl bg-primary py-4 font-bold text-white shadow-lift disabled:opacity-50 flex items-center justify-center gap-2"
               >
+                {loading && <Loader2 className="h-4 w-4 animate-spin" />}
                 {loading ? "Completing..." : "Complete Onboarding"}
               </button>
             </div>

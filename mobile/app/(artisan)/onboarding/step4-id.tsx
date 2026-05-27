@@ -1,153 +1,126 @@
 import * as ImagePicker from 'expo-image-picker';
 import { useRouter } from 'expo-router';
 import React, { useState } from 'react';
-import { View, Text, TouchableOpacity, StyleSheet, Image, ScrollView, Alert } from 'react-native';
+import { View, Text, TouchableOpacity, Image, ScrollView, Alert, ActivityIndicator, TextInput } from 'react-native';
+import Toast from 'react-native-toast-message';
 
-import api from '../../../services/api';
-import { colors, typography, spacing, radius } from '../../../src/theme';
+import api from '../../../src/services/api';
 
 export default function IDStep() {
   const router = useRouter();
   const [idPhoto, setIdPhoto] = useState<string | null>(null);
   const [selfie, setSelfie] = useState<string | null>(null);
+  const [nationalId, setNationalId] = useState('');
   const [loading, setLoading] = useState(false);
 
-  const pickImage = async (setter: (val: string) => void) => {
-    const result = await ImagePicker.launchImageLibraryAsync({
-      mediaTypes: ImagePicker.MediaTypeOptions.Images,
-      allowsEditing: true,
-      quality: 0.5,
-      base64: true,
-    });
+  const pickImage = async (setter: (val: string) => void, camera: boolean = false) => {
+    try {
+      const permission = camera
+        ? await ImagePicker.requestCameraPermissionsAsync()
+        : await ImagePicker.requestMediaLibraryPermissionsAsync();
 
-    if (!result.canceled) {
-      setter(result.assets[0].base64 || '');
+      if (permission.status !== 'granted') {
+        Toast.show({ type: 'error', text1: 'Permission denied', text2: 'We need camera/library access' });
+        return;
+      }
+
+      const options: ImagePicker.ImagePickerOptions = {
+        mediaTypes: ImagePicker.MediaTypeOptions.Images,
+        allowsEditing: true,
+        quality: 0.7,
+        base64: true,
+      };
+
+      const result = camera
+        ? await ImagePicker.launchCameraAsync({...options, cameraType: ImagePicker.CameraType.front})
+        : await ImagePicker.launchImageLibraryAsync(options);
+
+      if (!result.canceled) {
+        setter(result.assets[0].base64 || '');
+      }
+    } catch (error) {
+      Toast.show({ type: 'error', text1: 'Error', text2: 'Failed to pick image' });
     }
   };
 
   const handleFinish = async () => {
-    if (!idPhoto || !selfie) {
-      Alert.alert('Error', 'Please upload both photos');
+    if (!idPhoto || !selfie || !nationalId) {
+      Toast.show({ type: 'error', text1: 'Missing info', text2: 'Please fill all fields and upload photos' });
       return;
     }
 
     setLoading(true);
     try {
       await api.post('/artisans/profile/me/id-verification', {
-        national_id_number: 'PENDING',
+        national_id_number: nationalId,
         national_id_doc_base64: idPhoto,
         selfie_base64: selfie,
       });
-      router.replace('/(artisan)/home');
-    } catch (error) {
-      console.error(error);
+      Toast.show({ type: 'success', text1: 'Verification submitted!', text2: 'We will review it shortly.' });
+      router.replace('/(tabs)/pro');
+    } catch (error: any) {
+      Toast.show({ type: 'error', text1: 'Error', text2: error.response?.data?.detail ?? 'Failed to submit' });
     } finally {
       setLoading(false);
     }
   };
 
   return (
-    <ScrollView contentContainerStyle={styles.container}>
-      <Text style={styles.title}>Trust is everything</Text>
-      <Text style={styles.subtitle}>Step 4 of 4: National ID Verification</Text>
+    <ScrollView contentContainerStyle={{ flexGrow: 1 }} className="bg-background p-6">
+      <Text className="text-2xl font-bold text-foreground">Trust is everything</Text>
+      <Text className="text-muted-foreground mb-8">Step 4 of 4: National ID Verification</Text>
 
-      <View style={styles.section}>
-        <Text style={styles.label}>National ID (Front)</Text>
-        <TouchableOpacity style={styles.uploadBox} onPress={() => pickImage(setIdPhoto)}>
+      <View className="mb-6">
+        <Text className="text-sm font-medium mb-1">National ID Number</Text>
+        <TextInput
+          className="bg-card p-4 rounded-xl border border-border text-foreground"
+          placeholder="Enter your 16-digit ID number"
+          keyboardType="numeric"
+          maxLength={16}
+          value={nationalId}
+          onChangeText={setNationalId}
+        />
+      </View>
+
+      <View className="mb-6">
+        <Text className="text-sm font-medium mb-2">National ID (Front)</Text>
+        <TouchableOpacity
+          className="aspect-[1.6] bg-card rounded-xl border-2 border-dashed border-border items-center justify-center overflow-hidden"
+          onPress={() => pickImage(setIdPhoto)}
+        >
           {idPhoto ? (
-            <Image source={{ uri: `data:image/jpeg;base64,${idPhoto}` }} style={styles.preview} />
+            <Image source={{ uri: `data:image/jpeg;base64,${idPhoto}` }} className="w-full h-full" />
           ) : (
-            <Text style={styles.uploadText}>Tap to Upload ID</Text>
+            <Text className="text-primary font-bold">Tap to Take ID Photo</Text>
           )}
         </TouchableOpacity>
       </View>
 
-      <View style={styles.section}>
-        <Text style={styles.label}>Selfie holding ID</Text>
-        <TouchableOpacity style={styles.uploadBox} onPress={() => pickImage(setSelfie)}>
+      <View className="mb-6">
+        <Text className="text-sm font-medium mb-2">Take a Selfie</Text>
+        <TouchableOpacity
+          className="aspect-[1.6] bg-card rounded-xl border-2 border-dashed border-border items-center justify-center overflow-hidden"
+          onPress={() => pickImage(setSelfie, true)}
+        >
           {selfie ? (
-            <Image source={{ uri: `data:image/jpeg;base64,${selfie}` }} style={styles.preview} />
+            <Image source={{ uri: `data:image/jpeg;base64,${selfie}` }} className="w-full h-full" />
           ) : (
-            <Text style={styles.uploadText}>Tap to Take Selfie</Text>
+            <Text className="text-primary font-bold">Tap to Take Selfie</Text>
           )}
         </TouchableOpacity>
       </View>
 
-      <Text style={styles.disclaimer}>
-        Your documents are stored securely and used only for verification. Verification usually
-        takes 24–48 hours.
+      <Text className="text-xs text-muted-foreground text-center mb-8 px-4">
+        Photos are encrypted and only used for verification. Verification usually takes 24–48 hours.
       </Text>
 
       <TouchableOpacity
-        style={[styles.button, (!idPhoto || !selfie) && styles.disabledButton]}
+        className={`bg-primary p-4 rounded-xl items-center ${(!idPhoto || !selfie || !nationalId) ? 'opacity-50' : ''}`}
         onPress={handleFinish}
-        disabled={loading || !idPhoto || !selfie}
+        disabled={loading || !idPhoto || !selfie || !nationalId}
       >
-        <Text style={styles.buttonText}>{loading ? 'Uploading...' : 'Finish Onboarding'}</Text>
+        {loading ? <ActivityIndicator color="white" /> : <Text className="text-white font-bold">Finish Onboarding</Text>}
       </TouchableOpacity>
     </ScrollView>
   );
 }
-
-const styles = StyleSheet.create({
-  container: {
-    padding: spacing.lg,
-    backgroundColor: colors.bg,
-    flexGrow: 1,
-  },
-  title: {
-    ...typography.heading,
-    color: colors.text,
-  },
-  subtitle: {
-    ...typography.body,
-    color: colors.textSecondary,
-    marginBottom: spacing.xl,
-  },
-  section: {
-    marginBottom: spacing.lg,
-  },
-  label: {
-    ...typography.subheading,
-    marginBottom: spacing.sm,
-  },
-  uploadBox: {
-    aspectRatio: 1.6,
-    backgroundColor: colors.surface,
-    borderRadius: radius.md,
-    borderWidth: 2,
-    borderColor: '#E2E8F0',
-    borderStyle: 'dashed',
-    alignItems: 'center',
-    justifyContent: 'center',
-    overflow: 'hidden',
-  },
-  preview: {
-    width: '100%',
-    height: '100%',
-  },
-  uploadText: {
-    ...typography.caption,
-    color: colors.primary,
-    fontWeight: '600',
-  },
-  disclaimer: {
-    ...typography.caption,
-    color: colors.textSecondary,
-    textAlign: 'center',
-    marginBottom: spacing.xl,
-  },
-  button: {
-    backgroundColor: colors.primary,
-    padding: spacing.md,
-    borderRadius: radius.md,
-    alignItems: 'center',
-  },
-  disabledButton: {
-    opacity: 0.5,
-  },
-  buttonText: {
-    ...typography.subheading,
-    color: colors.surface,
-  },
-});

@@ -10,7 +10,7 @@ import {
   Alert,
 } from 'react-native';
 
-import api from '../../../services/api';
+import api from '../../../src/services/api';
 import { colors, typography, spacing, radius } from '../../../src/theme';
 
 export default function ConfirmJob() {

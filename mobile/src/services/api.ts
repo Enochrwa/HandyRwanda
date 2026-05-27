@@ -1,6 +1,5 @@
 import axios from 'axios';
-import * as SecureStore from 'expo-secure-store';
-
+import { router } from 'expo-router';
 import { useAuthStore } from '../store/authStore';
 
 // In production, this would come from an environment variable
@@ -13,8 +12,8 @@ const api = axios.create({
   },
 });
 
-api.interceptors.request.use(async (config) => {
-  const token = await SecureStore.getItemAsync('access_token');
+api.interceptors.request.use((config) => {
+  const token = useAuthStore.getState().token;
   if (token) {
     config.headers.Authorization = `Bearer ${token}`;
   }
@@ -27,24 +26,33 @@ api.interceptors.response.use(
     const originalRequest = error.config;
     if (error.response?.status === 401 && !originalRequest._retry) {
       originalRequest._retry = true;
-      const refreshToken = await SecureStore.getItemAsync('refresh_token');
+      const refreshToken = useAuthStore.getState().refreshToken;
       if (refreshToken) {
         try {
           const response = await axios.post(`${API_BASE_URL}/auth/refresh`, {
             refresh_token: refreshToken,
           });
           const { access_token } = response.data;
-          await SecureStore.setItemAsync('access_token', access_token);
-          api.defaults.headers.common.Authorization = `Bearer ${access_token}`;
+
+          const user = useAuthStore.getState().user;
+          if (user) {
+            useAuthStore.getState().setAuth(user, access_token, refreshToken);
+          }
+
+          originalRequest.headers.Authorization = `Bearer ${access_token}`;
           return api(originalRequest);
-        } catch {
-          // Refresh token also invalid, logout
-          useAuthStore.getState().clearAuth();
+        } catch (refreshError) {
+          useAuthStore.getState().logout();
+          router.replace('/');
+          return Promise.reject(refreshError);
         }
+      } else {
+        useAuthStore.getState().logout();
+        router.replace('/');
       }
     }
     return Promise.reject(error);
-  },
+  }
 );
 
 export default api;

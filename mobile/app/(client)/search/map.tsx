@@ -5,7 +5,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { View, Text, StyleSheet, Image, TouchableOpacity, ActivityIndicator } from 'react-native';
 import MapView, { Marker, UrlTile } from 'react-native-maps';
 
-import api from '../../../services/api';
+import api from '../../../src/services/api';
 import { colors, typography, spacing, radius } from '../../../src/theme';
 
 interface ArtisanSearchResult {

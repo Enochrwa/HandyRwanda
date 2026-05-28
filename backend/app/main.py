@@ -7,7 +7,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from app.database import init_db
-from app.routers import admin, artisans, auth, bids, jobs, messages
+from app.routers import admin, artisans, auth, bids, bookings, jobs, messages
 
 
 @asynccontextmanager
@@ -34,6 +34,7 @@ app.include_router(admin.router)
 app.include_router(jobs.router)
 app.include_router(bids.router)
 app.include_router(messages.router)
+app.include_router(bookings.router)
 
 
 @app.get("/")

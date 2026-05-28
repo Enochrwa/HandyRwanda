@@ -1,190 +1,198 @@
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import * as ImagePicker from 'expo-image-picker';
-import React, { useState, useEffect } from 'react';
+import { Plus, X, Trash2 } from 'lucide-react-native';
+import React, { useState } from 'react';
 import {
   View,
   Text,
-  StyleSheet,
-  TouchableOpacity,
+  FlatList,
   Image,
-  ScrollView,
+  TouchableOpacity,
+  Modal,
+  TextInput,
   ActivityIndicator,
+  Alert,
 } from 'react-native';
+import Toast from 'react-native-toast-message';
 
-import api from '../../../services/api';
-import { colors, typography, spacing, radius } from '../../../src/theme';
+import api from '../../../src/services/api';
 
-interface PortfolioPhoto {
+type PortfolioPhoto = {
   id: string;
   image_url: string;
-  job_type?: string;
-}
+  description: string | null;
+  created_at: string;
+};
 
 export default function PortfolioScreen() {
-  const [photos, setPhotos] = useState<PortfolioPhoto[]>([]);
-  const [loading, setLoading] = useState(true);
+  const queryClient = useQueryClient();
+  const [modalVisible, setModalVisible] = useState(false);
+  const [selectedImage, setSelectedImage] = useState<string | null>(null);
+  const [caption, setCaption] = useState('');
+  const [uploading, setUploading] = useState(false);
 
-  const fetchPortfolio = async () => {
-    try {
-      const res = await api.get('/artisans/profile/me');
-      const userRes = await api.get(`/auth/users/${res.data.user_id}/profile`);
-      setPhotos(userRes.data.portfolio || []);
-    } catch (error) {
-      console.error(error);
-    } finally {
-      setLoading(false);
-    }
-  };
+  const { data: photos, isLoading } = useQuery({
+    queryKey: ['portfolio'],
+    queryFn: () => api.get('/artisans/portfolio/me').then((r) => r.data),
+  });
 
-  useEffect(() => {
-    fetchPortfolio();
-  }, []);
-
-  const addPhoto = async () => {
+  const pickImage = async () => {
     const result = await ImagePicker.launchImageLibraryAsync({
       mediaTypes: ImagePicker.MediaTypeOptions.Images,
       allowsEditing: true,
-      quality: 0.7,
+      quality: 0.8,
       base64: true,
     });
 
     if (!result.canceled) {
-      try {
-        await api.post('/artisans/portfolio', {
-          photo_base64: result.assets[0].base64,
-          job_type: 'Past Work',
-        });
-        fetchPortfolio();
-      } catch (error) {
-        console.error(error);
-      }
+      setSelectedImage(result.assets[0].base64 || null);
+      setModalVisible(true);
     }
   };
 
-  const deletePhoto = async (id: string) => {
-    try {
-      await api.delete(`/artisans/portfolio/${id}`);
-      fetchPortfolio();
-    } catch (error) {
-      console.error(error);
-    }
+  const uploadMutation = useMutation({
+    mutationFn: (data: { photo_base64: string; description: string }) =>
+      api.post('/artisans/portfolio', data),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['portfolio'] });
+      setModalVisible(false);
+      setSelectedImage(null);
+      setCaption('');
+      Toast.show({ type: 'success', text1: 'Photo added!' });
+    },
+    onError: () => Toast.show({ type: 'error', text1: 'Upload failed' }),
+    onSettled: () => setUploading(false),
+  });
+
+  const deleteMutation = useMutation({
+    mutationFn: (id: string) => api.delete(`/artisans/portfolio/${id}`),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['portfolio'] });
+      Toast.show({ type: 'success', text1: 'Photo removed' });
+    },
+    onError: () => Toast.show({ type: 'error', text1: 'Delete failed' }),
+  });
+
+  const handleDelete = (id: string) => {
+    Alert.alert('Delete Photo', 'Are you sure you want to remove this from your portfolio?', [
+      { text: 'Cancel', style: 'cancel' },
+      { text: 'Delete', style: 'destructive', onPress: () => deleteMutation.mutate(id) },
+    ]);
   };
 
-  if (loading) return <ActivityIndicator style={{ flex: 1 }} />;
+  const handleUpload = () => {
+    if (!selectedImage) return;
+    setUploading(true);
+    uploadMutation.mutate({ photo_base64: selectedImage, description: caption });
+  };
+
+  if (isLoading) {
+    return (
+      <View className="flex-1 bg-background items-center justify-center">
+        <ActivityIndicator color="#1B5E3B" />
+      </View>
+    );
+  }
 
   return (
-    <ScrollView contentContainerStyle={styles.container}>
-      <View style={styles.header}>
-        <Text style={styles.title}>Portfolio</Text>
-        <Text style={styles.subtitle}>{photos.length}/12 photos</Text>
+    <View className="flex-1 bg-background p-4">
+      <View className="flex-row justify-between items-center mb-6">
+        <View>
+          <Text className="text-2xl font-bold">Your Portfolio</Text>
+          <Text className="text-muted-foreground">Showcase your best work</Text>
+        </View>
+        <TouchableOpacity
+          accessibilityLabel="Button"
+          onPress={pickImage}
+          className="bg-primary w-12 h-12 rounded-full items-center justify-center"
+        >
+          <Plus color="white" size={24} />
+        </TouchableOpacity>
       </View>
 
-      <View style={styles.grid}>
-        <TouchableOpacity style={styles.addBox} onPress={addPhoto} disabled={photos.length >= 12}>
-          <Text style={styles.addIcon}>+</Text>
-          <Text style={styles.addText}>Add Work</Text>
-        </TouchableOpacity>
-
-        {photos.map((photo) => (
-          <View key={photo.id} style={styles.item}>
-            <Image source={{ uri: photo.image_url }} style={styles.image} />
-            <TouchableOpacity style={styles.delete} onPress={() => deletePhoto(photo.id)}>
-              <Text style={styles.deleteText}>×</Text>
-            </TouchableOpacity>
-            {photo.job_type && (
-              <View style={styles.label}>
-                <Text style={styles.labelText}>{photo.job_type}</Text>
+      <FlatList
+        data={photos}
+        keyExtractor={(item) => item.id}
+        numColumns={2}
+        columnWrapperStyle={{ gap: 12 }}
+        contentContainerStyle={{ paddingBottom: 20 }}
+        renderItem={({ item }) => (
+          <TouchableOpacity
+            accessibilityLabel="Button"
+            onLongPress={() => handleDelete(item.id)}
+            className="flex-1 mb-3 rounded-2xl overflow-hidden border border-border bg-card aspect-square"
+          >
+            <Image source={{ uri: item.image_url }} className="w-full h-full" />
+            {item.description && (
+              <View className="absolute bottom-0 left-0 right-0 bg-black/40 p-2">
+                <Text className="text-white text-[10px]" numberOfLines={1}>
+                  {item.description}
+                </Text>
               </View>
             )}
+            <TouchableOpacity
+              accessibilityLabel="Button"
+              onPress={() => handleDelete(item.id)}
+              className="absolute top-2 right-2 bg-black/40 p-1.5 rounded-full"
+            >
+              <Trash2 size={12} color="white" />
+            </TouchableOpacity>
+          </TouchableOpacity>
+        )}
+        ListEmptyComponent={
+          <View className="items-center justify-center mt-20 border-2 border-dashed border-border p-10 rounded-3xl">
+            <Text className="text-muted-foreground text-center">
+              No portfolio photos yet.{'\n'}Tap the + button to add one.
+            </Text>
           </View>
-        ))}
-      </View>
-    </ScrollView>
+        }
+      />
+
+      <Modal
+        visible={modalVisible}
+        animationType="slide"
+        transparent
+        onRequestClose={() => setModalVisible(false)}
+      >
+        <View className="flex-1 bg-black/50 justify-end">
+          <View className="bg-card rounded-t-[40px] p-6 pb-10">
+            <View className="flex-row justify-between items-center mb-6">
+              <Text className="text-xl font-bold">Add Portfolio Photo</Text>
+              <TouchableOpacity accessibilityLabel="Button" onPress={() => setModalVisible(false)}>
+                <X size={24} color="#1A1A1A" />
+              </TouchableOpacity>
+            </View>
+
+            {selectedImage && (
+              <Image
+                source={{ uri: `data:image/jpeg;base64,${selectedImage}` }}
+                className="w-full aspect-[1.6] rounded-2xl mb-6 bg-muted"
+              />
+            )}
+
+            <TextInput
+              className="bg-muted p-4 rounded-xl border border-border mb-6 text-start"
+              placeholder="Add a caption..."
+              multiline
+              value={caption}
+              onChangeText={setCaption}
+            />
+
+            <TouchableOpacity
+              accessibilityLabel="Button"
+              onPress={handleUpload}
+              disabled={uploading}
+              className="bg-primary p-4 rounded-xl items-center"
+            >
+              {uploading ? (
+                <ActivityIndicator color="white" />
+              ) : (
+                <Text className="text-white font-bold">Upload to Portfolio</Text>
+              )}
+            </TouchableOpacity>
+          </View>
+        </View>
+      </Modal>
+    </View>
   );
 }
-
-const styles = StyleSheet.create({
-  container: {
-    padding: spacing.lg,
-    backgroundColor: colors.bg,
-    flexGrow: 1,
-  },
-  header: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'baseline',
-    marginBottom: spacing.lg,
-  },
-  title: {
-    ...typography.heading,
-  },
-  subtitle: {
-    ...typography.caption,
-    color: colors.textSecondary,
-    marginLeft: spacing.sm,
-  },
-  grid: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: spacing.md,
-  },
-  addBox: {
-    width: '47%',
-    aspectRatio: 1,
-    backgroundColor: colors.surface,
-    borderRadius: radius.md,
-    borderWidth: 2,
-    borderColor: '#E2E8F0',
-    borderStyle: 'dashed',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  addIcon: {
-    fontSize: 32,
-    color: colors.primary,
-  },
-  addText: {
-    ...typography.caption,
-    color: colors.primary,
-    fontWeight: '600',
-  },
-  item: {
-    width: '47%',
-    aspectRatio: 1,
-    borderRadius: radius.md,
-    overflow: 'hidden',
-    backgroundColor: colors.surface,
-  },
-  image: {
-    width: '100%',
-    height: '100%',
-  },
-  delete: {
-    position: 'absolute',
-    top: 5,
-    right: 5,
-    width: 24,
-    height: 24,
-    borderRadius: 12,
-    backgroundColor: 'rgba(0,0,0,0.5)',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  deleteText: {
-    color: '#fff',
-    fontSize: 18,
-    fontWeight: 'bold',
-  },
-  label: {
-    position: 'absolute',
-    bottom: 0,
-    left: 0,
-    right: 0,
-    backgroundColor: 'rgba(0,0,0,0.6)',
-    padding: 4,
-  },
-  labelText: {
-    color: '#fff',
-    fontSize: 10,
-    textAlign: 'center',
-  },
-});

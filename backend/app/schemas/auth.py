@@ -4,7 +4,7 @@ from app.models.user import UserRole
 
 
 class OTPRequest(BaseModel):
-    phone_number: str
+    phone_number: str | None = None
     email: EmailStr
     lang: str = "rw"
 

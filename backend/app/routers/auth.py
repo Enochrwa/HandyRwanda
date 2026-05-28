@@ -27,38 +27,40 @@ class RegisterRequest(BaseModel):
 
 @router.post("/register", status_code=201)
 async def register(payload: RegisterRequest, db: AsyncSession = Depends(get_db)) -> Any:
-    # 1. Check if email or phone already exists
-    res = await db.execute(
-        select(User).where(
-            (User.email == payload.email) | (User.phone_number == payload.phone_number)
+    try:
+        # 1. Check if email or phone already exists
+        user_exists = await db.scalar(
+            select(User).where(
+                (User.email == payload.email)
+                | (User.phone_number == payload.phone_number)
+            )
         )
-    )
-    if res.scalar_one_or_none():
-        raise HTTPException(
-            status_code=409, detail="Email or phone number already registered"
+        if user_exists:
+            raise HTTPException(
+                status_code=409, detail="Email or phone number already registered"
+            )
+
+        # 2. Create User
+        user = User(
+            full_name=payload.full_name,
+            phone_number=payload.phone_number,
+            email=payload.email,
+            role=UserRole(payload.role),
         )
+        db.add(user)
+        await db.flush()
 
-    # 2. Create User
-    user = User(
-        full_name=payload.full_name,
-        phone_number=payload.phone_number,
-        email=payload.email,
-        role=UserRole(payload.role),
-    )
-    db.add(user)
-    await db.flush()
+        # 3. If artisan, create profile
+        if user.role == UserRole.artisan:
+            profile = ArtisanProfile(user_id=user.id)
+            db.add(profile)
 
-    # 3. If artisan, create profile
-    if user.role == UserRole.artisan:
-        profile = ArtisanProfile(user_id=user.id)
-        db.add(profile)
+        await db.commit()
 
-    await db.commit()
-
-    # 4. Trigger OTP
-    await auth_service.request_otp(payload.email, "en")
-
-    return {"message": "Registration successful. OTP sent to email."}
+        return {"message": "Registration successful. Please request OTP verification."}
+    except Exception:
+        await db.rollback()
+        raise
 
 
 @router.post("/otp/request")
@@ -96,7 +98,13 @@ async def verify_otp(payload: OTPVerify, db: AsyncSession = Depends(get_db)) -> 
     return {
         "access_token": access_token,
         "refresh_token": refresh_token,
-        "user": user,
+        "user": {
+            "id": str(user.id),
+            "phone_number": user.phone_number,
+            "full_name": user.full_name,
+            "email": user.email,
+            "role": user.role,
+        },
     }
 
 
@@ -160,7 +168,7 @@ async def get_user_profile(user_id: UUID, db: AsyncSession = Depends(get_db)) ->
         portfolio = list(port_res.scalars().all())
 
     return {
-        "id": user.id,
+        "id": str(user.id),
         "full_name": user.full_name,
         "avatar_url": user.avatar_url,
         "role": user.role,

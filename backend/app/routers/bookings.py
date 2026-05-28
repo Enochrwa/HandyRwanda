@@ -27,7 +27,9 @@ async def get_upcoming_bookings(
         .join(User, Booking.artisan_id == User.id)
         .where(
             or_(Booking.client_id == user_id, Booking.artisan_id == user_id),
-            Booking.status.in_([BookingStatus.confirmed, BookingStatus.pending_payment]),
+            Booking.status.in_(
+                [BookingStatus.confirmed, BookingStatus.pending_payment]
+            ),
             Job.scheduled_time >= func.now(),
         )
         .order_by(Job.scheduled_time.asc())
@@ -42,7 +44,9 @@ async def get_upcoming_bookings(
                 "id": str(booking.id),
                 "title": job.title,
                 "artisan_name": artisan_name,
-                "scheduled_at": job.scheduled_time.isoformat() if job.scheduled_time else None,
+                "scheduled_at": job.scheduled_time.isoformat()
+                if job.scheduled_time
+                else None,
                 "status": booking.status,
             }
         )

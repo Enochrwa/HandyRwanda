@@ -17,13 +17,6 @@ import Toast from 'react-native-toast-message';
 
 import api from '../../../src/services/api';
 
-type PortfolioPhoto = {
-  id: string;
-  image_url: string;
-  description: string | null;
-  created_at: string;
-};
-
 export default function PortfolioScreen() {
   const queryClient = useQueryClient();
   const [modalVisible, setModalVisible] = useState(false);

@@ -35,7 +35,25 @@ async def list_pending_artisans(
         .join(ArtisanProfile, User.id == ArtisanProfile.user_id)
         .where(ArtisanProfile.verification_status == VerificationStatus.pending)
     )
-    return [{"user": row[0], "profile": row[1]} for row in result.all()]
+    return [
+        {
+            "user": {
+                "id": str(row[0].id),
+                "phone_number": row[0].phone_number,
+                "full_name": row[0].full_name,
+                "email": row[0].email,
+                "avatar_url": row[0].avatar_url,
+                "role": row[0].role,
+                "preferred_lang": row[0].preferred_lang,
+                "is_active": row[0].is_active,
+                "expo_push_token": row[0].expo_push_token,
+                "created_at": row[0].created_at,
+                "updated_at": row[0].updated_at,
+            },
+            "profile": row[1],
+        }
+        for row in result.all()
+    ]
 
 
 @router.post("/artisans/{user_id}/approve")

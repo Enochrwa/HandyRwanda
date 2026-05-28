@@ -51,7 +51,7 @@ const isTokenExpired = (token: string | null): boolean => {
     const exp = decodedPayload.exp;
     if (!exp) return false;
     return Date.now() >= exp * 1000;
-  } catch (error) {
+  } catch {
     return true;
   }
 };

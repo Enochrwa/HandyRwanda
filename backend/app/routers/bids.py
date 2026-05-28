@@ -49,7 +49,16 @@ async def submit_bid(
     db.add(bid)
     await db.commit()
     await db.refresh(bid)
-    return bid
+    return {
+        "id": str(bid.id),
+        "job_id": str(bid.job_id),
+        "artisan_id": str(bid.artisan_id),
+        "proposed_price": bid.proposed_price,
+        "message": bid.message,
+        "proposed_start_time": bid.proposed_start_time,
+        "status": bid.status,
+        "created_at": bid.created_at,
+    }
 
 
 @router.get("/jobs/{job_id}")
@@ -86,7 +95,14 @@ async def list_bids(
 
     return [
         {
-            **dict(row[0].__dict__),
+            "id": str(row[0].id),
+            "job_id": str(row[0].job_id),
+            "artisan_id": str(row[0].artisan_id),
+            "proposed_price": row[0].proposed_price,
+            "message": row[0].message,
+            "proposed_start_time": row[0].proposed_start_time,
+            "status": row[0].status,
+            "created_at": row[0].created_at,
             "artisan_name": row[1],
             "artisan_avatar": row[2],
         }

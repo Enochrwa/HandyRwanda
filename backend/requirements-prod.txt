@@ -1,7 +1,5 @@
 # File: backend/requirements-prod.txt
 -r requirements.txt
-asyncpg
-geoalchemy2
 psycopg2-binary
 upstash-redis
 resend

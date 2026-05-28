@@ -24,7 +24,11 @@ export default function LocationStep() {
   const getCurrentLocation = async () => {
     const { status } = await Location.requestForegroundPermissionsAsync();
     if (status !== 'granted') {
-      Toast.show({ type: 'error', text1: 'Permission denied', text2: 'Cannot access your location' });
+      Toast.show({
+        type: 'error',
+        text1: 'Permission denied',
+        text2: 'Cannot access your location',
+      });
       return;
     }
 
@@ -108,7 +112,11 @@ export default function LocationStep() {
           onPress={handleNext}
           disabled={loading}
         >
-          {loading ? <ActivityIndicator color="white" /> : <Text className="text-white font-bold">Next: ID Verification</Text>}
+          {loading ? (
+            <ActivityIndicator color="white" />
+          ) : (
+            <Text className="text-white font-bold">Next: ID Verification</Text>
+          )}
         </TouchableOpacity>
       </View>
     </View>

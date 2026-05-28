@@ -76,7 +76,7 @@ export default function PhoneScreen() {
         />
       </View>
 
-      <TouchableOpacity style={styles.button} onPress={handleRequestOTP} disabled={loading}>
+      <TouchableOpacity accessibilityLabel="Button" style={styles.button} onPress={handleRequestOTP} disabled={loading}>
         {loading ? (
           <ActivityIndicator color={colors.surface} />
         ) : (

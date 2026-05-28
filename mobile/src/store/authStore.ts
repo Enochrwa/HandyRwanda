@@ -23,7 +23,7 @@ export interface AuthStore {
 // Simple atob polyfill for React Native
 const atob = (input: string) => {
   const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/=';
-  let str = input.replace(/=+$/, '');
+  const str = input.replace(/=+$/, '');
   let output = '';
 
   if (str.length % 4 === 1) {
@@ -80,6 +80,6 @@ export const useAuthStore = create<AuthStore>()(
           state.setAuth(state.user!, state.token, state.refreshToken!);
         }
       },
-    }
-  )
+    },
+  ),
 );

@@ -62,7 +62,7 @@ export default function OTPScreen() {
         autoFocus
       />
 
-      <TouchableOpacity style={styles.button} onPress={handleVerifyOTP} disabled={loading}>
+      <TouchableOpacity accessibilityLabel="Button" style={styles.button} onPress={handleVerifyOTP} disabled={loading}>
         {loading ? (
           <ActivityIndicator color={colors.surface} />
         ) : (
@@ -70,7 +70,7 @@ export default function OTPScreen() {
         )}
       </TouchableOpacity>
 
-      <TouchableOpacity
+      <TouchableOpacity accessibilityLabel="Button"
         onPress={() =>
           api.post('/auth/otp/request', { email, lang: i18n.locale, phone_number: 'existing' })
         }

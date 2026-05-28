@@ -1,7 +1,15 @@
 import * as ImagePicker from 'expo-image-picker';
 import { useRouter } from 'expo-router';
 import React, { useState } from 'react';
-import { View, Text, TouchableOpacity, Image, ScrollView, Alert, ActivityIndicator, TextInput } from 'react-native';
+import {
+  View,
+  Text,
+  TouchableOpacity,
+  Image,
+  ScrollView,
+  ActivityIndicator,
+  TextInput,
+} from 'react-native';
 import Toast from 'react-native-toast-message';
 
 import api from '../../../src/services/api';
@@ -20,7 +28,11 @@ export default function IDStep() {
         : await ImagePicker.requestMediaLibraryPermissionsAsync();
 
       if (permission.status !== 'granted') {
-        Toast.show({ type: 'error', text1: 'Permission denied', text2: 'We need camera/library access' });
+        Toast.show({
+          type: 'error',
+          text1: 'Permission denied',
+          text2: 'We need camera/library access',
+        });
         return;
       }
 
@@ -32,7 +44,10 @@ export default function IDStep() {
       };
 
       const result = camera
-        ? await ImagePicker.launchCameraAsync({...options, cameraType: ImagePicker.CameraType.front})
+        ? await ImagePicker.launchCameraAsync({
+            ...options,
+            cameraType: ImagePicker.CameraType.front,
+          })
         : await ImagePicker.launchImageLibraryAsync(options);
 
       if (!result.canceled) {
@@ -45,7 +60,11 @@ export default function IDStep() {
 
   const handleFinish = async () => {
     if (!idPhoto || !selfie || !nationalId) {
-      Toast.show({ type: 'error', text1: 'Missing info', text2: 'Please fill all fields and upload photos' });
+      Toast.show({
+        type: 'error',
+        text1: 'Missing info',
+        text2: 'Please fill all fields and upload photos',
+      });
       return;
     }
 
@@ -56,10 +75,18 @@ export default function IDStep() {
         national_id_doc_base64: idPhoto,
         selfie_base64: selfie,
       });
-      Toast.show({ type: 'success', text1: 'Verification submitted!', text2: 'We will review it shortly.' });
+      Toast.show({
+        type: 'success',
+        text1: 'Verification submitted!',
+        text2: 'We will review it shortly.',
+      });
       router.replace('/(tabs)/pro');
     } catch (error: any) {
-      Toast.show({ type: 'error', text1: 'Error', text2: error.response?.data?.detail ?? 'Failed to submit' });
+      Toast.show({
+        type: 'error',
+        text1: 'Error',
+        text2: error.response?.data?.detail ?? 'Failed to submit',
+      });
     } finally {
       setLoading(false);
     }
@@ -85,11 +112,15 @@ export default function IDStep() {
       <View className="mb-6">
         <Text className="text-sm font-medium mb-2">National ID (Front)</Text>
         <TouchableOpacity
+          accessibilityLabel="Button"
           className="aspect-[1.6] bg-card rounded-xl border-2 border-dashed border-border items-center justify-center overflow-hidden"
           onPress={() => pickImage(setIdPhoto)}
         >
           {idPhoto ? (
-            <Image source={{ uri: `data:image/jpeg;base64,${idPhoto}` }} className="w-full h-full" />
+            <Image
+              source={{ uri: `data:image/jpeg;base64,${idPhoto}` }}
+              className="w-full h-full"
+            />
           ) : (
             <Text className="text-primary font-bold">Tap to Take ID Photo</Text>
           )}
@@ -99,6 +130,7 @@ export default function IDStep() {
       <View className="mb-6">
         <Text className="text-sm font-medium mb-2">Take a Selfie</Text>
         <TouchableOpacity
+          accessibilityLabel="Button"
           className="aspect-[1.6] bg-card rounded-xl border-2 border-dashed border-border items-center justify-center overflow-hidden"
           onPress={() => pickImage(setSelfie, true)}
         >
@@ -111,15 +143,21 @@ export default function IDStep() {
       </View>
 
       <Text className="text-xs text-muted-foreground text-center mb-8 px-4">
-        Photos are encrypted and only used for verification. Verification usually takes 24–48 hours.
+        Photos are encrypted and only used for verification. Verification usually takes 24–48
+        hours.
       </Text>
 
       <TouchableOpacity
-        className={`bg-primary p-4 rounded-xl items-center ${(!idPhoto || !selfie || !nationalId) ? 'opacity-50' : ''}`}
+        accessibilityLabel="Button"
+        className={`bg-primary p-4 rounded-xl items-center ${!idPhoto || !selfie || !nationalId ? 'opacity-50' : ''}`}
         onPress={handleFinish}
         disabled={loading || !idPhoto || !selfie || !nationalId}
       >
-        {loading ? <ActivityIndicator color="white" /> : <Text className="text-white font-bold">Finish Onboarding</Text>}
+        {loading ? (
+          <ActivityIndicator color="white" />
+        ) : (
+          <Text className="text-white font-bold">Finish Onboarding</Text>
+        )}
       </TouchableOpacity>
     </ScrollView>
   );

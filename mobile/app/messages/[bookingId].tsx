@@ -1,11 +1,21 @@
-import React, { useState, useRef, useEffect } from 'react';
-import { View, Text, FlatList, TextInput, TouchableOpacity, KeyboardAvoidingView, Platform, ActivityIndicator } from 'react-native';
-import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { Send, ChevronLeft } from 'lucide-react-native';
 import { format } from 'date-fns';
-import { useAuthStore } from '../../src/store/authStore';
+import { useLocalSearchParams, useRouter } from 'expo-router';
+import { Send, ChevronLeft } from 'lucide-react-native';
+import React, { useState, useRef, useEffect } from 'react';
+import {
+  View,
+  Text,
+  FlatList,
+  TextInput,
+  TouchableOpacity,
+  KeyboardAvoidingView,
+  Platform,
+  ActivityIndicator,
+} from 'react-native';
+
 import api from '../../src/services/api';
+import { useAuthStore } from '../../src/store/authStore';
 
 export default function ChatThread() {
   const { bookingId } = useLocalSearchParams();
@@ -17,11 +27,11 @@ export default function ChatThread() {
 
   useEffect(() => {
     if (!isAuthenticated) router.replace('/auth');
-  }, [isAuthenticated]);
+  }, [isAuthenticated, router]);
 
   const { data: messages, isLoading } = useQuery({
     queryKey: ['messages', bookingId],
-    queryFn: () => api.get(`/messages/${bookingId}`).then(r => r.data),
+    queryFn: () => api.get(`/messages/${bookingId}`).then((r) => r.data),
     refetchInterval: 8000,
     enabled: isAuthenticated && !!bookingId,
   });
@@ -40,7 +50,10 @@ export default function ChatThread() {
         is_read: false,
       };
 
-      queryClient.setQueryData(['messages', bookingId], (old: any) => [...(old || []), optimisticMessage]);
+      queryClient.setQueryData(['messages', bookingId], (old: any) => [
+        ...(old || []),
+        optimisticMessage,
+      ]);
 
       return { previousMessages };
     },
@@ -70,32 +83,38 @@ export default function ChatThread() {
     >
       {/* Header */}
       <View className="bg-card p-4 pt-12 border-b border-border flex-row items-center">
-        <TouchableOpacity accessibilityLabel="Button" onPress={() => router.back()} className="mr-4">
-          <ChevronLeft // @ts-ignore
-          color="#1A1A1A" size={24} />
+        <TouchableOpacity
+          accessibilityLabel="Button"
+          onPress={() => router.back()}
+          className="mr-4"
+        >
+          <ChevronLeft color="#1A1A1A" size={24} />
         </TouchableOpacity>
         <Text className="text-lg font-bold">Chat Thread</Text>
       </View>
 
       {isLoading ? (
         <View className="flex-1 items-center justify-center">
-          <ActivityIndicator // @ts-ignore
-          color="#1B5E3B" />
+          <ActivityIndicator color="#1B5E3B" />
         </View>
       ) : (
         <FlatList
           ref={flatListRef}
           data={messages}
-          keyExtractor={item => item.id}
+          keyExtractor={(item) => item.id}
           contentContainerStyle={{ padding: 16 }}
           onContentSizeChange={() => flatListRef.current?.scrollToEnd({ animated: true })}
           renderItem={({ item }) => {
             const isMe = item.sender_id === user?.id;
             return (
               <View className={`mb-4 flex-row ${isMe ? 'justify-end' : 'justify-start'}`}>
-                <View className={`max-w-[80%] p-3 rounded-2xl ${isMe ? 'bg-primary rounded-br-sm' : 'bg-muted rounded-bl-sm'}`}>
+                <View
+                  className={`max-w-[80%] p-3 rounded-2xl ${isMe ? 'bg-primary rounded-br-sm' : 'bg-muted rounded-bl-sm'}`}
+                >
                   <Text className={isMe ? 'text-white' : 'text-foreground'}>{item.content}</Text>
-                  <Text className={`text-[8px] mt-1 ${isMe ? 'text-white/70' : 'text-muted-foreground'}`}>
+                  <Text
+                    className={`text-[8px] mt-1 ${isMe ? 'text-white/70' : 'text-muted-foreground'}`}
+                  >
                     {format(new Date(item.created_at), 'HH:mm')}
                   </Text>
                 </View>
@@ -114,13 +133,13 @@ export default function ChatThread() {
           value={content}
           onChangeText={setContent}
         />
-        <TouchableOpacity accessibilityLabel="Button"
+        <TouchableOpacity
+          accessibilityLabel="Button"
           onPress={handleSend}
           disabled={!content.trim() || sendMutation.isPending}
           className={`w-12 h-12 rounded-full items-center justify-center ${content.trim() ? 'bg-primary' : 'bg-muted'}`}
         >
-          <Send // @ts-ignore
-          color={content.trim() ? 'white' : '#6B6B6B'} size={20} />
+          <Send color={content.trim() ? 'white' : '#6B6B6B'} size={20} />
         </TouchableOpacity>
       </View>
     </KeyboardAvoidingView>

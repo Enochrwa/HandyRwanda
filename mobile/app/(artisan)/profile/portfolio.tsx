@@ -1,6 +1,16 @@
 import * as ImagePicker from 'expo-image-picker';
 import React, { useState } from 'react';
-import { View, Text, FlatList, Image, TouchableOpacity, Modal, TextInput, ActivityIndicator, Alert } from 'react-native';
+import {
+  View,
+  Text,
+  FlatList,
+  Image,
+  TouchableOpacity,
+  Modal,
+  TextInput,
+  ActivityIndicator,
+  Alert,
+} from 'react-native';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import Toast from 'react-native-toast-message';
 import { Plus, X, Trash2 } from 'lucide-react-native';
@@ -22,7 +32,7 @@ export default function PortfolioScreen() {
 
   const { data: photos, isLoading } = useQuery({
     queryKey: ['portfolio'],
-    queryFn: () => api.get('/artisans/portfolio/me').then(r => r.data),
+    queryFn: () => api.get('/artisans/portfolio/me').then((r) => r.data),
   });
 
   const pickImage = async () => {
@@ -40,7 +50,7 @@ export default function PortfolioScreen() {
   };
 
   const uploadMutation = useMutation({
-    mutationFn: (data: { photo_base64: string, description: string }) =>
+    mutationFn: (data: { photo_base64: string; description: string }) =>
       api.post('/artisans/portfolio', data),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['portfolio'] });
@@ -63,14 +73,10 @@ export default function PortfolioScreen() {
   });
 
   const handleDelete = (id: string) => {
-    Alert.alert(
-      'Delete Photo',
-      'Are you sure you want to remove this from your portfolio?',
-      [
-        { text: 'Cancel', style: 'cancel' },
-        { text: 'Delete', style: 'destructive', onPress: () => deleteMutation.mutate(id) },
-      ]
-    );
+    Alert.alert('Delete Photo', 'Are you sure you want to remove this from your portfolio?', [
+      { text: 'Cancel', style: 'cancel' },
+      { text: 'Delete', style: 'destructive', onPress: () => deleteMutation.mutate(id) },
+    ]);
   };
 
   const handleUpload = () => {
@@ -82,8 +88,9 @@ export default function PortfolioScreen() {
   if (isLoading) {
     return (
       <View className="flex-1 bg-background items-center justify-center">
-        <ActivityIndicator // @ts-ignore
-          color="#1B5E3B" />
+        <ActivityIndicator
+          color="#1B5E3B"
+        />
       </View>
     );
   }
@@ -95,12 +102,15 @@ export default function PortfolioScreen() {
           <Text className="text-2xl font-bold">Your Portfolio</Text>
           <Text className="text-muted-foreground">Showcase your best work</Text>
         </View>
-        <TouchableOpacity accessibilityLabel="Button"
+        <TouchableOpacity
+          accessibilityLabel="Button"
           onPress={pickImage}
           className="bg-primary w-12 h-12 rounded-full items-center justify-center"
         >
-          <Plus // @ts-ignore
-          color="white" size={24} />
+          <Plus
+            color="white"
+            size={24}
+          />
         </TouchableOpacity>
       </View>
 
@@ -111,40 +121,55 @@ export default function PortfolioScreen() {
         columnWrapperStyle={{ gap: 12 }}
         contentContainerStyle={{ paddingBottom: 20 }}
         renderItem={({ item }) => (
-          <TouchableOpacity accessibilityLabel="Button"
+          <TouchableOpacity
+            accessibilityLabel="Button"
             onLongPress={() => handleDelete(item.id)}
             className="flex-1 mb-3 rounded-2xl overflow-hidden border border-border bg-card aspect-square"
           >
             <Image source={{ uri: item.image_url }} className="w-full h-full" />
             {item.description && (
               <View className="absolute bottom-0 left-0 right-0 bg-black/40 p-2">
-                <Text className="text-white text-[10px]" numberOfLines={1}>{item.description}</Text>
+                <Text className="text-white text-[10px]" numberOfLines={1}>
+                  {item.description}
+                </Text>
               </View>
             )}
-            <TouchableOpacity accessibilityLabel="Button"
+            <TouchableOpacity
+              accessibilityLabel="Button"
               onPress={() => handleDelete(item.id)}
               className="absolute top-2 right-2 bg-black/40 p-1.5 rounded-full"
             >
-              <Trash2 size={12} // @ts-ignore
-          color="white" />
+              <Trash2
+                size={12}
+                color="white"
+              />
             </TouchableOpacity>
           </TouchableOpacity>
         )}
         ListEmptyComponent={
           <View className="items-center justify-center mt-20 border-2 border-dashed border-border p-10 rounded-3xl">
-            <Text className="text-muted-foreground text-center">No portfolio photos yet.{'\n'}Tap the + button to add one.</Text>
+            <Text className="text-muted-foreground text-center">
+              No portfolio photos yet.{'\n'}Tap the + button to add one.
+            </Text>
           </View>
         }
       />
 
-      <Modal visible={modalVisible} animationType="slide" transparent onRequestClose={() => setModalVisible(false)}>
+      <Modal
+        visible={modalVisible}
+        animationType="slide"
+        transparent
+        onRequestClose={() => setModalVisible(false)}
+      >
         <View className="flex-1 bg-black/50 justify-end">
           <View className="bg-card rounded-t-[40px] p-6 pb-10">
             <View className="flex-row justify-between items-center mb-6">
               <Text className="text-xl font-bold">Add Portfolio Photo</Text>
               <TouchableOpacity accessibilityLabel="Button" onPress={() => setModalVisible(false)}>
-                <X size={24} // @ts-ignore
-          color="#1A1A1A" />
+                <X
+                  size={24}
+                  color="#1A1A1A"
+                />
               </TouchableOpacity>
             </View>
 
@@ -163,13 +188,19 @@ export default function PortfolioScreen() {
               onChangeText={setCaption}
             />
 
-            <TouchableOpacity accessibilityLabel="Button"
+            <TouchableOpacity
+              accessibilityLabel="Button"
               onPress={handleUpload}
               disabled={uploading}
               className="bg-primary p-4 rounded-xl items-center"
             >
-              {uploading ? <ActivityIndicator // @ts-ignore
-          color="white" /> : <Text className="text-white font-bold">Upload to Portfolio</Text>}
+              {uploading ? (
+                <ActivityIndicator
+                  color="white"
+                />
+              ) : (
+                <Text className="text-white font-bold">Upload to Portfolio</Text>
+              )}
             </TouchableOpacity>
           </View>
         </View>

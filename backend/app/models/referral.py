@@ -14,9 +14,13 @@ class ReferralStatus(str, enum.Enum):
 
 class Referral(Base):
     __tablename__ = "referrals"
-    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
-    referrer_id = Column(UUID(as_uuid=True), ForeignKey("users.id"), nullable=False)
-    referred_id = Column(UUID(as_uuid=True), ForeignKey("users.id"), nullable=False)
+    id: Column[UUID] = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    referrer_id: Column[UUID] = Column(
+        UUID(as_uuid=True), ForeignKey("users.id"), nullable=False
+    )
+    referred_id: Column[UUID] = Column(
+        UUID(as_uuid=True), ForeignKey("users.id"), nullable=False
+    )
     referral_code = Column(String(20), nullable=False)
     status: Column[ReferralStatus] = Column(
         Enum(ReferralStatus), default=ReferralStatus.registered

@@ -8,12 +8,14 @@ from app.db_compat import UUID
 
 class Review(Base):
     __tablename__ = "reviews"
-    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
-    booking_id = Column(
+    id: Column[UUID] = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    booking_id: Column[UUID] = Column(
         UUID(as_uuid=True), ForeignKey("bookings.id"), unique=True, nullable=False
     )
-    client_id = Column(UUID(as_uuid=True), ForeignKey("users.id"), nullable=False)
-    artisan_id = Column(
+    client_id: Column[UUID] = Column(
+        UUID(as_uuid=True), ForeignKey("users.id"), nullable=False
+    )
+    artisan_id: Column[UUID] = Column(
         UUID(as_uuid=True), ForeignKey("artisan_profiles.user_id"), nullable=False
     )
     rating = Column(Integer, nullable=False)

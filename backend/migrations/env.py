@@ -60,11 +60,11 @@ async def do_run_migrations() -> None:
             # Convert sslmode to ssl parameter that asyncpg understands
             # For simplicity, we map require/verify-* to True and others to False
             if sslmode in ["require", "verify-ca", "verify-full"]:
-                configuration["sqlalchemy.engine_kwargs"] = {
+                configuration["sqlalchemy.engine_kwargs"] = {  # type: ignore[assignment]
                     "connect_args": {"ssl": True}
                 }
             else:
-                configuration["sqlalchemy.engine_kwargs"] = {
+                configuration["sqlalchemy.engine_kwargs"] = {  # type: ignore[assignment]
                     "connect_args": {"ssl": False}
                 }
             # Remove sslmode from query parameters to avoid passing it directly to asyncpg

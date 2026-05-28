@@ -2,78 +2,81 @@ import Slider from '@react-native-community/slider';
 import * as Location from 'expo-location';
 import { useRouter } from 'expo-router';
 import React, { useState, useEffect } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
-import MapView, { Marker, Circle, UrlTile } from 'react-native-maps';
+import { View, Text, TouchableOpacity, ActivityIndicator } from 'react-native';
+import MapView, { Marker, Circle } from 'react-native-maps';
+import Toast from 'react-native-toast-message';
 
-import api from '../../../services/api';
-import { colors, typography, spacing, radius } from '../../../src/theme';
+import api from '../../../src/services/api';
+
+const KIGALI_CENTER = {
+  latitude: -1.9441,
+  longitude: 30.0619,
+  latitudeDelta: 0.05,
+  longitudeDelta: 0.05,
+};
 
 export default function LocationStep() {
   const router = useRouter();
-  const [region, setRegion] = useState({
-    latitude: -1.9441,
-    longitude: 30.0619,
-    latitudeDelta: 0.0922,
-    longitudeDelta: 0.0421,
-  });
+  const [region, setRegion] = useState(KIGALI_CENTER);
   const [radiusKm, setRadiusKm] = useState(10);
   const [marker, setMarker] = useState({ latitude: -1.9441, longitude: 30.0619 });
+  const [loading, setLoading] = useState(false);
+
+  const getCurrentLocation = async () => {
+    const { status } = await Location.requestForegroundPermissionsAsync();
+    if (status !== 'granted') {
+      Toast.show({
+        type: 'error',
+        text1: 'Permission denied',
+        text2: 'Cannot access your location',
+      });
+      return;
+    }
+
+    const loc = await Location.getCurrentPositionAsync({});
+    const newCoords = { latitude: loc.coords.latitude, longitude: loc.coords.longitude };
+    setMarker(newCoords);
+    setRegion({ ...KIGALI_CENTER, ...newCoords });
+  };
 
   useEffect(() => {
-    (async () => {
-      const { status } = await Location.requestForegroundPermissionsAsync();
-      if (status !== 'granted') return;
-
-      const location = await Location.getCurrentPositionAsync({});
-      const newRegion = {
-        ...region,
-        latitude: location.coords.latitude,
-        longitude: location.coords.longitude,
-      };
-      setRegion(newRegion);
-      setMarker({ latitude: location.coords.latitude, longitude: location.coords.longitude });
-    })();
-  }, [region]);
+    getCurrentLocation();
+  }, []);
 
   const handleNext = async () => {
+    setLoading(true);
     try {
       await api.post('/artisans/profile', {
         latitude: marker.latitude,
         longitude: marker.longitude,
         service_radius_km: radiusKm,
-        location_label: 'Selected on map',
+        location_label: 'Custom Location',
       });
       router.push('/(artisan)/onboarding/step4-id');
     } catch (error) {
       console.error(error);
+      Toast.show({ type: 'error', text1: 'Error', text2: 'Failed to save location' });
+    } finally {
+      setLoading(false);
     }
   };
 
   return (
-    <View style={styles.container}>
-      <View style={styles.header}>
-        <Text style={styles.title}>Where do you work?</Text>
-        <Text style={styles.subtitle}>Step 3 of 4: Set Service Area</Text>
+    <View className="flex-1 bg-background">
+      <View className="p-6 pt-10">
+        <Text className="text-2xl font-bold text-foreground">Where do you work?</Text>
+        <Text className="text-muted-foreground">Step 3 of 4: Set Service Area</Text>
       </View>
 
       <MapView
-        style={styles.map}
+        className="flex-1"
         initialRegion={region}
-        onPress={(e: { nativeEvent: { coordinate: { latitude: number; longitude: number } } }) =>
-          setMarker(e.nativeEvent.coordinate)
-        }
+        onPress={(e) => setMarker(e.nativeEvent.coordinate)}
       >
-        <UrlTile
-          urlTemplate="https://tile.openstreetmap.org/{z}/{x}/{y}.png"
-          maximumZ={19}
-          flipY={false}
-        />
         <Marker
           coordinate={marker}
           draggable
-          onDragEnd={(e: {
-            nativeEvent: { coordinate: { latitude: number; longitude: number } };
-          }) => setMarker(e.nativeEvent.coordinate)}
+          onDragEnd={(e) => setMarker(e.nativeEvent.coordinate)}
         />
         <Circle
           center={marker}
@@ -83,81 +86,41 @@ export default function LocationStep() {
         />
       </MapView>
 
-      <View style={styles.footer}>
-        <Text style={styles.label}>Service Radius: {radiusKm} km</Text>
+      <View className="p-6 bg-card rounded-t-[32px] shadow-lg">
+        <View className="flex-row justify-between items-center mb-4">
+          <Text className="text-lg font-bold">Service Radius: {radiusKm} km</Text>
+          <TouchableOpacity onPress={getCurrentLocation}>
+            <Text className="text-primary font-bold">Use My Location</Text>
+          </TouchableOpacity>
+        </View>
+
         <Slider
-          style={styles.slider}
+          style={{ width: '100%', height: 40 }}
           minimumValue={1}
           maximumValue={50}
           step={1}
           value={radiusKm}
           onValueChange={setRadiusKm}
-          minimumTrackTintColor={colors.primary}
+          minimumTrackTintColor="#1B5E3B"
           maximumTrackTintColor="#E2E8F0"
         />
-        <Text style={styles.info}>
-          You'll be visible to clients within {radiusKm} km of the pin.
+
+        <Text className="text-muted-foreground text-xs text-center mb-4">
+          Lat: {marker.latitude.toFixed(4)}, Lng: {marker.longitude.toFixed(4)}
         </Text>
-        <TouchableOpacity style={styles.button} onPress={handleNext}>
-          <Text style={styles.buttonText}>Next: ID Verification</Text>
+
+        <TouchableOpacity
+          className="bg-primary p-4 rounded-xl items-center"
+          onPress={handleNext}
+          disabled={loading}
+        >
+          {loading ? (
+            <ActivityIndicator color="white" />
+          ) : (
+            <Text className="text-white font-bold">Next: ID Verification</Text>
+          )}
         </TouchableOpacity>
       </View>
     </View>
   );
 }
-
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: colors.bg,
-  },
-  header: {
-    padding: spacing.lg,
-    paddingTop: spacing.xl,
-  },
-  title: {
-    ...typography.heading,
-    color: colors.text,
-  },
-  subtitle: {
-    ...typography.body,
-    color: colors.textSecondary,
-  },
-  map: {
-    flex: 1,
-  },
-  footer: {
-    padding: spacing.lg,
-    backgroundColor: colors.surface,
-    borderTopLeftRadius: radius.lg,
-    borderTopRightRadius: radius.lg,
-    elevation: 10,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: -2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 10,
-  },
-  label: {
-    ...typography.subheading,
-    marginBottom: spacing.sm,
-  },
-  slider: {
-    width: '100%',
-    height: 40,
-  },
-  info: {
-    ...typography.caption,
-    color: colors.textSecondary,
-    marginBottom: spacing.md,
-  },
-  button: {
-    backgroundColor: colors.primary,
-    padding: spacing.md,
-    borderRadius: radius.md,
-    alignItems: 'center',
-  },
-  buttonText: {
-    ...typography.subheading,
-    color: colors.surface,
-  },
-});

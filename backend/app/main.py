@@ -7,13 +7,12 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from app.database import init_db
-from app.routers import admin, artisans, auth, bids, jobs, messages
+from app.routers import admin, artisans, auth, bids, bookings, jobs, messages
 
 
 @asynccontextmanager
 async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
-    # Auto-create tables in dev (SQLite). No-op when DATABASE_URL points to PG.
-    if not os.getenv("DATABASE_URL"):
+    if os.getenv("ENV") == "development":
         await init_db()
     yield
 
@@ -34,6 +33,7 @@ app.include_router(admin.router)
 app.include_router(jobs.router)
 app.include_router(bids.router)
 app.include_router(messages.router)
+app.include_router(bookings.router)
 
 
 @app.get("/")

@@ -2,7 +2,7 @@ import { useRouter } from 'expo-router';
 import React, { useState } from 'react';
 import { View, Text, TextInput, TouchableOpacity, StyleSheet, ScrollView } from 'react-native';
 
-import api from '../../../services/api';
+import api from '../../../src/services/api';
 import { colors, typography, spacing, radius } from '../../../src/theme';
 
 export default function BioStep() {

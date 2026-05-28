@@ -36,6 +36,9 @@ class UUID(TypeDecorator[uuid.UUID]):
     def process_result_value(self, value: Any, dialect: Any) -> Any:
         if value is None:
             return value
+        # If value is already a UUID object (from asyncpg), return it directly
+        if isinstance(value, uuid.UUID):
+            return value
         else:
             return uuid.UUID(value)
 

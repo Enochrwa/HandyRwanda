@@ -331,7 +331,7 @@ async def search_artisans(
 ) -> Any:
     offset = (page - 1) * 20
     query = text("""
-        SELECT u.id, u.full_name, u.avatar_url, ap.average_rating, ap.total_reviews, ap.is_available, ap.verification_status, ap.community_score, ap.hourly_rate,
+        SELECT u.id::text as id, u.full_name, u.avatar_url, ap.average_rating, ap.total_reviews, ap.is_available, ap.verification_status, ap.community_score, ap.hourly_rate,
             ST_X(ap.location::geometry) as lng, ST_Y(ap.location::geometry) as lat,
             ST_Distance(ap.location::geography, ST_SetSRID(ST_MakePoint(:lng, :lat), 4326)::geography) / 1000 AS distance_km
         FROM users u JOIN artisan_profiles ap ON u.id = ap.user_id LEFT JOIN artisan_skills ask ON ap.user_id = ask.artisan_id

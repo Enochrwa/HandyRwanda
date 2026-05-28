@@ -11,9 +11,9 @@ import {
 } from 'react-native';
 
 import i18n from '../../i18n';
-import api from '../../services/api';
+import api from '../../src/services/api';
+import { useAuthStore } from '../../src/store/authStore';
 import { colors, typography, spacing, radius } from '../../src/theme';
-import { useAuthStore } from '../../store/authStore';
 
 export default function OTPScreen() {
   const router = useRouter();

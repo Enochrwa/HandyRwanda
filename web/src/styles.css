@@ -28,10 +28,16 @@
   --color-surface: #ffffff;
   --color-text: #1a1a1a;
   --color-text-secondary: #6b6b6b;
+  --color-border: #e2e8f0; /* Light gray for borders */
+  --color-sidebar-border: #e2e8f0; /* Border color for sidebar */
+  --color-sidebar-accent: #1b5e3b; /* Accent color for sidebar */
+  --color-sidebar-foreground: #1a1a1a; /* Text color for sidebar */
+  --color-sidebar-ring: #1b5e3b; /* Ring color for sidebar focus states */
   --color-verified: #1565c0;
   --color-danger: #c0392b;
   --color-success: #2e7d4f;
-  --font-family: "Plus Jakarta Sans", sans-serif;
+  --color-card-foreground: #1a1a1a; /* Text color for card backgrounds */
+  --font-plus-jakarta: "Plus Jakarta Sans", sans-serif;
   --radius-sm: 8px;
   --radius-md: 12px;
   --radius-lg: 20px;

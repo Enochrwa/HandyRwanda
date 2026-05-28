@@ -36,7 +36,9 @@ export default function HomeScreen() {
           </View>
           <TouchableOpacity
             accessibilityLabel="Button"
-            onPress={() => (isAuthenticated ? router.push('/(tabs)/profile') : router.push('/auth'))}
+            onPress={() =>
+              isAuthenticated ? router.push('/(tabs)/profile') : router.push('/auth')
+            }
             className="w-10 h-10 bg-white/20 rounded-full items-center justify-center overflow-hidden"
           >
             {user?.avatarUrl ? (
@@ -66,7 +68,10 @@ export default function HomeScreen() {
       <View className="p-6">
         <View className="flex-row justify-between items-center mb-4">
           <Text className="text-xl font-bold">Services</Text>
-          <TouchableOpacity accessibilityLabel="Button" onPress={() => router.push('/(tabs)/search')}>
+          <TouchableOpacity
+            accessibilityLabel="Button"
+            onPress={() => router.push('/(tabs)/search')}
+          >
             <Text className="text-primary font-bold">See All</Text>
           </TouchableOpacity>
         </View>

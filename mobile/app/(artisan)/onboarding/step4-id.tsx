@@ -143,8 +143,7 @@ export default function IDStep() {
       </View>
 
       <Text className="text-xs text-muted-foreground text-center mb-8 px-4">
-        Photos are encrypted and only used for verification. Verification usually takes 24–48
-        hours.
+        Photos are encrypted and only used for verification. Verification usually takes 24–48 hours.
       </Text>
 
       <TouchableOpacity

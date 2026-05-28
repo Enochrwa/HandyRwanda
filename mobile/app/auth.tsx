@@ -85,7 +85,7 @@ export default function AuthScreen() {
           avatarUrl: user.avatar_url,
         },
         access_token,
-        refresh_token
+        refresh_token,
       );
       Toast.show({
         type: 'success',

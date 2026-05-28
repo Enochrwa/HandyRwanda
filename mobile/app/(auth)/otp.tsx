@@ -12,8 +12,8 @@ import {
 
 import i18n from '../../i18n';
 import api from '../../src/services/api';
-import { colors, typography, spacing, radius } from '../../src/theme';
 import { useAuthStore } from '../../src/store/authStore';
+import { colors, typography, spacing, radius } from '../../src/theme';
 
 export default function OTPScreen() {
   const router = useRouter();
@@ -62,7 +62,7 @@ export default function OTPScreen() {
         autoFocus
       />
 
-      <TouchableOpacity accessibilityLabel="Button" style={styles.button} onPress={handleVerifyOTP} disabled={loading}>
+      <TouchableOpacity style={styles.button} onPress={handleVerifyOTP} disabled={loading}>
         {loading ? (
           <ActivityIndicator color={colors.surface} />
         ) : (
@@ -70,7 +70,7 @@ export default function OTPScreen() {
         )}
       </TouchableOpacity>
 
-      <TouchableOpacity accessibilityLabel="Button"
+      <TouchableOpacity
         onPress={() =>
           api.post('/auth/otp/request', { email, lang: i18n.locale, phone_number: 'existing' })
         }

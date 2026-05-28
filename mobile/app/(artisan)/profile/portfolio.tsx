@@ -1,4 +1,6 @@
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import * as ImagePicker from 'expo-image-picker';
+import { Plus, X, Trash2 } from 'lucide-react-native';
 import React, { useState } from 'react';
 import {
   View,
@@ -11,9 +13,8 @@ import {
   ActivityIndicator,
   Alert,
 } from 'react-native';
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import Toast from 'react-native-toast-message';
-import { Plus, X, Trash2 } from 'lucide-react-native';
+
 import api from '../../../src/services/api';
 
 type PortfolioPhoto = {
@@ -88,9 +89,7 @@ export default function PortfolioScreen() {
   if (isLoading) {
     return (
       <View className="flex-1 bg-background items-center justify-center">
-        <ActivityIndicator
-          color="#1B5E3B"
-        />
+        <ActivityIndicator color="#1B5E3B" />
       </View>
     );
   }
@@ -107,10 +106,7 @@ export default function PortfolioScreen() {
           onPress={pickImage}
           className="bg-primary w-12 h-12 rounded-full items-center justify-center"
         >
-          <Plus
-            color="white"
-            size={24}
-          />
+          <Plus color="white" size={24} />
         </TouchableOpacity>
       </View>
 
@@ -139,10 +135,7 @@ export default function PortfolioScreen() {
               onPress={() => handleDelete(item.id)}
               className="absolute top-2 right-2 bg-black/40 p-1.5 rounded-full"
             >
-              <Trash2
-                size={12}
-                color="white"
-              />
+              <Trash2 size={12} color="white" />
             </TouchableOpacity>
           </TouchableOpacity>
         )}
@@ -166,10 +159,7 @@ export default function PortfolioScreen() {
             <View className="flex-row justify-between items-center mb-6">
               <Text className="text-xl font-bold">Add Portfolio Photo</Text>
               <TouchableOpacity accessibilityLabel="Button" onPress={() => setModalVisible(false)}>
-                <X
-                  size={24}
-                  color="#1A1A1A"
-                />
+                <X size={24} color="#1A1A1A" />
               </TouchableOpacity>
             </View>
 
@@ -195,9 +185,7 @@ export default function PortfolioScreen() {
               className="bg-primary p-4 rounded-xl items-center"
             >
               {uploading ? (
-                <ActivityIndicator
-                  color="white"
-                />
+                <ActivityIndicator color="white" />
               ) : (
                 <Text className="text-white font-bold">Upload to Portfolio</Text>
               )}

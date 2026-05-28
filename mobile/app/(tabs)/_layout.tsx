@@ -1,7 +1,8 @@
 import { Tabs, useRouter } from 'expo-router';
-import { TouchableOpacity, Text } from 'react-native';
-import { useAuthStore } from '../../src/store/authStore';
 import { Home, Search, MessageCircle, User, LayoutDashboard } from 'lucide-react-native';
+import { TouchableOpacity, Text } from 'react-native';
+
+import { useAuthStore } from '../../src/store/authStore';
 
 export default function TabsLayout() {
   const { isAuthenticated, user } = useAuthStore();
@@ -18,9 +19,7 @@ export default function TabsLayout() {
         name="index"
         options={{
           title: 'Home',
-          tabBarIcon: ({ color }) => (
-            <Home color={color} size={22} />
-          ),
+          tabBarIcon: ({ color }) => <Home color={color} size={22} />,
           headerRight: () =>
             !isAuthenticated ? (
               <TouchableOpacity
@@ -37,18 +36,14 @@ export default function TabsLayout() {
         name="search"
         options={{
           title: 'Search',
-          tabBarIcon: ({ color }) => (
-            <Search color={color} size={22} />
-          ),
+          tabBarIcon: ({ color }) => <Search color={color} size={22} />,
         }}
       />
       <Tabs.Screen
         name="messages"
         options={{
           title: 'Messages',
-          tabBarIcon: ({ color }) => (
-            <MessageCircle color={color} size={22} />
-          ),
+          tabBarIcon: ({ color }) => <MessageCircle color={color} size={22} />,
           href: isAuthenticated ? undefined : null,
         }}
       />
@@ -57,9 +52,7 @@ export default function TabsLayout() {
           name="pro"
           options={{
             title: 'Pro',
-            tabBarIcon: ({ color }) => (
-              <LayoutDashboard color={color} size={22} />
-            ),
+            tabBarIcon: ({ color }) => <LayoutDashboard color={color} size={22} />,
             href: isAuthenticated ? undefined : null,
           }}
         />
@@ -68,9 +61,7 @@ export default function TabsLayout() {
         name="profile"
         options={{
           title: 'Profile',
-          tabBarIcon: ({ color }) => (
-            <User color={color} size={22} />
-          ),
+          tabBarIcon: ({ color }) => <User color={color} size={22} />,
           href: isAuthenticated ? undefined : null,
         }}
       />

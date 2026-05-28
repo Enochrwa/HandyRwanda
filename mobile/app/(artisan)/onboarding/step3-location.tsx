@@ -5,6 +5,7 @@ import React, { useState, useEffect } from 'react';
 import { View, Text, TouchableOpacity, ActivityIndicator } from 'react-native';
 import MapView, { Marker, Circle } from 'react-native-maps';
 import Toast from 'react-native-toast-message';
+
 import api from '../../../src/services/api';
 
 const KIGALI_CENTER = {

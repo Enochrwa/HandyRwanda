@@ -1,3 +1,4 @@
+import { useRouter } from 'expo-router';
 import {
   Settings,
   LogOut,
@@ -9,7 +10,6 @@ import {
 } from 'lucide-react-native';
 import React from 'react';
 import { View, Text, TouchableOpacity, Image, ScrollView, Alert } from 'react-native';
-import { useRouter } from 'expo-router';
 
 import { useAuthStore } from '../../src/store/authStore';
 

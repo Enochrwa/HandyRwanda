@@ -1,12 +1,6 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useRouter } from 'expo-router';
-import {
-  Wallet,
-  Star,
-  Clock,
-  MapPin,
-  CheckCircle,
-} from 'lucide-react-native';
+import { Wallet, Star, Clock, MapPin, CheckCircle } from 'lucide-react-native';
 import React, { useState, useEffect } from 'react';
 import {
   View,
@@ -26,9 +20,7 @@ import { useAuthStore } from '../../src/store/authStore';
 
 const StatCard = ({ title, value, icon: Icon, color }: any) => (
   <View className="bg-card p-4 rounded-3xl border border-border flex-1 mx-1 shadow-sm">
-    <View
-      className={`w-10 h-10 rounded-full items-center justify-center mb-2 bg-${color}/10`}
-    >
+    <View className={`w-10 h-10 rounded-full items-center justify-center mb-2 bg-${color}/10`}>
       <Icon size={20} color={color} />
     </View>
     <Text className="text-muted-foreground text-xs">{title}</Text>
@@ -68,15 +60,8 @@ export default function ProDashboard() {
   });
 
   const submitBid = useMutation({
-    mutationFn: ({
-      jobId,
-      price,
-      note,
-    }: {
-      jobId: string;
-      price: number;
-      note: string;
-    }) => proService.submitBid(jobId, price, note),
+    mutationFn: ({ jobId, price, note }: { jobId: string; price: number; note: string }) =>
+      proService.submitBid(jobId, price, note),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['proDashboard'] });
       setBiddingJobId(null);
@@ -189,10 +174,7 @@ export default function ProDashboard() {
           <Text className="text-lg font-bold mb-3">Nearby Jobs for You</Text>
           {dashboard?.nearby_jobs?.length > 0 ? (
             dashboard.nearby_jobs.map((job: any) => (
-              <View
-                key={job.id}
-                className="bg-card p-4 rounded-2xl border border-border mb-4"
-              >
+              <View key={job.id} className="bg-card p-4 rounded-2xl border border-border mb-4">
                 <View className="flex-row justify-between mb-2">
                   <Text className="font-bold text-lg flex-1">{job.title}</Text>
                   <Text className="text-primary font-bold">
@@ -239,7 +221,7 @@ export default function ProDashboard() {
                         onPress={() =>
                           submitBid.mutate({
                             jobId: job.id,
-                            price: parseInt(bidAmount),
+                            price: parseInt(bidAmount, 10),
                             note: bidNote,
                           })
                         }

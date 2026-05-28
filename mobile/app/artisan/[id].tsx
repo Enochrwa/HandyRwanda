@@ -132,19 +132,15 @@ export default function ArtisanProfile() {
               showsHorizontalScrollIndicator={false}
               className="flex-row gap-3"
             >
-              {profile?.portfolio?.length > 0 ? (
-                profile.portfolio.map((img: any) => (
-                  <Image
-                    key={img.id}
-                    source={{ uri: img.image_url }}
-                    className="w-32 h-32 rounded-2xl bg-muted"
-                  />
-                ))
-              ) : (
-                [1, 2, 3].map((i) => (
-                  <View key={i} className="w-32 h-32 rounded-2xl bg-muted" />
-                ))
-              )}
+              {profile?.portfolio?.length > 0
+                ? profile.portfolio.map((img: any) => (
+                    <Image
+                      key={img.id}
+                      source={{ uri: img.image_url }}
+                      className="w-32 h-32 rounded-2xl bg-muted"
+                    />
+                  ))
+                : [1, 2, 3].map((i) => <View key={i} className="w-32 h-32 rounded-2xl bg-muted" />)}
             </ScrollView>
           </View>
 

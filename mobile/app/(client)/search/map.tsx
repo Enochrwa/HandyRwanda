@@ -97,7 +97,6 @@ export default function ArtisanMapSearch() {
             </Marker>
           </View>
         ))}
-        )
       </MapView>
 
       <BottomSheet ref={bottomSheetRef} index={-1} snapPoints={['30%']} enablePanDownToClose>

@@ -8,5 +8,6 @@
     "jsxImportSource": "react",
     "esModuleInterop": true,
     "allowSyntheticDefaultImports": true
-  }
+  },
+  "include": ["**/*.ts", "**/*.tsx", "lucide-fix.d.ts"]
 }

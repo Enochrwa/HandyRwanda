@@ -54,6 +54,7 @@ export default function LocationStep() {
       });
       router.push('/(artisan)/onboarding/step4-id');
     } catch (error) {
+      console.error(error);
       Toast.show({ type: 'error', text1: 'Error', text2: 'Failed to save location' });
     } finally {
       setLoading(false);

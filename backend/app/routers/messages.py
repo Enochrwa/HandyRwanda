@@ -125,7 +125,21 @@ async def get_messages(
         .where(Message.booking_id == booking_id)
         .order_by(Message.created_at.asc())
     )
-    return messages_res.scalars().all()
+    messages = []
+    for msg in messages_res.scalars().all():
+        messages.append(
+            {
+                "id": str(msg.id),
+                "booking_id": str(msg.booking_id),
+                "sender_id": str(msg.sender_id),
+                "content": msg.content,
+                "translated_content": msg.translated_content,
+                "voice_note_url": msg.voice_note_url,
+                "is_read": msg.is_read,
+                "created_at": msg.created_at,
+            }
+        )
+    return messages
 
 
 @router.post("/{booking_id}")
@@ -158,7 +172,16 @@ async def send_message(
     db.add(message)
     await db.commit()
     await db.refresh(message)
-    return message
+    return {
+        "id": str(message.id),
+        "booking_id": str(message.booking_id),
+        "sender_id": str(message.sender_id),
+        "content": message.content,
+        "translated_content": message.translated_content,
+        "voice_note_url": message.voice_note_url,
+        "is_read": message.is_read,
+        "created_at": message.created_at,
+    }
 
 
 @router.patch("/{booking_id}/read")

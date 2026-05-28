@@ -2,9 +2,9 @@ import enum
 import uuid
 
 from sqlalchemy import Column, DateTime, Enum, ForeignKey, Integer, String, func
-from sqlalchemy.dialects.postgresql import UUID
 
 from app.database import Base
+from app.db_compat import UUID
 
 
 class TransactionType(str, enum.Enum):
@@ -22,9 +22,13 @@ class TransactionStatus(str, enum.Enum):
 
 class Transaction(Base):
     __tablename__ = "transactions"
-    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
-    booking_id = Column(UUID(as_uuid=True), ForeignKey("bookings.id"), nullable=True)
-    user_id = Column(UUID(as_uuid=True), ForeignKey("users.id"), nullable=False)
+    id: Column[UUID] = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    booking_id: Column[UUID | None] = Column(
+        UUID(as_uuid=True), ForeignKey("bookings.id"), nullable=True
+    )
+    user_id: Column[UUID] = Column(
+        UUID(as_uuid=True), ForeignKey("users.id"), nullable=False
+    )
     amount = Column(Integer, nullable=False)
     type: Column[TransactionType] = Column(Enum(TransactionType), nullable=False)
     status: Column[TransactionStatus] = Column(

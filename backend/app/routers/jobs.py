@@ -79,10 +79,21 @@ async def create_job(
     db.add(job)
     await db.commit()
     await db.refresh(job)
-
-    # In real app: Trigger background task to notify nearby artisans
-
-    return job
+    return {
+        "id": str(job.id),
+        "client_id": str(job.client_id),
+        "category_id": str(job.category_id),
+        "title": job.title,
+        "description": job.description,
+        "location": job.location,
+        "location_label": job.location_label,
+        "scheduled_time": job.scheduled_time,
+        "budget": job.budget,
+        "status": job.status,
+        "images": job.images,
+        "created_at": job.created_at,
+        "updated_at": job.updated_at,
+    }
 
 
 @router.get("")
@@ -96,7 +107,26 @@ async def list_my_jobs(
     if status:
         query = query.where(Job.status == status)
     result = await db.execute(query.order_by(Job.created_at.desc()))
-    return result.scalars().all()
+    jobs = []
+    for job in result.scalars().all():
+        jobs.append(
+            {
+                "id": str(job.id),
+                "client_id": str(job.client_id),
+                "category_id": str(job.category_id),
+                "title": job.title,
+                "description": job.description,
+                "location": job.location,
+                "location_label": job.location_label,
+                "scheduled_time": job.scheduled_time,
+                "budget": job.budget,
+                "status": job.status,
+                "images": job.images,
+                "created_at": job.created_at,
+                "updated_at": job.updated_at,
+            }
+        )
+    return jobs
 
 
 @router.get("/available")
@@ -129,7 +159,15 @@ async def list_available_jobs(
     """)
 
     result = await db.execute(query, {"artisan_id": user_id})
-    return [dict(row._mapping) for row in result]
+    jobs_list = []
+    for row in result:
+        job_dict = dict(row._mapping)
+        # Convert UUID fields to string
+        for uuid_field in ["id", "client_id", "category_id"]:
+            if uuid_field in job_dict and isinstance(job_dict[uuid_field], UUID):
+                job_dict[uuid_field] = str(job_dict[uuid_field])
+        jobs_list.append(job_dict)
+    return jobs_list
 
 
 @router.get("/{job_id}")
@@ -156,7 +194,21 @@ async def get_job_detail(
         )
 
     return {
-        "job": job,
+        "job": {
+            "id": str(job.id),
+            "client_id": str(job.client_id),
+            "category_id": str(job.category_id),
+            "title": job.title,
+            "description": job.description,
+            "location": job.location,
+            "location_label": job.location_label,
+            "scheduled_time": job.scheduled_time,
+            "budget": job.budget,
+            "status": job.status,
+            "images": job.images,
+            "created_at": job.created_at,
+            "updated_at": job.updated_at,
+        },
         "price_guidance": price_guidance,
     }
 

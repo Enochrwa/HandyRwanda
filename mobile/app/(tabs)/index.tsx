@@ -1,6 +1,6 @@
 import { useQuery } from '@tanstack/react-query';
 import { useRouter } from 'expo-router';
-import { Search, MapPin, Star, Clock, ChevronRight, User, Briefcase } from 'lucide-react-native';
+import { Search, MapPin, Clock, ChevronRight, User, Briefcase } from 'lucide-react-native';
 import React from 'react';
 import { View, Text, ScrollView, TouchableOpacity, Image } from 'react-native';
 

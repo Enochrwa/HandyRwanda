@@ -12,8 +12,7 @@ from app.routers import admin, artisans, auth, bids, bookings, jobs, messages
 
 @asynccontextmanager
 async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
-    # Auto-create tables in dev (SQLite). No-op when DATABASE_URL points to PG.
-    if not os.getenv("DATABASE_URL"):
+    if os.getenv("ENV") == "development":
         await init_db()
     yield
 

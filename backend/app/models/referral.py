@@ -2,9 +2,9 @@ import enum
 import uuid
 
 from sqlalchemy import Column, DateTime, Enum, ForeignKey, String, func
-from sqlalchemy.dialects.postgresql import UUID
 
 from app.database import Base
+from app.db_compat import UUID
 
 
 class ReferralStatus(str, enum.Enum):
@@ -14,9 +14,13 @@ class ReferralStatus(str, enum.Enum):
 
 class Referral(Base):
     __tablename__ = "referrals"
-    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
-    referrer_id = Column(UUID(as_uuid=True), ForeignKey("users.id"), nullable=False)
-    referred_id = Column(UUID(as_uuid=True), ForeignKey("users.id"), nullable=False)
+    id: Column[UUID] = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    referrer_id: Column[UUID] = Column(
+        UUID(as_uuid=True), ForeignKey("users.id"), nullable=False
+    )
+    referred_id: Column[UUID] = Column(
+        UUID(as_uuid=True), ForeignKey("users.id"), nullable=False
+    )
     referral_code = Column(String(20), nullable=False)
     status: Column[ReferralStatus] = Column(
         Enum(ReferralStatus), default=ReferralStatus.registered

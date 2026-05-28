@@ -61,7 +61,7 @@ export default function ChatThread() {
       queryClient.invalidateQueries({ queryKey: ['messages', bookingId] });
       setContent('');
     },
-    onError: (err, newText, context) => {
+    onError: (_err, newText, context) => {
       if (context?.previousMessages) {
         queryClient.setQueryData(['messages', bookingId], context.previousMessages);
       }

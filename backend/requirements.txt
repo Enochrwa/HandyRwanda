@@ -2,7 +2,7 @@
 fastapi
 uvicorn[standard]
 sqlalchemy[asyncio]
-aiosqlite
+asyncpg
 pydantic[email]
 alembic
 python-jose[cryptography]
@@ -15,9 +15,6 @@ pytest
 pytest-asyncio
 ruff
 mypy
-
-# Production/cloud only (install separately or via requirements-prod.txt):
-# asyncpg
 geoalchemy2
 # psycopg2-binary
 # upstash-redis

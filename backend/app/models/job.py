@@ -25,8 +25,12 @@ class BidStatus(str, enum.Enum):
 
 class Job(Base):
     __tablename__ = "jobs"
-    id: Column[uuid.UUID] = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
-    client_id: Column[uuid.UUID] = Column(UUID(as_uuid=True), ForeignKey("users.id"), nullable=False)
+    id: Column[uuid.UUID] = Column(
+        UUID(as_uuid=True), primary_key=True, default=uuid.uuid4
+    )
+    client_id: Column[uuid.UUID] = Column(
+        UUID(as_uuid=True), ForeignKey("users.id"), nullable=False
+    )
     category_id: Column[uuid.UUID] = Column(
         UUID(as_uuid=True), ForeignKey("categories.id"), nullable=False
     )
@@ -46,8 +50,12 @@ class Job(Base):
 
 class Bid(Base):
     __tablename__ = "bids"
-    id: Column[uuid.UUID] = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
-    job_id: Column[uuid.UUID] = Column(UUID(as_uuid=True), ForeignKey("jobs.id"), nullable=False)
+    id: Column[uuid.UUID] = Column(
+        UUID(as_uuid=True), primary_key=True, default=uuid.uuid4
+    )
+    job_id: Column[uuid.UUID] = Column(
+        UUID(as_uuid=True), ForeignKey("jobs.id"), nullable=False
+    )
     artisan_id: Column[uuid.UUID] = Column(
         UUID(as_uuid=True), ForeignKey("artisan_profiles.user_id"), nullable=False
     )

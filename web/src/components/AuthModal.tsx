@@ -121,10 +121,23 @@ export const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, defaultTa
         email: values.email,
         role: values.role,
       });
-      toast.success("Account created! Check your email for OTP.");
-      loginForm.setValue("email", values.email);
-      setActiveTab("login");
-      setStep("request");
+      // Registration successful, now try to send OTP
+      try {
+        await api.post("/auth/otp/request", { email: values.email, lang: "en" });
+        toast.success("Account created! OTP sent to your email.");
+        loginForm.setValue("email", values.email);
+        setEmail(values.email);
+        setActiveTab("login");
+        setStep("verify");
+      } catch (otpError) {
+        // OTP request failed, but registration succeeded
+        console.error("Failed to send OTP after registration:", otpError);
+        toast.warning("Account created! Failed to send OTP. Please request a new OTP.");
+        loginForm.setValue("email", values.email);
+        setEmail(values.email);
+        setActiveTab("login");
+        setStep("request"); // Stay in request step so user can retry
+      }
     } catch (error: unknown) {
       const err = error as { response?: { data?: { detail?: string } } };
       toast.error(err.response?.data?.detail || "Registration failed");
@@ -135,9 +148,9 @@ export const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, defaultTa
 
   return (
     <Dialog open={isOpen} onOpenChange={(open) => !open && onClose()}>
-      <DialogContent className="sm:max-w-[400px] bg-card border-border text-foreground">
+      <DialogContent className="sm:max-w-[400px] bg-surface border border-border text-text shadow-card rounded-md">
         <DialogHeader>
-          <DialogTitle className="text-2xl font-bold">
+          <DialogTitle className="text-2xl font-bold text-text">
             {activeTab === "login" ? "Welcome Back" : "Create Account"}
           </DialogTitle>
         </DialogHeader>

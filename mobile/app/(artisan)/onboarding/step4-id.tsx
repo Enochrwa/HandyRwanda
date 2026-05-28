@@ -54,6 +54,7 @@ export default function IDStep() {
         setter(result.assets[0].base64 || '');
       }
     } catch (error) {
+      console.error(error);
       Toast.show({ type: 'error', text1: 'Error', text2: 'Failed to pick image' });
     }
   };

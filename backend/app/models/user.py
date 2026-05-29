@@ -42,7 +42,7 @@ class AccountStatus(str, enum.Enum):
 class User(Base):
     __tablename__ = "users"
 
-    id: "Column" = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
 
     # ── Core Identity ──────────────────────────────────────────────────────────
     phone_number = Column(String(20), unique=True, nullable=False)
@@ -51,7 +51,7 @@ class User(Base):
 
     # ── Extended Identity (optional but collected at signup) ───────────────────
     date_of_birth = Column(Date, nullable=True)
-    gender: "Column" = Column(Enum(Gender), nullable=True)
+    gender = Column(Enum(Gender), nullable=True)
     national_id = Column(String(20), nullable=True)  # Rwanda 16-digit NID
     district = Column(String(100), nullable=True)  # Rwanda district
     sector = Column(String(100), nullable=True)  # Rwanda sector (optional)
@@ -59,11 +59,11 @@ class User(Base):
 
     # ── Profile ────────────────────────────────────────────────────────────────
     avatar_url = Column(String, nullable=True)
-    role: "Column" = Column(Enum(UserRole), nullable=False, default=UserRole.client)
+    role = Column(Enum(UserRole), nullable=False, default=UserRole.client)
     preferred_lang = Column(String(5), default="rw")
 
     # ── Account Status & Verification ─────────────────────────────────────────
-    account_status: "Column" = Column(
+    account_status = Column(
         Enum(AccountStatus),
         nullable=False,
         default=AccountStatus.pending_verification,

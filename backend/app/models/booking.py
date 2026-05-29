@@ -18,21 +18,13 @@ class BookingStatus(str, enum.Enum):
 
 class Booking(Base):
     __tablename__ = "bookings"
-    id: "Column[uuid.UUID]" = Column(  # type: ignore[type-arg]
-        UUID(as_uuid=True), primary_key=True, default=uuid.uuid4
-    )
-    job_id: "Column[uuid.UUID]" = Column(  # type: ignore[type-arg]
-        UUID(as_uuid=True), ForeignKey("jobs.id"), nullable=False
-    )
-    client_id: "Column[uuid.UUID]" = Column(  # type: ignore[type-arg]
-        UUID(as_uuid=True), ForeignKey("users.id"), nullable=False
-    )
-    artisan_id: "Column[uuid.UUID]" = Column(  # type: ignore[type-arg]
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    job_id = Column(UUID(as_uuid=True), ForeignKey("jobs.id"), nullable=False)
+    client_id = Column(UUID(as_uuid=True), ForeignKey("users.id"), nullable=False)
+    artisan_id = Column(
         UUID(as_uuid=True), ForeignKey("artisan_profiles.user_id"), nullable=False
     )
-    status: "Column[BookingStatus]" = Column(  # type: ignore[type-arg]
-        Enum(BookingStatus), default=BookingStatus.pending_payment
-    )
+    status = Column(Enum(BookingStatus), default=BookingStatus.pending_payment)
     agreed_price = Column(Integer, nullable=False)
     before_photo_url = Column(String, nullable=True)
     after_photo_url = Column(String, nullable=True)

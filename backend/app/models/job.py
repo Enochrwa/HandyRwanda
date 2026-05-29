@@ -25,11 +25,9 @@ class BidStatus(str, enum.Enum):
 
 class Job(Base):
     __tablename__ = "jobs"
-    id: "Column" = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
-    client_id: "Column" = Column(
-        UUID(as_uuid=True), ForeignKey("users.id"), nullable=False
-    )
-    category_id: "Column" = Column(
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    client_id = Column(UUID(as_uuid=True), ForeignKey("users.id"), nullable=False)
+    category_id = Column(
         UUID(as_uuid=True), ForeignKey("categories.id"), nullable=False
     )
     title = Column(String(200), nullable=False)
@@ -38,21 +36,21 @@ class Job(Base):
     location_label = Column(String(200), nullable=True)
     scheduled_time = Column(DateTime(timezone=True), nullable=True)
     budget = Column(Integer, nullable=True)
-    status: "Column" = Column(Enum(JobStatus), default=JobStatus.open)
-    photos_urls: "Column" = Column(ARRAY(String), nullable=True)
+    status = Column(Enum(JobStatus), default=JobStatus.open)
+    photos_urls = Column(ARRAY(String), nullable=True)
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     updated_at = Column(DateTime(timezone=True), onupdate=func.now())
 
 
 class Bid(Base):
     __tablename__ = "bids"
-    id: "Column" = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
-    job_id: "Column" = Column(UUID(as_uuid=True), ForeignKey("jobs.id"), nullable=False)
-    artisan_id: "Column" = Column(
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    job_id = Column(UUID(as_uuid=True), ForeignKey("jobs.id"), nullable=False)
+    artisan_id = Column(
         UUID(as_uuid=True), ForeignKey("artisan_profiles.user_id"), nullable=False
     )
     proposed_price = Column(Integer, nullable=False)
     message = Column(String(500), nullable=True)
     proposed_start_time = Column(DateTime(timezone=True), nullable=True)
-    status: "Column" = Column(Enum(BidStatus), default=BidStatus.pending)
+    status = Column(Enum(BidStatus), default=BidStatus.pending)
     created_at = Column(DateTime(timezone=True), server_default=func.now())

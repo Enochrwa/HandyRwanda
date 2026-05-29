@@ -1,6 +1,5 @@
 import enum
 import uuid
-from typing import Any
 
 from sqlalchemy import (
     Boolean,
@@ -45,9 +44,7 @@ artisan_skills = Table(
 
 class Category(Base):
     __tablename__ = "categories"
-    id: "Column[uuid.UUID]" = Column(  # type: ignore[type-arg]
-        UUID(as_uuid=True), primary_key=True, default=uuid.uuid4
-    )
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     name_rw = Column(String(100), nullable=False)
     name_en = Column(String(100), nullable=False)
     name_fr = Column(String(100), nullable=False)
@@ -58,14 +55,12 @@ class Category(Base):
 
 class ArtisanProfile(Base):
     __tablename__ = "artisan_profiles"
-    user_id: "Column[uuid.UUID]" = Column(  # type: ignore[type-arg]
-        UUID(as_uuid=True), ForeignKey("users.id"), primary_key=True
-    )
+    user_id = Column(UUID(as_uuid=True), ForeignKey("users.id"), primary_key=True)
     bio = Column(String(500), nullable=True)
     years_experience = Column(Integer, default=0)
     service_radius_km = Column(Integer, default=10)
-    latitude: "Column[Any]" = Column(Float, nullable=True)  # type: ignore[type-arg]
-    longitude: "Column[Any]" = Column(Float, nullable=True)  # type: ignore[type-arg]
+    latitude = Column(Float, nullable=True)
+    longitude = Column(Float, nullable=True)
     location = Column(Geography, nullable=True)
     location_label = Column(String(200), nullable=True)
     hourly_rate = Column(Integer, nullable=True)
@@ -73,7 +68,7 @@ class ArtisanProfile(Base):
     spoken_languages = Column(String, nullable=True)  # Comma-separated or JSON
     id_document_url = Column(String, nullable=True)
     selfie_url = Column(String, nullable=True)
-    verification_status: "Column[VerificationStatus]" = Column(  # type: ignore[type-arg]
+    verification_status = Column(
         Enum(VerificationStatus), default=VerificationStatus.unverified
     )
     is_available = Column(Boolean, default=True)
@@ -93,10 +88,8 @@ class ArtisanProfile(Base):
 
 class PortfolioPhoto(Base):
     __tablename__ = "portfolio_photos"
-    id: "Column[uuid.UUID]" = Column(  # type: ignore[type-arg]
-        UUID(as_uuid=True), primary_key=True, default=uuid.uuid4
-    )
-    artisan_id: "Column[uuid.UUID]" = Column(  # type: ignore[type-arg]
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    artisan_id = Column(
         UUID(as_uuid=True), ForeignKey("artisan_profiles.user_id"), nullable=False
     )
     image_url = Column(String, nullable=False)

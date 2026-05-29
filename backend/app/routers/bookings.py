@@ -22,7 +22,7 @@ async def get_upcoming_bookings(
     user_id = UUID(current_user["sub"])
 
     query = (
-        select(Booking, Job, User.full_name.label("artisan_name"))
+        select(Booking, Job, User.full_name.label("artisan_name"))  # type: ignore[no-untyped-call]
         .join(Job, Booking.job_id == Job.id)
         .join(User, Booking.artisan_id == User.id)
         .where(

@@ -126,10 +126,10 @@ async def register(
             profile = ArtisanProfile(user_id=user.id)
             db.add(profile)
 
-        await db.commit()
+        await db.commit()  # type: ignore[no-untyped-call]
 
     except Exception:
-        await db.rollback()
+        await db.rollback()  # type: ignore[no-untyped-call]
         raise
 
     # 5. Fire OTP immediately after registration
@@ -208,7 +208,7 @@ async def verify_otp(
     user.last_login_at = datetime.now(timezone.utc)
     user.failed_login_attempts = 0
 
-    await db.commit()
+    await db.commit()  # type: ignore[no-untyped-call]
     await db.refresh(user)
 
     access_token = auth_service.create_access_token(str(user.id), str(user.role))
@@ -219,14 +219,14 @@ async def verify_otp(
         refresh_token=refresh_token,
         user=UserBase(
             id=str(user.id),
-            phone_number=str(user.phone_number),
-            full_name=str(user.full_name),
-            email=str(user.email),
+            phone_number=user.phone_number,
+            full_name=user.full_name,
+            email=user.email,
             role=user.role,
             account_status=user.account_status,
-            email_verified=bool(user.email_verified),
-            district=str(user.district) if user.district else None,
-            preferred_lang=str(user.preferred_lang),
+            email_verified=user.email_verified,
+            district=user.district,
+            preferred_lang=user.preferred_lang,
         ),
     )
 
@@ -335,7 +335,7 @@ async def update_profile(
     for field, value in update_data.items():
         setattr(user, field, value)
 
-    await db.commit()
+    await db.commit()  # type: ignore[no-untyped-call]
     await db.refresh(user)
     return {
         "message": "Profile updated successfully.",

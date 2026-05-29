@@ -10,7 +10,7 @@ from sqlalchemy.dialects.postgresql import UUID as PG_UUID
 # This shim allows the models to work on both.
 
 
-class UUID(TypeDecorator[uuid.UUID]):
+class UUID(TypeDecorator):
     """Platform-independent UUID type.
     Uses PostgreSQL's UUID type, otherwise uses String(32).
     """
@@ -43,7 +43,7 @@ class UUID(TypeDecorator[uuid.UUID]):
             return uuid.UUID(value)
 
 
-class JSONB(TypeDecorator[Any]):
+class JSONB(TypeDecorator):
     impl = String
     cache_ok = True
 
@@ -54,7 +54,7 @@ class JSONB(TypeDecorator[Any]):
             return dialect.type_descriptor(String)
 
 
-class ARRAY(TypeDecorator[Any]):
+class ARRAY(TypeDecorator):
     impl = String
     cache_ok = True
 
@@ -70,7 +70,7 @@ class ARRAY(TypeDecorator[Any]):
 
 
 # Mock Geography for SQLite
-class Geography(TypeDecorator[Any]):
+class Geography(TypeDecorator):
     impl = String
     cache_ok = True
 

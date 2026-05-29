@@ -16,7 +16,7 @@ python_version = "3.12"
 strict = true
 ignore_missing_imports = true
 disallow_untyped_decorators = false
-exclude = ["tests"]
+exclude = ["tests", "migrations"]
 disable_error_code = ["misc"]
 
 [tool.pytest.ini_options]

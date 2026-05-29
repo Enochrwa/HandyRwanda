@@ -47,7 +47,7 @@ async def submit_bid(
         status=BidStatus.pending,
     )
     db.add(bid)
-    await db.commit()
+    await db.commit()  # type: ignore[no-untyped-call]
     await db.refresh(bid)
     return {
         "id": str(bid.id),
@@ -149,7 +149,7 @@ async def accept_bid(
         scheduled_at=bid.proposed_start_time,
     )
     db.add(booking)
-    await db.commit()
+    await db.commit()  # type: ignore[no-untyped-call]
 
     return {"message": "Bid accepted, booking created"}
 
@@ -163,5 +163,5 @@ async def reject_bid(
     await db.execute(
         update(Bid).where(Bid.id == bid_id).values(status=BidStatus.rejected)
     )
-    await db.commit()
+    await db.commit()  # type: ignore[no-untyped-call]
     return {"message": "Bid rejected"}

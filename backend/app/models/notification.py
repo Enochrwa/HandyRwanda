@@ -8,8 +8,10 @@ from app.db_compat import JSONB, UUID
 
 class Notification(Base):
     __tablename__ = "notifications"
-    id: Column[UUID] = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
-    user_id: Column[UUID] = Column(
+    id: "Column[UUID]" = Column(
+        UUID(as_uuid=True), primary_key=True, default=uuid.uuid4
+    )  # type: ignore[type-arg]
+    user_id: "Column[UUID]" = Column(  # type: ignore[type-arg]
         UUID(as_uuid=True), ForeignKey("users.id"), nullable=False
     )
     event_type = Column(String(50), nullable=False)

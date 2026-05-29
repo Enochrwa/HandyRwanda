@@ -4,8 +4,12 @@ from collections.abc import AsyncGenerator
 from urllib.parse import parse_qs, urlparse, urlunparse
 
 from dotenv import load_dotenv
-from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
-from sqlalchemy.orm import DeclarativeBase
+from sqlalchemy.ext.asyncio import (  # type: ignore[attr-defined]
+    AsyncSession,
+    async_sessionmaker,
+    create_async_engine,
+)
+from sqlalchemy.orm import DeclarativeBase  # type: ignore[attr-defined]
 
 load_dotenv()
 
@@ -91,5 +95,5 @@ async def init_db() -> None:
     # Import models to ensure they are registered with Base
     from . import models  # noqa: F401, PLC0415
 
-    async with engine.begin() as conn:
+    async with engine.begin() as conn:  # type: ignore[no-untyped-call]
         await conn.run_sync(Base.metadata.create_all)

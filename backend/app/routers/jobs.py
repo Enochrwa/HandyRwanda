@@ -77,7 +77,7 @@ async def create_job(
         status=JobStatus.open,
     )
     db.add(job)
-    await db.commit()
+    await db.commit()  # type: ignore[no-untyped-call]
     await db.refresh(job)
     return {
         "id": str(job.id),
@@ -233,5 +233,5 @@ async def cancel_job(
         )
 
     job.status = cast(Any, JobStatus.cancelled)
-    await db.commit()
+    await db.commit()  # type: ignore[no-untyped-call]
     return {"message": "Job cancelled"}

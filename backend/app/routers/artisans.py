@@ -84,7 +84,7 @@ async def update_profile(
         if location_wkt:
             profile.location = cast(Any, location_wkt)
 
-    await db.commit()  # type: ignore[no-untyped-call]
+    await db.commit()
     return {"message": "Profile updated"}
 
 
@@ -135,7 +135,7 @@ async def submit_id_verification(
             selfie_url=selfie_url,
         )
     )
-    await db.commit()  # type: ignore[no-untyped-call]
+    await db.commit()
     return {"message": "Verification documents submitted"}
 
 
@@ -159,7 +159,7 @@ async def update_skills(
         await db.execute(
             artisan_skills.insert().values(artisan_id=user_id, category_id=cat_id)
         )
-    await db.commit()  # type: ignore[no-untyped-call]
+    await db.commit()
     return {"message": "Skills updated"}
 
 
@@ -175,7 +175,7 @@ async def delete_portfolio_photo(
             PortfolioPhoto.id == photo_id, PortfolioPhoto.artisan_id == user_id
         )
     )
-    await db.commit()  # type: ignore[no-untyped-call]
+    await db.commit()
     return {"message": "Photo deleted"}
 
 
@@ -194,7 +194,7 @@ async def add_portfolio_photo(
         description=payload.description,
     )
     db.add(photo)
-    await db.commit()  # type: ignore[no-untyped-call]
+    await db.commit()
     return photo
 
 
@@ -214,7 +214,7 @@ async def toggle_availability(
         .where(ArtisanProfile.user_id == user_id)
         .values(is_available=payload.available_now)
     )
-    await db.commit()  # type: ignore[no-untyped-call]
+    await db.commit()
     return {"message": "Availability updated"}
 
 

@@ -117,7 +117,7 @@ async def get_messages(
         .where(Message.booking_id == booking_id, Message.sender_id != user_id)
         .values(is_read=True)
     )
-    await db.commit()  # type: ignore[no-untyped-call]
+    await db.commit()
 
     # Fetch all messages
     messages_res = await db.execute(
@@ -170,7 +170,7 @@ async def send_message(
         content=payload.content,
     )
     db.add(message)
-    await db.commit()  # type: ignore[no-untyped-call]
+    await db.commit()
     await db.refresh(message)
     return {
         "id": str(message.id),
@@ -197,5 +197,5 @@ async def mark_as_read(
         .where(Message.booking_id == booking_id, Message.sender_id != user_id)
         .values(is_read=True)
     )
-    await db.commit()  # type: ignore[no-untyped-call]
+    await db.commit()
     return {"message": "Messages marked as read"}

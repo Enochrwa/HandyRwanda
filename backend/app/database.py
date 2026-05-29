@@ -1,4 +1,3 @@
-# File: backend/app/database.py
 import os
 from collections.abc import AsyncGenerator
 from urllib.parse import parse_qs, urlparse, urlunparse
@@ -70,8 +69,7 @@ async def get_db() -> AsyncGenerator[AsyncSession, None]:
 
 
 async def init_db() -> None:
-    """Create all tables."""
     from . import models  # noqa: F401, PLC0415
 
-    async with engine.begin() as conn:  # type: ignore[no-untyped-call]
+    async with engine.begin() as conn:
         await conn.run_sync(Base.metadata.create_all)

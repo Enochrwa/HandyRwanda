@@ -1,7 +1,6 @@
 # File: backend/app/routers/auth.py
 
 """
----------------
 Registration → OTP email verification → Login flow.
 
 Registration flow:
@@ -58,7 +57,7 @@ def _client_ip(request: Request) -> str:
     return request.client.host if request.client else "unknown"
 
 
-# ── Register ─────────────────────────────────────────────────────────────────
+# ── Register ──────────────────────────────────────────────────────────────────
 
 
 @router.post("/register", response_model=RegisterResponse, status_code=201)
@@ -71,7 +70,6 @@ async def register(
     Create a new account. Account is in 'pending_verification' state until
     the user verifies their email via OTP.
     """
-    # 1. Duplicate check — email
     email_exists = await db.scalar(select(User).where(User.email == payload.email))
     if email_exists:
         raise HTTPException(
@@ -83,7 +81,6 @@ async def register(
             },
         )
 
-    # 2. Duplicate check — phone
     phone_exists = await db.scalar(
         select(User).where(User.phone_number == payload.phone_number)
     )
@@ -97,7 +94,6 @@ async def register(
             },
         )
 
-    # 3. Create user
     try:
         user = User(
             full_name=payload.full_name,
@@ -121,22 +117,19 @@ async def register(
         db.add(user)
         await db.flush()
 
-        # 4. Auto-create artisan profile stub
         if user.role == UserRole.artisan:
             profile = ArtisanProfile(user_id=user.id)
             db.add(profile)
 
-        await db.commit()  # type: ignore[no-untyped-call]
+        await db.commit()
 
     except Exception:
-        await db.rollback()  # type: ignore[no-untyped-call]
+        await db.rollback()
         raise
 
-    # 5. Fire OTP immediately after registration
     try:
         await auth_service.request_otp(payload.email, payload.preferred_lang)
     except ValueError:
-        # Cooldown shouldn't fire on fresh registration, but handle gracefully
         pass
 
     return RegisterResponse(
@@ -153,10 +146,8 @@ async def register(
 async def request_otp(
     payload: OTPRequest, db: AsyncSession = Depends(get_db)
 ) -> dict[str, Any]:
-    # Verify the email belongs to a registered user (prevents fishing for OTPs)
     user = await db.scalar(select(User).where(User.email == payload.email))
     if not user:
-        # Intentionally vague to prevent user enumeration
         return {
             "message": "If that email is registered, you will receive a code shortly.",
             "expires_in": 300,
@@ -197,18 +188,16 @@ async def verify_otp(
     if not user:
         raise HTTPException(status_code=404, detail="User not found.")
 
-    # Activate account on first OTP verification
     if not user.email_verified:
         user.email_verified = True
         user.account_status = AccountStatus.active
         user.is_active = True
 
-    # Update login metadata
     user.last_login_ip = _client_ip(request)
     user.last_login_at = datetime.now(timezone.utc)
     user.failed_login_attempts = 0
 
-    await db.commit()  # type: ignore[no-untyped-call]
+    await db.commit()
     await db.refresh(user)
 
     access_token = auth_service.create_access_token(str(user.id), str(user.role))
@@ -219,14 +208,14 @@ async def verify_otp(
         refresh_token=refresh_token,
         user=UserBase(
             id=str(user.id),
-            phone_number=user.phone_number,
-            full_name=user.full_name,
-            email=user.email,
-            role=user.role,
-            account_status=user.account_status,
-            email_verified=user.email_verified,
-            district=user.district,
-            preferred_lang=user.preferred_lang,
+            phone_number=str(user.phone_number),
+            full_name=str(user.full_name),
+            email=str(user.email),
+            role=UserRole(user.role),
+            account_status=AccountStatus(user.account_status),
+            email_verified=bool(user.email_verified),
+            district=str(user.district) if user.district is not None else None,
+            preferred_lang=str(user.preferred_lang),
         ),
     )
 
@@ -251,7 +240,6 @@ async def refresh_token(
     if decoded.get("type") != "refresh":
         raise HTTPException(status_code=401, detail="Invalid token type.")
 
-    # Check blacklist
     bl = await redis_get(f"blacklist:{payload.refresh_token}")
     if bl:
         raise HTTPException(status_code=401, detail="Token has been revoked.")
@@ -322,9 +310,12 @@ async def update_profile(
     user_id: UUID,
     payload: ProfileUpdate,
     db: AsyncSession = Depends(get_db),
-    current_user: User = Depends(get_current_user),
+    current_user: dict[str, Any] = Depends(get_current_user),
 ) -> Any:
-    if str(current_user.id) != str(user_id) and current_user.role != UserRole.admin:
+    if (
+        str(current_user["sub"]) != str(user_id)
+        and current_user["role"] != UserRole.admin
+    ):
         raise HTTPException(status_code=403, detail="Forbidden.")
 
     user = await db.scalar(select(User).where(User.id == user_id))
@@ -335,7 +326,7 @@ async def update_profile(
     for field, value in update_data.items():
         setattr(user, field, value)
 
-    await db.commit()  # type: ignore[no-untyped-call]
+    await db.commit()
     await db.refresh(user)
     return {
         "message": "Profile updated successfully.",

@@ -1,7 +1,8 @@
 import enum
 import uuid
 
-from sqlalchemy import Column, DateTime, Enum, ForeignKey, Integer, String, func
+from sqlalchemy import DateTime, Enum, ForeignKey, Integer, String, func
+from sqlalchemy.orm import Mapped, mapped_column
 
 from app.database import Base
 from app.db_compat import UUID
@@ -22,11 +23,21 @@ class TransactionStatus(str, enum.Enum):
 
 class Transaction(Base):
     __tablename__ = "transactions"
-    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
-    booking_id = Column(UUID(as_uuid=True), ForeignKey("bookings.id"), nullable=True)
-    user_id = Column(UUID(as_uuid=True), ForeignKey("users.id"), nullable=False)
-    amount = Column(Integer, nullable=False)
-    type = Column(Enum(TransactionType), nullable=False)
-    status = Column(Enum(TransactionStatus), default=TransactionStatus.pending)
-    momo_reference = Column(String(100), nullable=True)
-    created_at = Column(DateTime(timezone=True), server_default=func.now())
+    id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), primary_key=True, default=uuid.uuid4
+    )
+    booking_id: Mapped[uuid.UUID | None] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("bookings.id"), nullable=True
+    )
+    user_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("users.id"), nullable=False
+    )
+    amount: Mapped[int] = mapped_column(Integer, nullable=False)
+    type: Mapped[TransactionType] = mapped_column(Enum(TransactionType), nullable=False)
+    status: Mapped[TransactionStatus] = mapped_column(
+        Enum(TransactionStatus), default=TransactionStatus.pending
+    )
+    momo_reference: Mapped[str | None] = mapped_column(String(100), nullable=True)
+    created_at: Mapped[str | None] = mapped_column(
+        DateTime(timezone=True), server_default=func.now()
+    )

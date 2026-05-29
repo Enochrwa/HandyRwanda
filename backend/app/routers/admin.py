@@ -67,7 +67,7 @@ async def approve_artisan(
         .where(ArtisanProfile.user_id == user_id)
         .values(verification_status=VerificationStatus.id_verified)
     )
-    await db.commit()  # type: ignore[no-untyped-call]
+    await db.commit()
     return {"message": "Artisan approved"}
 
 
@@ -83,5 +83,5 @@ async def reject_artisan(
         .where(ArtisanProfile.user_id == user_id)
         .values(verification_status=VerificationStatus.rejected)
     )
-    await db.commit()  # type: ignore[no-untyped-call]
+    await db.commit()
     return {"message": "Artisan rejected"}

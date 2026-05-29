@@ -22,18 +22,16 @@ class TransactionStatus(str, enum.Enum):
 
 class Transaction(Base):
     __tablename__ = "transactions"
-    id: "Column[UUID]" = Column(
-        UUID(as_uuid=True), primary_key=True, default=uuid.uuid4
-    )  # type: ignore[type-arg]
-    booking_id: "Column[UUID | None]" = Column(  # type: ignore[type-arg]
+    id: "Column" = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    booking_id: "Column" = Column(
         UUID(as_uuid=True), ForeignKey("bookings.id"), nullable=True
     )
-    user_id: "Column[UUID]" = Column(  # type: ignore[type-arg]
+    user_id: "Column" = Column(
         UUID(as_uuid=True), ForeignKey("users.id"), nullable=False
     )
     amount = Column(Integer, nullable=False)
-    type: "Column[TransactionType]" = Column(Enum(TransactionType), nullable=False)  # type: ignore[type-arg]
-    status: "Column[TransactionStatus]" = Column(  # type: ignore[type-arg]
+    type: "Column" = Column(Enum(TransactionType), nullable=False)
+    status: "Column" = Column(
         Enum(TransactionStatus), default=TransactionStatus.pending
     )
     momo_reference = Column(String(100), nullable=True)

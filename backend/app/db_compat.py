@@ -12,8 +12,11 @@ try:
 except ImportError:
     _has_pg = False
 
+# SQLAlchemy <2.0 stubs don't support TypeDecorator[T]
+_TypeDecoratorBase: Any = types.TypeDecorator
 
-class UUID(types.TypeDecorator[Any]):
+
+class UUID(_TypeDecoratorBase):
     impl = types.String
     cache_ok = True
 
@@ -34,7 +37,7 @@ class UUID(types.TypeDecorator[Any]):
         return value
 
 
-class ARRAY(types.TypeDecorator[Any]):
+class ARRAY(_TypeDecoratorBase):
     impl = Text
     cache_ok = True
 
@@ -51,7 +54,7 @@ class ARRAY(types.TypeDecorator[Any]):
         return value
 
 
-class Geography(types.TypeDecorator[Any]):
+class Geography(_TypeDecoratorBase):
     impl = Text
     cache_ok = True
 
@@ -62,7 +65,7 @@ class Geography(types.TypeDecorator[Any]):
         return value
 
 
-class JSONB(types.TypeDecorator[Any]):
+class JSONB(_TypeDecoratorBase):
     impl = Text
     cache_ok = True
 

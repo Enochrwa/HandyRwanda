@@ -37,7 +37,10 @@ artisan_skills = Table(
         primary_key=True,
     ),
     Column(
-        "category_id", UUID(as_uuid=True), ForeignKey("categories.id"), primary_key=True
+        "category_id",
+        UUID(as_uuid=True),
+        ForeignKey("categories.id"),
+        primary_key=True,
     ),
 )
 
@@ -65,7 +68,7 @@ class ArtisanProfile(Base):
     location_label = Column(String(200), nullable=True)
     hourly_rate = Column(Integer, nullable=True)
     fixed_rate = Column(Integer, nullable=True)
-    spoken_languages = Column(String, nullable=True)  # Comma-separated or JSON
+    spoken_languages = Column(String, nullable=True)
     id_document_url = Column(String, nullable=True)
     selfie_url = Column(String, nullable=True)
     verification_status = Column(

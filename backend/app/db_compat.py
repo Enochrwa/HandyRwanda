@@ -1,81 +1,80 @@
+import json
 import uuid
 from typing import Any
 
-from sqlalchemy import String, TypeDecorator
-from sqlalchemy.dialects.postgresql import ARRAY as PG_ARRAY
-from sqlalchemy.dialects.postgresql import JSONB as PG_JSONB
-from sqlalchemy.dialects.postgresql import UUID as PG_UUID
+from sqlalchemy import Text, types
+from sqlalchemy.engine.interfaces import Dialect
 
-# SQLite doesn't support UUID, JSONB, or ARRAY natively in the same way as Postgres.
-# This shim allows the models to work on both.
+try:
+    from sqlalchemy.dialects.postgresql import ARRAY as _PGA
+
+    _has_pg = True
+except ImportError:
+    _has_pg = False
+
+# SQLAlchemy <2.0 stubs don't support TypeDecorator[T]
+_TypeDecoratorBase: Any = types.TypeDecorator
 
 
-class UUID(TypeDecorator[uuid.UUID]):
-    """Platform-independent UUID type.
-    Uses PostgreSQL's UUID type, otherwise uses String(32).
-    """
-
-    impl = String
+class UUID(_TypeDecoratorBase):
+    impl = types.String
     cache_ok = True
 
-    def __init__(self, *args: Any, **kwargs: Any) -> None:
-        super().__init__()
+    def __init__(self, as_uuid: bool = True) -> None:
+        super().__init__(36)
+        self.as_uuid = as_uuid
 
-    def load_dialect_impl(self, dialect: Any) -> Any:
-        if dialect.name == "postgresql":
-            return dialect.type_descriptor(PG_UUID())
-        else:
-            return dialect.type_descriptor(String(36))
-
-    def process_bind_param(self, value: Any, dialect: Any) -> Any:
+    def process_bind_param(self, value: Any, dialect: Dialect) -> Any:
         if value is None:
-            return value
-        else:
-            return str(value)
+            return None
+        return str(value)
 
-    def process_result_value(self, value: Any, dialect: Any) -> Any:
+    def process_result_value(self, value: Any, dialect: Dialect) -> Any:
         if value is None:
-            return value
-        # If value is already a UUID object (from asyncpg), return it directly
-        if isinstance(value, uuid.UUID):
-            return value
-        else:
-            return uuid.UUID(value)
+            return None
+        if self.as_uuid:
+            return uuid.UUID(str(value))
+        return value
 
 
-class JSONB(TypeDecorator[Any]):
-    impl = String
-    cache_ok = True
-
-    def load_dialect_impl(self, dialect: Any) -> Any:
-        if dialect.name == "postgresql":
-            return dialect.type_descriptor(PG_JSONB())
-        else:
-            return dialect.type_descriptor(String)
-
-
-class ARRAY(TypeDecorator[Any]):
-    impl = String
+class ARRAY(_TypeDecoratorBase):
+    impl = Text
     cache_ok = True
 
     def __init__(self, item_type: Any) -> None:
-        self.item_type = item_type
         super().__init__()
+        self._item_type = item_type
+        if _has_pg:
+            self.impl = _PGA(item_type)  # type: ignore[assignment]
 
-    def load_dialect_impl(self, dialect: Any) -> Any:
-        if dialect.name == "postgresql":
-            return dialect.type_descriptor(PG_ARRAY(self.item_type))
-        else:
-            return dialect.type_descriptor(String)
+    def process_bind_param(self, value: Any, dialect: Dialect) -> Any:
+        return value
+
+    def process_result_value(self, value: Any, dialect: Dialect) -> Any:
+        return value
 
 
-# Mock Geography for SQLite
-class Geography(TypeDecorator[Any]):
-    impl = String
+class Geography(_TypeDecoratorBase):
+    impl = Text
     cache_ok = True
 
-    def __init__(self, *args: Any, **kwargs: Any) -> None:
-        super().__init__()
+    def process_bind_param(self, value: Any, dialect: Dialect) -> Any:
+        return value
 
-    def load_dialect_impl(self, dialect: Any) -> Any:
-        return dialect.type_descriptor(String)
+    def process_result_value(self, value: Any, dialect: Dialect) -> Any:
+        return value
+
+
+class JSONB(_TypeDecoratorBase):
+    impl = Text
+    cache_ok = True
+
+    def process_bind_param(self, value: Any, dialect: Dialect) -> Any:
+        if value is None:
+            return None
+        return json.dumps(value)
+
+    def process_result_value(self, value: Any, dialect: Dialect) -> Any:
+        if value is None:
+            return None
+        return json.loads(value)

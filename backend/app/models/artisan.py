@@ -14,7 +14,7 @@ from sqlalchemy import (
     Table,
     func,
 )
-from sqlalchemy.orm import relationship
+from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.database import Base
 from app.db_compat import UUID, Geography
@@ -45,61 +45,71 @@ artisan_skills = Table(
 
 class Category(Base):
     __tablename__ = "categories"
-    id: Column[uuid.UUID] = Column(
+    id: Mapped[uuid.UUID] = mapped_column(
         UUID(as_uuid=True), primary_key=True, default=uuid.uuid4
     )
-    name_rw = Column(String(100), nullable=False)
-    name_en = Column(String(100), nullable=False)
-    name_fr = Column(String(100), nullable=False)
-    icon_emoji = Column(String(10), nullable=True)
-    is_active = Column(Boolean, default=True)
-    created_at = Column(DateTime(timezone=True), server_default=func.now())
+    name_rw: Mapped[str] = mapped_column(String(100), nullable=False)
+    name_en: Mapped[str] = mapped_column(String(100), nullable=False)
+    name_fr: Mapped[str] = mapped_column(String(100), nullable=False)
+    icon_emoji: Mapped[str | None] = mapped_column(String(10), nullable=True)
+    is_active: Mapped[bool] = mapped_column(Boolean, default=True)
+    created_at: Mapped[str | None] = mapped_column(
+        DateTime(timezone=True), server_default=func.now()
+    )
 
 
 class ArtisanProfile(Base):
     __tablename__ = "artisan_profiles"
-    user_id: Column[uuid.UUID] = Column(
+    user_id: Mapped[uuid.UUID] = mapped_column(
         UUID(as_uuid=True), ForeignKey("users.id"), primary_key=True
     )
-    bio = Column(String(500), nullable=True)
-    years_experience = Column(Integer, default=0)
-    service_radius_km = Column(Integer, default=10)
-    location: Column[Any] = Column(
-        Geography(geometry_type="POINT", srid=4326), nullable=True
-    )
-    location_label = Column(String(200), nullable=True)
-    hourly_rate = Column(Integer, nullable=True)
-    fixed_rate = Column(Integer, nullable=True)
-    spoken_languages = Column(String, nullable=True)  # Comma-separated or JSON
-    id_document_url = Column(String, nullable=True)
-    selfie_url = Column(String, nullable=True)
-    verification_status: Column[VerificationStatus] = Column(
+    bio: Mapped[str | None] = mapped_column(String(500), nullable=True)
+    years_experience: Mapped[int] = mapped_column(Integer, default=0)
+    service_radius_km: Mapped[int] = mapped_column(Integer, default=10)
+    latitude: Mapped[float | None] = mapped_column(Float, nullable=True)
+    longitude: Mapped[float | None] = mapped_column(Float, nullable=True)
+    location: Mapped[str | None] = mapped_column(Geography, nullable=True)
+    location_label: Mapped[str | None] = mapped_column(String(200), nullable=True)
+    hourly_rate: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    fixed_rate: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    spoken_languages: Mapped[str | None] = mapped_column(String, nullable=True)
+    id_document_url: Mapped[str | None] = mapped_column(String, nullable=True)
+    selfie_url: Mapped[str | None] = mapped_column(String, nullable=True)
+    verification_status: Mapped[VerificationStatus] = mapped_column(
         Enum(VerificationStatus), default=VerificationStatus.unverified
     )
-    is_available = Column(Boolean, default=True)
-    average_rating = Column(Float, default=0.0)
-    total_reviews = Column(Integer, default=0)
-    response_rate = Column(Float, default=0.0)
-    on_time_rate = Column(Float, default=0.0)
-    repeat_client_rate = Column(Float, default=0.0)
-    completion_rate = Column(Float, default=0.0)
-    community_score = Column(Integer, default=0)
-    created_at = Column(DateTime(timezone=True), server_default=func.now())
-    updated_at = Column(DateTime(timezone=True), onupdate=func.now())
+    is_available: Mapped[bool] = mapped_column(Boolean, default=True)
+    average_rating: Mapped[float] = mapped_column(Float, default=0.0)
+    total_reviews: Mapped[int] = mapped_column(Integer, default=0)
+    response_rate: Mapped[float] = mapped_column(Float, default=0.0)
+    on_time_rate: Mapped[float] = mapped_column(Float, default=0.0)
+    repeat_client_rate: Mapped[float] = mapped_column(Float, default=0.0)
+    completion_rate: Mapped[float] = mapped_column(Float, default=0.0)
+    community_score: Mapped[int] = mapped_column(Integer, default=0)
+    created_at: Mapped[str | None] = mapped_column(
+        DateTime(timezone=True), server_default=func.now()
+    )
+    updated_at: Mapped[str | None] = mapped_column(
+        DateTime(timezone=True), onupdate=func.now()
+    )
 
-    user = relationship("User", backref="artisan_profile")
-    categories = relationship("Category", secondary=artisan_skills, backref="artisans")
+    user: Mapped[Any] = relationship("User", backref="artisan_profile")
+    categories: Mapped[list["Category"]] = relationship(
+        "Category", secondary=artisan_skills, backref="artisans"
+    )
 
 
 class PortfolioPhoto(Base):
     __tablename__ = "portfolio_photos"
-    id: Column[uuid.UUID] = Column(
+    id: Mapped[uuid.UUID] = mapped_column(
         UUID(as_uuid=True), primary_key=True, default=uuid.uuid4
     )
-    artisan_id: Column[uuid.UUID] = Column(
+    artisan_id: Mapped[uuid.UUID] = mapped_column(
         UUID(as_uuid=True), ForeignKey("artisan_profiles.user_id"), nullable=False
     )
-    image_url = Column(String, nullable=False)
-    job_type = Column(String(100), nullable=True)
-    description = Column(String(500), nullable=True)
-    created_at = Column(DateTime(timezone=True), server_default=func.now())
+    image_url: Mapped[str] = mapped_column(String, nullable=False)
+    job_type: Mapped[str | None] = mapped_column(String(100), nullable=True)
+    description: Mapped[str | None] = mapped_column(String(500), nullable=True)
+    created_at: Mapped[str | None] = mapped_column(
+        DateTime(timezone=True), server_default=func.now()
+    )

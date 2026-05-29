@@ -11,9 +11,10 @@ from sqlalchemy import (
     Enum,
     Integer,
     String,
-    column_property,
     func,
 )
+from sqlalchemy.orm import column_property
+from sqlalchemy.sql import true
 
 from app.database import Base
 from app.db_compat import UUID
@@ -94,5 +95,5 @@ class User(Base):
     updated_at = Column(DateTime(timezone=True), onupdate=func.now())
 
     is_fully_verified = column_property(
-        email_verified and account_status == AccountStatus.active
+        email_verified.is_(true()) & (account_status == AccountStatus.active)
     )

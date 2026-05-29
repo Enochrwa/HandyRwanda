@@ -199,14 +199,14 @@ async def verify_otp(
 
     # Activate account on first OTP verification
     if not user.email_verified:
-        user.email_verified = True  # type: ignore
-        user.account_status = AccountStatus.active  # type: ignore
-        user.is_active = True  # type: ignore
+        user.email_verified = True
+        user.account_status = AccountStatus.active
+        user.is_active = True
 
     # Update login metadata
-    user.last_login_ip = _client_ip(request)  # type: ignore
-    user.last_login_at = datetime.now(timezone.utc)  # type: ignore
-    user.failed_login_attempts = 0  # type: ignore
+    user.last_login_ip = _client_ip(request)
+    user.last_login_at = datetime.now(timezone.utc)
+    user.failed_login_attempts = 0
 
     await db.commit()
     await db.refresh(user)
@@ -219,22 +219,14 @@ async def verify_otp(
         refresh_token=refresh_token,
         user=UserBase(
             id=str(user.id),
-            # type: ignore
-            phone_number=user.phone_number,
-            # type: ignore
-            full_name=user.full_name,
-            # type: ignore
-            email=user.email,
-            # type: ignore
+            phone_number=str(user.phone_number),
+            full_name=str(user.full_name),
+            email=str(user.email),
             role=user.role,
-            # type: ignore
             account_status=user.account_status,
-            # type: ignore
-            email_verified=user.email_verified,
-            # type: ignore
-            district=user.district,
-            # type: ignore
-            preferred_lang=user.preferred_lang,
+            email_verified=bool(user.email_verified),
+            district=str(user.district) if user.district else None,
+            preferred_lang=str(user.preferred_lang),
         ),
     )
 

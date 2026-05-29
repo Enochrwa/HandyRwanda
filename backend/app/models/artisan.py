@@ -17,7 +17,7 @@ from sqlalchemy import (
 from sqlalchemy.orm import relationship
 
 from app.database import Base
-from app.db_compat import UUID
+from app.db_compat import UUID, Geography
 
 
 class VerificationStatus(str, enum.Enum):
@@ -66,6 +66,7 @@ class ArtisanProfile(Base):
     service_radius_km = Column(Integer, default=10)
     latitude: Column[Any] = Column(Float, nullable=True)
     longitude: Column[Any] = Column(Float, nullable=True)
+    location = Column(Geography, nullable=True)
     location_label = Column(String(200), nullable=True)
     hourly_rate = Column(Integer, nullable=True)
     fixed_rate = Column(Integer, nullable=True)

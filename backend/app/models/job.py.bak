@@ -43,7 +43,7 @@ class Job(Base):
     scheduled_time = Column(DateTime(timezone=True), nullable=True)
     budget = Column(Integer, nullable=True)
     status: Column[JobStatus] = Column(Enum(JobStatus), default=JobStatus.open)
-    photos_urls: Column[list[str]] = Column(ARRAY(String), nullable=True)
+    images: Column[list[str]] = Column(ARRAY(String), nullable=True)
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     updated_at = Column(DateTime(timezone=True), onupdate=func.now())
 

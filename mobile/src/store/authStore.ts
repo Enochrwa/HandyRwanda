@@ -1,3 +1,5 @@
+// File: mobile/src/store/authStore.ts
+
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { create } from 'zustand';
 import { createJSONStorage, persist } from 'zustand/middleware';
@@ -9,6 +11,10 @@ export interface User {
   email: string | null;
   role: 'client' | 'artisan';
   avatarUrl?: string | null;
+  accountStatus?: 'pending_verification' | 'active' | 'suspended' | 'deactivated';
+  emailVerified?: boolean;
+  district?: string | null;
+  preferredLang?: string;
 }
 
 export interface AuthStore {
@@ -18,18 +24,13 @@ export interface AuthStore {
   isAuthenticated: boolean;
   setAuth: (user: User, token: string, refreshToken: string) => void;
   logout: () => void;
+  updateUser: (partial: Partial<User>) => void;
 }
 
-// Simple atob polyfill for React Native
-const atob = (input: string) => {
+const atobPolyfill = (input: string) => {
   const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/=';
   const str = input.replace(/=+$/, '');
   let output = '';
-
-  if (str.length % 4 === 1) {
-    throw new Error("'atob' failed: The string to be decoded is not correctly encoded.");
-  }
-
   for (
     let bc = 0, bs = 0, buffer, i = 0;
     (buffer = str.charAt(i++));
@@ -39,18 +40,16 @@ const atob = (input: string) => {
   ) {
     buffer = chars.indexOf(buffer);
   }
-
   return output;
 };
 
 const isTokenExpired = (token: string | null): boolean => {
   if (!token) return true;
   try {
-    const payloadBase64 = token.split('.')[1];
-    const decodedPayload = JSON.parse(atob(payloadBase64.replace(/-/g, '+').replace(/_/g, '/')));
-    const exp = decodedPayload.exp;
-    if (!exp) return false;
-    return Date.now() >= exp * 1000;
+    const payload = JSON.parse(
+      atobPolyfill(token.split('.')[1].replace(/-/g, '+').replace(/_/g, '/')),
+    );
+    return !payload.exp || Date.now() >= payload.exp * 1000;
   } catch {
     return true;
   }
@@ -63,11 +62,12 @@ export const useAuthStore = create<AuthStore>()(
       token: null,
       refreshToken: null,
       isAuthenticated: false,
-      setAuth: (user, token, refreshToken) => {
-        set({ user, token, refreshToken, isAuthenticated: !!token });
-      },
-      logout: () => {
-        set({ user: null, token: null, refreshToken: null, isAuthenticated: false });
+      setAuth: (user, token, refreshToken) =>
+        set({ user, token, refreshToken, isAuthenticated: !!token }),
+      logout: () => set({ user: null, token: null, refreshToken: null, isAuthenticated: false }),
+      updateUser: (partial) => {
+        const current = get().user;
+        if (current) set({ user: { ...current, ...partial } });
       },
     }),
     {

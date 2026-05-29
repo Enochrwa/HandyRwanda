@@ -73,7 +73,7 @@ async def create_job(
         location_label=payload.location_label,
         scheduled_time=payload.scheduled_time,
         budget=payload.budget,
-        images=photo_urls,
+        photos_urls=photo_urls,
         status=JobStatus.open,
     )
     db.add(job)
@@ -90,7 +90,7 @@ async def create_job(
         "scheduled_time": job.scheduled_time,
         "budget": job.budget,
         "status": job.status,
-        "images": job.images,
+        "images": job.photos_urls,
         "created_at": job.created_at,
         "updated_at": job.updated_at,
     }
@@ -121,7 +121,7 @@ async def list_my_jobs(
                 "scheduled_time": job.scheduled_time,
                 "budget": job.budget,
                 "status": job.status,
-                "images": job.images,
+                "images": job.photos_urls,
                 "created_at": job.created_at,
                 "updated_at": job.updated_at,
             }
@@ -205,7 +205,7 @@ async def get_job_detail(
             "scheduled_time": job.scheduled_time,
             "budget": job.budget,
             "status": job.status,
-            "images": job.images,
+            "images": job.photos_urls,
             "created_at": job.created_at,
             "updated_at": job.updated_at,
         },

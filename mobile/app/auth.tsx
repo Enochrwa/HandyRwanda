@@ -41,7 +41,7 @@ const reg1Schema = z.object({
     .refine((v) => v.trim().split(/\s+/).length >= 2, 'Please enter first and last name'),
   phone: z.string().regex(/^\+2507[2-9]\d{7}$/, 'Valid Rwanda number: +2507XXXXXXXX'),
   email: z.string().email('Invalid email'),
-  preferred_lang: z.enum(['rw', 'en', 'fr']).optional().default('rw'),
+  preferred_lang: z.enum(['rw', 'en', 'fr']),
 });
 
 const reg2Schema = z.object({
@@ -352,7 +352,17 @@ export default function AuthScreen() {
       setLoginStep('verify');
       startCooldown(60);
       setRegStep(0);
-      setRegData({});
+      setRegData({
+        role: 'client',
+        fullName: '',
+        phone: '',
+        email: '',
+        preferred_lang: 'rw',
+        gender: undefined,
+        date_of_birth: undefined,
+        national_id: undefined,
+        district: undefined,
+      });
     } catch (err: any) {
       const detail = err.response?.data?.detail;
       const msg = typeof detail === 'string' ? detail : detail?.message;

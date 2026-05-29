@@ -11,6 +11,7 @@ from sqlalchemy import (
     Enum,
     Integer,
     String,
+    column_property,
     func,
 )
 
@@ -88,11 +89,10 @@ class User(Base):
     # ── Notifications ──────────────────────────────────────────────────────────
     expo_push_token = Column(String, nullable=True)
     is_active = Column(Boolean, default=True)  # kept for backward compat
-
     # ── Timestamps ────────────────────────────────────────────────────────────
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     updated_at = Column(DateTime(timezone=True), onupdate=func.now())
 
-    @property
-    def is_fully_verified(self) -> bool:
-        return self.email_verified and self.account_status == AccountStatus.active
+    is_fully_verified = column_property(
+        email_verified and account_status == AccountStatus.active
+    )

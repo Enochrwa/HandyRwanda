@@ -1,5 +1,6 @@
 import enum
 import uuid
+from datetime import date, datetime
 
 from sqlalchemy import Boolean, Date, DateTime, Integer, String, func
 from sqlalchemy import Enum as SQLEnum
@@ -39,7 +40,7 @@ class User(Base):
     full_name: Mapped[str] = mapped_column(String(150), nullable=False)
     email: Mapped[str] = mapped_column(String(150), unique=True, nullable=False)
 
-    date_of_birth: Mapped[str | None] = mapped_column(Date, nullable=True)
+    date_of_birth: Mapped[date | None] = mapped_column(Date, nullable=True)
     gender: Mapped[Gender | None] = mapped_column(SQLEnum(Gender), nullable=True)
     national_id: Mapped[str | None] = mapped_column(String(20), nullable=True)
     district: Mapped[str | None] = mapped_column(String(100), nullable=True)
@@ -62,11 +63,11 @@ class User(Base):
 
     registration_ip: Mapped[str | None] = mapped_column(String(45), nullable=True)
     last_login_ip: Mapped[str | None] = mapped_column(String(45), nullable=True)
-    last_login_at: Mapped[str | None] = mapped_column(
+    last_login_at: Mapped[datetime | None] = mapped_column(
         DateTime(timezone=True), nullable=True
     )
     failed_login_attempts: Mapped[int] = mapped_column(Integer, default=0)
-    locked_until: Mapped[str | None] = mapped_column(
+    locked_until: Mapped[datetime | None] = mapped_column(
         DateTime(timezone=True), nullable=True
     )
 
@@ -74,17 +75,17 @@ class User(Base):
         Boolean, default=False, nullable=False
     )
     terms_version: Mapped[str | None] = mapped_column(String(20), nullable=True)
-    agreed_at: Mapped[str | None] = mapped_column(
+    agreed_at: Mapped[datetime | None] = mapped_column(
         DateTime(timezone=True), nullable=True
     )
 
     expo_push_token: Mapped[str | None] = mapped_column(String, nullable=True)
     is_active: Mapped[bool] = mapped_column(Boolean, default=True)
 
-    created_at: Mapped[str | None] = mapped_column(
+    created_at: Mapped[datetime | None] = mapped_column(
         DateTime(timezone=True), server_default=func.now()
     )
-    updated_at: Mapped[str | None] = mapped_column(
+    updated_at: Mapped[datetime | None] = mapped_column(
         DateTime(timezone=True), onupdate=func.now()
     )
 

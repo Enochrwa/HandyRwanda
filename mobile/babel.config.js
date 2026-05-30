@@ -1,8 +1,6 @@
-module.exports = function (_api) {
-  _api.cache(true);
-  const isTest = process.env.NODE_ENV === 'test';
+module.exports = function (api) {
+  api.cache(true);
   return {
-    presets: ['babel-preset-expo'],
-    plugins: isTest ? [] : ['nativewind/babel'],
+    presets: ['babel-preset-expo', 'nativewind/babel'],
   };
 };

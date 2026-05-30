@@ -1,19 +1,23 @@
 import { useQuery } from '@tanstack/react-query';
 import { formatDistanceToNow } from 'date-fns';
-import { useRouter } from 'expo-router';
+import { usePathname, useRouter } from 'expo-router';
 import React, { useEffect } from 'react';
 import { View, Text, FlatList, TouchableOpacity, Image } from 'react-native';
 
+import { isOnAuthRoute } from '../../src/navigation';
 import api from '../../src/services/api';
 import { useAuthStore } from '../../src/store/authStore';
 
 export default function ConversationsScreen() {
   const { isAuthenticated } = useAuthStore();
   const router = useRouter();
+  const pathname = usePathname();
 
   useEffect(() => {
-    if (!isAuthenticated) router.replace('/auth');
-  }, [isAuthenticated, router]);
+    if (!isAuthenticated && !isOnAuthRoute(pathname)) {
+      router.replace('/auth');
+    }
+  }, [isAuthenticated, pathname, router]);
 
   const { data: conversations, isLoading } = useQuery({
     queryKey: ['conversations'],

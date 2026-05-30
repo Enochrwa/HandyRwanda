@@ -1,10 +1,32 @@
 import axios from 'axios';
+import Constants from 'expo-constants';
 import { router } from 'expo-router';
+import { Platform } from 'react-native';
 
 import { useAuthStore } from '../store/authStore';
 
-// In production, this would come from an environment variable
-const API_BASE_URL = process.env.EXPO_PUBLIC_API_URL || 'http://localhost:8000';
+function resolveApiBaseUrl(): string {
+  if (process.env.EXPO_PUBLIC_API_URL) {
+    return process.env.EXPO_PUBLIC_API_URL;
+  }
+
+  // In Expo Go on a physical device, use the same LAN host Metro uses.
+  const hostUri = Constants.expoConfig?.hostUri;
+  if (hostUri) {
+    const host = hostUri.split(':')[0];
+    if (host && host !== 'localhost') {
+      return `http://${host}:8000`;
+    }
+  }
+
+  if (Platform.OS === 'android') {
+    return 'http://10.0.2.2:8000';
+  }
+
+  return 'http://localhost:8000';
+}
+
+const API_BASE_URL = resolveApiBaseUrl();
 
 const api = axios.create({
   baseURL: API_BASE_URL,

@@ -1,6 +1,6 @@
+import { Star, MapPin, MessageCircle, ChevronLeft } from '@icons';
 import { useQuery } from '@tanstack/react-query';
 import { useLocalSearchParams, useRouter } from 'expo-router';
-import { Star, MapPin, MessageCircle, ChevronLeft } from 'lucide-react-native';
 import React from 'react';
 import { View, Text, ScrollView, Image, TouchableOpacity, ActivityIndicator } from 'react-native';
 import Toast from 'react-native-toast-message';

@@ -144,17 +144,13 @@ async def list_available_jobs(
     if not artisan:
         raise HTTPException(status_code=404, detail="Artisan profile not found")
 
-    # Geo-filter jobs
+    # Match open jobs to artisan skills (jobs have no lat/lng columns yet)
     query = text("""
-        SELECT j.*,
-               ST_Distance(j.location::geography, ap.location::geography) / 1000 as distance_km
+        SELECT j.*
         FROM jobs j
-        CROSS JOIN artisan_profiles ap
         JOIN artisan_skills ask ON j.category_id = ask.category_id
-        WHERE ap.user_id = :artisan_id
+        WHERE ask.artisan_id = :artisan_id
         AND j.status = 'open'
-        AND ask.artisan_id = :artisan_id
-        AND ST_DWithin(j.location::geography, ap.location::geography, ap.service_radius_km * 1000)
         ORDER BY j.created_at DESC
     """)
 

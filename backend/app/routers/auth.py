@@ -27,7 +27,7 @@ from uuid import UUID
 
 from fastapi import APIRouter, Depends, HTTPException, Request
 from jose import JWTError, jwt
-from sqlalchemy import select
+from sqlalchemy import select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.database import get_db
@@ -188,15 +188,22 @@ async def verify_otp(
     if not user:
         raise HTTPException(status_code=404, detail="User not found.")
 
+    # Use an explicit UPDATE rather than ORM attribute mutation to avoid the
+    # "operator does not exist: uuid = character varying" error that occurs when
+    # SQLAlchemy's flush generates  WHERE users.id = $N::VARCHAR  against a
+    # native PostgreSQL UUID primary-key column.
+    now_utc = datetime.now(timezone.utc)
+    update_values: dict[str, Any] = {
+        "last_login_ip": _client_ip(request),
+        "last_login_at": now_utc,
+        "failed_login_attempts": 0,
+    }
     if not user.email_verified:
-        user.email_verified = True
-        user.account_status = AccountStatus.active
-        user.is_active = True
+        update_values["email_verified"] = True
+        update_values["account_status"] = AccountStatus.active
+        update_values["is_active"] = True
 
-    user.last_login_ip = _client_ip(request)
-    user.last_login_at = datetime.now(timezone.utc)
-    user.failed_login_attempts = 0
-
+    await db.execute(update(User).where(User.id == user.id).values(**update_values))
     await db.commit()
     await db.refresh(user)
 
@@ -323,9 +330,11 @@ async def update_profile(
         raise HTTPException(status_code=404, detail="User not found.")
 
     update_data = payload.model_dump(exclude_none=True)
-    for field, value in update_data.items():
-        setattr(user, field, value)
+    if not update_data:
+        return {"message": "No fields to update.", "updated_fields": []}
 
+    # Use explicit UPDATE to avoid uuid = varchar cast error on PostgreSQL
+    await db.execute(update(User).where(User.id == user.id).values(**update_data))
     await db.commit()
     await db.refresh(user)
     return {

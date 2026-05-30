@@ -21,6 +21,7 @@ export default [
       'react-hooks/rules-of-hooks': 'off',
       '@typescript-eslint/no-unused-expressions': 'off',
       'no-unused-expressions': 'off',
+      'node/handle-callback-err': 'off',
     },
   },
 ];

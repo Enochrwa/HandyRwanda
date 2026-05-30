@@ -1,15 +1,38 @@
+import { Search, MapPin, Clock, ChevronRight, User, Star } from '@icons';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useQuery } from '@tanstack/react-query';
 import { useRouter } from 'expo-router';
-import { Search, MapPin, Clock, ChevronRight, User, Briefcase } from 'lucide-react-native';
-import React from 'react';
-import { View, Text, ScrollView, TouchableOpacity, Image } from 'react-native';
+import React, { useEffect, useState } from 'react';
+import { View, Text, ScrollView, TouchableOpacity, Image, ActivityIndicator } from 'react-native';
 
 import api from '../../src/services/api';
 import { useAuthStore } from '../../src/store/authStore';
 
+const SERVICE_ICONS: Record<string, string> = {
+  plumbing: '🔧',
+  electrical: '⚡',
+  cleaning: '🧹',
+  carpentry: '🪚',
+  painting: '🎨',
+  gardening: '🌿',
+  default: '🛠️',
+};
+
 export default function HomeScreen() {
   const { isAuthenticated, user } = useAuthStore();
   const router = useRouter();
+  const [checkingOnboard, setCheckingOnboard] = useState(true);
+
+  // Redirect to onboarding on first launch
+  useEffect(() => {
+    AsyncStorage.getItem('hr_onboarded').then((val) => {
+      if (!val) {
+        router.replace('/onboarding');
+      } else {
+        setCheckingOnboard(false);
+      }
+    });
+  }, []);
 
   const { data: upcomingBookings } = useQuery({
     queryKey: ['upcomingBookings'],
@@ -22,20 +45,39 @@ export default function HomeScreen() {
     queryFn: () => api.get('/artisans/categories').then((r) => r.data),
   });
 
+  useQuery({
+    queryKey: ['featuredArtisans'],
+    queryFn: () =>
+      api
+        .get('/artisans', { params: { limit: 4, sort: 'rating' } })
+        .then((r) => r.data?.items ?? []),
+  });
+
+  if (checkingOnboard) {
+    return (
+      <View className="flex-1 items-center justify-center bg-background">
+        <ActivityIndicator color="#1B5E3B" size="large" />
+      </View>
+    );
+  }
+
+  const hour = new Date().getHours();
+  const greeting = hour < 12 ? 'Mwaramutse' : hour < 18 ? 'Mwiriwe' : 'Muraho';
+
   return (
     <ScrollView className="flex-1 bg-background" showsVerticalScrollIndicator={false}>
-      {/* Header */}
+      {/* ── Hero Header ─────────────────────────────────────────────── */}
       <View className="bg-primary pt-14 pb-10 px-6 rounded-b-[40px]">
         <View className="flex-row justify-between items-center mb-6">
           <View>
-            <Text className="text-white/80 text-sm">Location</Text>
-            <View className="flex-row items-center">
-              <MapPin size={14} color="white" />
-              <Text className="text-white font-bold ml-1">Kigali, Rwanda</Text>
+            <Text className="text-white/70 text-xs uppercase tracking-wider">Location</Text>
+            <View className="flex-row items-center mt-0.5">
+              <MapPin size={13} color="white" />
+              <Text className="text-white font-semibold ml-1 text-sm">Rwanda</Text>
             </View>
           </View>
           <TouchableOpacity
-            accessibilityLabel="Button"
+            accessibilityLabel="Profile or login"
             onPress={() =>
               isAuthenticated ? router.push('/(tabs)/profile') : router.push('/auth')
             }
@@ -44,103 +86,170 @@ export default function HomeScreen() {
             {user?.avatarUrl ? (
               <Image source={{ uri: user.avatarUrl }} className="w-full h-full" />
             ) : (
-              <User color="white" size={24} />
+              <User color="white" size={22} />
             )}
           </TouchableOpacity>
         </View>
 
-        <Text className="text-white text-3xl font-bold">
-          {isAuthenticated ? `Muraho, ${user?.fullName.split(' ')[0]} 👋` : 'Welcome 👋'}
+        <Text className="text-white text-2xl font-extrabold">
+          {isAuthenticated ? `${greeting}, ${user?.fullName.split(' ')[0]} 👋` : `${greeting} 👋`}
         </Text>
-        <Text className="text-white/80 mt-1">What service do you need today?</Text>
+        <Text className="text-white/80 mt-1 text-sm">
+          {isAuthenticated
+            ? 'What do you need fixed today?'
+            : 'Find trusted artisans across Rwanda'}
+        </Text>
 
+        {/* Search bar */}
         <TouchableOpacity
-          accessibilityLabel="Button"
+          accessibilityLabel="Search artisans"
           onPress={() => router.push('/(tabs)/search')}
-          className="mt-6 flex-row items-center bg-white px-4 py-3 rounded-2xl"
+          className="mt-5 flex-row items-center bg-white px-4 py-3.5 rounded-2xl"
         >
-          <Search size={20} color="#6B6B6B" />
-          <Text className="text-muted-foreground ml-3">Search for plumbers, electricians...</Text>
+          <Search size={18} color="#6B6B6B" />
+          <Text className="text-muted-foreground ml-3 text-sm">
+            Plumbers, electricians, cleaners…
+          </Text>
         </TouchableOpacity>
       </View>
 
-      {/* Categories */}
-      <View className="p-6">
+      {/* ── Quick Stats ─────────────────────────────────────────────── */}
+      <View className="flex-row mx-6 mt-5 gap-3">
+        {[
+          { label: 'Artisans', value: '500+', emoji: '👷' },
+          { label: 'Districts', value: '30', emoji: '📍' },
+          { label: 'Jobs Done', value: '2k+', emoji: '✅' },
+        ].map((stat) => (
+          <View
+            key={stat.label}
+            className="flex-1 bg-card border border-border rounded-2xl p-3 items-center"
+          >
+            <Text style={{ fontSize: 20 }}>{stat.emoji}</Text>
+            <Text className="font-extrabold text-primary text-base">{stat.value}</Text>
+            <Text className="text-xs text-muted-foreground">{stat.label}</Text>
+          </View>
+        ))}
+      </View>
+
+      {/* ── Service Categories ───────────────────────────────────────── */}
+      <View className="px-6 mt-6">
         <View className="flex-row justify-between items-center mb-4">
-          <Text className="text-xl font-bold">Services</Text>
+          <Text className="text-xl font-bold text-foreground">Services</Text>
           <TouchableOpacity
-            accessibilityLabel="Button"
+            accessibilityLabel="See all services"
             onPress={() => router.push('/(tabs)/search')}
           >
-            <Text className="text-primary font-bold">See All</Text>
+            <Text className="text-primary font-semibold text-sm">See All →</Text>
           </TouchableOpacity>
         </View>
         <View className="flex-row flex-wrap justify-between">
-          {categories?.slice(0, 4).map((cat: any) => (
-            <TouchableOpacity
-              accessibilityLabel="Button"
-              key={cat.id}
-              onPress={() =>
-                router.push({
-                  pathname: '/(tabs)/search',
-                  params: { categoryId: cat.id },
-                })
-              }
-              className="bg-card w-[48%] p-4 rounded-3xl border border-border mb-4 items-center"
-            >
-              <View className="w-12 h-12 bg-primary/10 rounded-2xl items-center justify-center mb-2">
-                <Briefcase color="#1B5E3B" size={24} />
-              </View>
-              <Text className="font-bold text-center">{cat.name_en || cat.name}</Text>
-            </TouchableOpacity>
-          )) ||
+          {categories?.slice(0, 6).map((cat: any) => {
+            const emoji =
+              SERVICE_ICONS[cat.slug?.toLowerCase()] ||
+              SERVICE_ICONS[cat.name_en?.toLowerCase()] ||
+              SERVICE_ICONS.default;
+            return (
+              <TouchableOpacity
+                accessibilityLabel={`Browse ${cat.name_en ?? cat.name}`}
+                key={cat.id}
+                onPress={() =>
+                  router.push({
+                    pathname: '/(tabs)/search',
+                    params: { categoryId: cat.id },
+                  })
+                }
+                className="bg-card w-[48%] p-4 rounded-3xl border border-border mb-3 items-center"
+              >
+                <Text style={{ fontSize: 28 }} className="mb-2">
+                  {emoji}
+                </Text>
+                <Text className="font-semibold text-center text-sm text-foreground">
+                  {cat.name_en ?? cat.name}
+                </Text>
+              </TouchableOpacity>
+            );
+          }) ||
             [1, 2, 3, 4].map((i) => (
               <View
                 key={i}
-                className="bg-card w-[48%] h-32 rounded-3xl border border-border mb-4 animate-pulse"
+                className="bg-card w-[48%] h-28 rounded-3xl border border-border mb-3"
               />
             ))}
         </View>
       </View>
 
-      {/* Upcoming Booking Card */}
-      <View className="px-6 pb-6">
-        <Text className="text-xl font-bold mb-4">Upcoming Bookings</Text>
+      {/* ── How it Works (for unauthenticated) ──────────────────────── */}
+      {!isAuthenticated && (
+        <View className="mx-6 mb-4 bg-primary/5 border border-primary/20 rounded-3xl p-5">
+          <Text className="font-bold text-lg text-foreground mb-3">How HandyRwanda Works</Text>
+          {[
+            { step: '1', label: 'Search', desc: 'Find a verified artisan near you' },
+            { step: '2', label: 'Book', desc: 'Choose a time that works for you' },
+            { step: '3', label: 'Pay Safe', desc: 'Funds held until job is done' },
+            { step: '4', label: 'Rate', desc: 'Leave a review to help others' },
+          ].map((item) => (
+            <View key={item.step} className="flex-row items-start mb-3">
+              <View className="w-7 h-7 bg-primary rounded-full items-center justify-center mr-3 mt-0.5">
+                <Text className="text-white text-xs font-bold">{item.step}</Text>
+              </View>
+              <View className="flex-1">
+                <Text className="font-semibold text-foreground">{item.label}</Text>
+                <Text className="text-muted-foreground text-xs">{item.desc}</Text>
+              </View>
+            </View>
+          ))}
+          <TouchableOpacity
+            accessibilityLabel="Sign up to get started"
+            onPress={() => router.push('/auth')}
+            className="bg-primary mt-2 py-3 rounded-2xl items-center"
+          >
+            <Text className="text-white font-bold">Sign Up — It's Free</Text>
+          </TouchableOpacity>
+        </View>
+      )}
+
+      {/* ── Upcoming Bookings ────────────────────────────────────────── */}
+      <View className="px-6 pb-8">
+        <Text className="text-xl font-bold mb-4 text-foreground">Upcoming Bookings</Text>
         {isAuthenticated ? (
           upcomingBookings?.length > 0 ? (
             upcomingBookings.map((booking: any) => (
               <TouchableOpacity
-                accessibilityLabel="Button"
+                accessibilityLabel={`Booking: ${booking.title}`}
                 key={booking.id}
-                className="bg-primary/5 p-4 rounded-3xl border border-primary/20 flex-row items-center"
+                className="bg-primary/5 p-4 rounded-3xl border border-primary/20 flex-row items-center mb-3"
               >
                 <View className="bg-primary/10 p-3 rounded-2xl mr-4">
-                  <Clock size={24} color="#1B5E3B" />
+                  <Clock size={22} color="#1B5E3B" />
                 </View>
                 <View className="flex-1">
-                  <Text className="font-bold">{booking.title}</Text>
+                  <Text className="font-bold text-foreground">{booking.title}</Text>
                   <Text className="text-xs text-muted-foreground">
-                    Today, 14:30 • {booking.artisan_name}
+                    {booking.scheduled_at ?? 'Soon'} • {booking.artisan_name}
                   </Text>
                 </View>
-                <ChevronRight size={20} color="#1B5E3B" />
+                <ChevronRight size={18} color="#1B5E3B" />
               </TouchableOpacity>
             ))
           ) : (
-            <View className="bg-card p-6 rounded-3xl border border-border border-dashed items-center">
-              <Text className="text-muted-foreground">No upcoming bookings</Text>
+            <View className="bg-card p-6 rounded-3xl border border-dashed border-border items-center">
+              <Text className="text-2xl mb-2">📅</Text>
+              <Text className="text-muted-foreground text-center text-sm">
+                No upcoming bookings. Browse services to get started!
+              </Text>
             </View>
           )
         ) : (
           <TouchableOpacity
-            accessibilityLabel="Button"
+            accessibilityLabel="Log in to see bookings"
             onPress={() => router.push('/auth')}
-            className="bg-card p-6 rounded-3xl border border-border border-dashed items-center"
+            className="bg-card p-6 rounded-3xl border border-dashed border-border items-center"
           >
-            <Text className="text-muted-foreground text-center">
-              Log in to see your bookings and manage your profile.
+            <Star size={28} color="#1B5E3B" />
+            <Text className="text-muted-foreground text-center text-sm mt-2">
+              Log in to track your bookings and connect with artisans.
             </Text>
-            <Text className="text-primary font-bold mt-2">Log in / Register</Text>
+            <Text className="text-primary font-bold mt-2">Log in / Register →</Text>
           </TouchableOpacity>
         )}
       </View>

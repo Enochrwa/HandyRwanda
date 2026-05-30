@@ -1,13 +1,5 @@
+import { Settings, LogOut, ChevronRight, User, Shield, HelpCircle, Bell } from '@icons';
 import { useRouter } from 'expo-router';
-import {
-  Settings,
-  LogOut,
-  ChevronRight,
-  User,
-  Shield,
-  HelpCircle,
-  Bell,
-} from 'lucide-react-native';
 import React from 'react';
 import { View, Text, TouchableOpacity, Image, ScrollView, Alert } from 'react-native';
 

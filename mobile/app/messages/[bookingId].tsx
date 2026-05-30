@@ -1,7 +1,7 @@
+import { Send, ChevronLeft } from '@icons';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { format } from 'date-fns';
-import { useLocalSearchParams, useRouter } from 'expo-router';
-import { Send, ChevronLeft } from 'lucide-react-native';
+import { useLocalSearchParams, usePathname, useRouter } from 'expo-router';
 import React, { useState, useRef, useEffect } from 'react';
 import {
   View,
@@ -14,6 +14,7 @@ import {
   ActivityIndicator,
 } from 'react-native';
 
+import { isOnAuthRoute } from '../../src/navigation';
 import api from '../../src/services/api';
 import { useAuthStore } from '../../src/store/authStore';
 
@@ -21,13 +22,16 @@ export default function ChatThread() {
   const { bookingId } = useLocalSearchParams();
   const { isAuthenticated, user } = useAuthStore();
   const router = useRouter();
+  const pathname = usePathname();
   const queryClient = useQueryClient();
   const [content, setContent] = useState('');
   const flatListRef = useRef<FlatList>(null);
 
   useEffect(() => {
-    if (!isAuthenticated) router.replace('/auth');
-  }, [isAuthenticated, router]);
+    if (!isAuthenticated && !isOnAuthRoute(pathname)) {
+      router.replace('/auth');
+    }
+  }, [isAuthenticated, pathname, router]);
 
   const { data: messages, isLoading } = useQuery({
     queryKey: ['messages', bookingId],

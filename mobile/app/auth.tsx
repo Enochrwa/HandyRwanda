@@ -1,7 +1,7 @@
 // File: mobile/app/auth.tsx
 
 import { zodResolver } from '@hookform/resolvers/zod';
-import { useRouter } from 'expo-router';
+import { useLocalSearchParams, useRouter } from 'expo-router';
 import React, { useState, useRef } from 'react';
 import { useForm, Controller } from 'react-hook-form';
 import {
@@ -75,8 +75,6 @@ type Reg3Data = z.infer<typeof reg3Schema>;
 
 type RegistrationData = z.infer<typeof reg1Schema> & z.infer<typeof reg2Schema>;
 
-// ── Rwanda districts ────────────────────────────────────────────────────────
-
 const DISTRICTS = [
   'Gasabo',
   'Kicukiro',
@@ -109,6 +107,15 @@ const DISTRICTS = [
   'Rutsiro',
 ].sort();
 
+/** Inline shadow — toggling NativeWind `shadow-sm` in className breaks navigation context. */
+const cardShadow = {
+  shadowColor: '#000',
+  shadowOffset: { width: 0, height: 1 },
+  shadowOpacity: 0.08,
+  shadowRadius: 3,
+  elevation: 2,
+} as const;
+
 // ── Helpers ─────────────────────────────────────────────────────────────────
 
 function FieldError({ message }: { message?: string }) {
@@ -122,11 +129,11 @@ function StepDots({ current, total }: { current: number; total: number }) {
       {Array.from({ length: total }).map((_, i) => (
         <View
           key={i}
-          className={`rounded-full transition-all ${
+          className={`rounded-full ${
             i === current
               ? 'w-6 h-2 bg-primary'
               : i < current
-                ? 'w-2 h-2 bg-primary/60'
+                ? 'w-2 h-2 bg-muted-foreground'
                 : 'w-2 h-2 bg-muted'
           }`}
         />
@@ -179,7 +186,10 @@ function InfoBox({
 // ── Main screen ──────────────────────────────────────────────────────────────
 
 export default function AuthScreen() {
-  const [activeTab, setActiveTab] = useState<'login' | 'register'>('login');
+  const { mode } = useLocalSearchParams<{ mode?: string }>();
+  const [activeTab, setActiveTab] = useState<'login' | 'register'>(
+    mode === 'register' ? 'register' : 'login',
+  );
   const [loginStep, setLoginStep] = useState<'request' | 'verify'>('request');
   const [regStep, setRegStep] = useState<0 | 1 | 2>(0);
   const [email, setEmail] = useState('');
@@ -333,13 +343,13 @@ export default function AuthScreen() {
         role: merged.role,
         preferred_lang: merged.preferred_lang ?? 'rw',
         gender: merged.gender ?? null,
-        date_of_birth: merged.date_of_birth ?? null,
-        national_id: merged.national_id ?? null,
-        district: merged.district ?? null,
+        date_of_birth: merged.date_of_birth || null,
+        national_id: merged.national_id || null,
+        district: merged.district || null,
         agreed_to_terms: true,
         terms_version: 'v1.0',
       };
-      // const res = await api.post('/auth/register', payload);
+      await api.post('/auth/register', payload);
       Toast.show({
         type: 'success',
         text1: 'Account created!',
@@ -365,6 +375,16 @@ export default function AuthScreen() {
       });
     } catch (err: any) {
       const detail = err.response?.data?.detail;
+
+      if (Array.isArray(detail)) {
+        Toast.show({
+          type: 'error',
+          text1: 'Registration failed',
+          text2: detail[0]?.msg ?? 'Please check your details',
+        });
+        return;
+      }
+
       const msg = typeof detail === 'string' ? detail : detail?.message;
       const field = typeof detail === 'object' ? detail?.field : null;
 
@@ -417,7 +437,8 @@ export default function AuthScreen() {
                 setActiveTab(tab);
                 if (tab === 'register') setRegStep(0);
               }}
-              className={`flex-1 py-2.5 rounded-xl ${activeTab === tab ? 'bg-card shadow-sm' : ''}`}
+              className={`flex-1 py-2.5 rounded-xl ${activeTab === tab ? 'bg-card' : ''}`}
+              style={activeTab === tab ? cardShadow : undefined}
             >
               <Text
                 className={`text-center font-bold text-sm ${
@@ -432,7 +453,7 @@ export default function AuthScreen() {
 
         {/* ── LOGIN ──────────────────────────────────────────────────── */}
         {activeTab === 'login' && (
-          <View className="bg-card p-6 rounded-3xl border border-border shadow-sm">
+          <View className="bg-card p-6 rounded-3xl border border-border" style={cardShadow}>
             {loginStep === 'request' ? (
               <View>
                 <SectionLabel
@@ -543,7 +564,7 @@ export default function AuthScreen() {
 
         {/* ── REGISTER ──────────────────────────────────────────────── */}
         {activeTab === 'register' && (
-          <View className="bg-card p-6 rounded-3xl border border-border shadow-sm">
+          <View className="bg-card p-6 rounded-3xl border border-border" style={cardShadow}>
             <StepDots current={regStep} total={3} />
 
             {/* Step 0 — Core Identity */}

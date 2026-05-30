@@ -45,7 +45,15 @@
   "overrides": {
     "uuid": "^11.1.1",
     "vite": "^6.3.5",
+    "react": "19.1.0",
+    "react-dom": "19.1.0",
     "@types/react": "~18.2.0",
-    "@types/react-dom": "~18.2.0"
+    "@types/react-dom": "~18.2.0",
+    "nativewind": {
+      "tailwindcss": "3.4.19"
+    },
+    "react-native-css-interop": {
+      "tailwindcss": "3.4.19"
+    }
   }
 }

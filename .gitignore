@@ -40,6 +40,11 @@ __pycache__/
 venv/
 ENV/
 
+# Expo / React Native
+.expo/
+mobile/.expo/
+*.pid
+
 # Tests
 coverage/
 .nyc_output/

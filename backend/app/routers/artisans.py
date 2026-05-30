@@ -19,6 +19,7 @@ from app.models.artisan import (
 from app.models.booking import Booking, BookingStatus
 from app.models.job import Job
 from app.models.user import User, UserRole
+from app.utils.geo import HAVERSINE_KM_AP
 
 router = APIRouter(prefix="/artisans", tags=["artisans"])
 
@@ -73,6 +74,8 @@ async def update_profile(
             hourly_rate=payload.hourly_rate,
             fixed_rate=payload.fixed_rate,
             spoken_languages=payload.spoken_languages,
+            latitude=payload.latitude,
+            longitude=payload.longitude,
         )
         if location_wkt:
             profile.location = cast(Any, location_wkt)
@@ -81,6 +84,10 @@ async def update_profile(
         for key, value in payload.dict(exclude_unset=True).items():
             if key not in ["latitude", "longitude"]:
                 setattr(profile, key, value)
+        if payload.latitude is not None:
+            profile.latitude = payload.latitude
+        if payload.longitude is not None:
+            profile.longitude = payload.longitude
         if location_wkt:
             profile.location = cast(Any, location_wkt)
 
@@ -274,42 +281,30 @@ async def get_artisan_dashboard(
             }
         )
 
-    # Nearby jobs
-    profile_loc_res = await db.execute(
-        select(ArtisanProfile.location, ArtisanProfile.service_radius_km).where(
-            ArtisanProfile.user_id == user_id
-        )
-    )
-    profile_row = profile_loc_res.one_or_none()
-
+    # Nearby jobs (category-matched; geo requires lat/lng on jobs — not yet stored)
     nearby_jobs = []
-    if profile_row and profile_row.location:
-        nearby_query = text("""
-            SELECT j.id, j.title, j.budget, j.description, j.location_label, c.name as category_name,
-                ST_Distance(j.location::geography, :loc::geography) / 1000 AS distance_km
-            FROM jobs j
-            JOIN categories c ON j.category_id = c.id
-            WHERE j.status = 'open'
-            AND ST_DWithin(j.location::geography, :loc::geography, :radius * 1000)
-            ORDER BY j.created_at DESC
-            LIMIT 5
-        """)
-        nearby_res = await db.execute(
-            nearby_query,
-            {"loc": profile_row.location, "radius": profile_row.service_radius_km},
+    nearby_query = text("""
+        SELECT j.id, j.title, j.budget, j.description, j.location_label, c.name_en as category_name
+        FROM jobs j
+        JOIN categories c ON j.category_id = c.id
+        JOIN artisan_skills ask ON j.category_id = ask.category_id AND ask.artisan_id = :artisan_id
+        WHERE j.status = 'open'
+        ORDER BY j.created_at DESC
+        LIMIT 5
+    """)
+    nearby_res = await db.execute(nearby_query, {"artisan_id": user_id})
+    for row in nearby_res:
+        nearby_jobs.append(
+            {
+                "id": str(row.id),
+                "title": row.title,
+                "budget": row.budget,
+                "description": row.description,
+                "location_label": row.location_label,
+                "category": row.category_name,
+                "distance": None,
+            }
         )
-        for row in nearby_res:
-            nearby_jobs.append(
-                {
-                    "id": str(row.id),
-                    "title": row.title,
-                    "budget": row.budget,
-                    "description": row.description,
-                    "location_label": row.location_label,
-                    "category": row.category_name,
-                    "distance": round(row.distance_km, 1),
-                }
-            )
 
     return {
         "earnings_this_month": earnings_this_month,
@@ -320,6 +315,33 @@ async def get_artisan_dashboard(
     }
 
 
+@router.get("")
+async def list_artisans(
+    limit: int = Query(default=20, le=50),
+    sort: str = Query(default="rating"),
+    db: AsyncSession = Depends(get_db),
+) -> Any:
+    """Browse artisans — used by home screen featured list."""
+    order = (
+        "ap.average_rating DESC NULLS LAST"
+        if sort == "rating"
+        else "ap.created_at DESC"
+    )
+    query = text(f"""
+        SELECT u.id::text AS id, u.full_name, u.avatar_url, u.district,
+            ap.average_rating, ap.total_reviews, ap.is_available,
+            ap.hourly_rate, ap.fixed_rate, ap.latitude AS lat, ap.longitude AS lng
+        FROM users u
+        JOIN artisan_profiles ap ON u.id = ap.user_id
+        WHERE u.is_active = true AND u.role = 'artisan'
+        ORDER BY {order}
+        LIMIT :limit
+    """)
+    result = await db.execute(query, {"limit": limit})
+    items = [dict(row._mapping) for row in result]
+    return {"items": items}
+
+
 @router.get("/search")
 async def search_artisans(
     category_id: UUID | None = Query(None),
@@ -327,16 +349,45 @@ async def search_artisans(
     longitude: float = Query(...),
     radius_km: int = Query(default=10, le=50),
     page: int = Query(default=1, ge=1),
+    q: str | None = Query(None),
+    district: str | None = Query(None),
+    min_hourly_rate: int | None = Query(None),
+    max_hourly_rate: int | None = Query(None),
+    available_now: bool = Query(default=False),
+    min_rating: float = Query(default=0, ge=0, le=5),
     db: AsyncSession = Depends(get_db),
 ) -> Any:
     offset = (page - 1) * 20
-    query = text("""
-        SELECT u.id::text as id, u.full_name, u.avatar_url, ap.average_rating, ap.total_reviews, ap.is_available, ap.verification_status, ap.community_score, ap.hourly_rate,
-            ST_X(ap.location::geometry) as lng, ST_Y(ap.location::geometry) as lat,
-            ST_Distance(ap.location::geography, ST_SetSRID(ST_MakePoint(:lng, :lat), 4326)::geography) / 1000 AS distance_km
-        FROM users u JOIN artisan_profiles ap ON u.id = ap.user_id LEFT JOIN artisan_skills ask ON ap.user_id = ask.artisan_id
-        WHERE ST_DWithin(ap.location::geography, ST_SetSRID(ST_MakePoint(:lng, :lat), 4326)::geography, :radius_km * 1000)
-        AND u.is_active = true AND (:category_id IS NULL OR ask.category_id = :category_id)
+    districts = [d.strip() for d in district.split(",")] if district else None
+
+    query = text(f"""
+        SELECT u.id::text AS id, u.full_name, u.avatar_url, u.district,
+            ap.average_rating, ap.total_reviews, ap.is_available,
+            ap.verification_status, ap.community_score, ap.hourly_rate, ap.fixed_rate,
+            ap.latitude AS lat, ap.longitude AS lng,
+            CASE
+              WHEN ap.latitude IS NULL OR ap.longitude IS NULL THEN NULL
+              ELSE {HAVERSINE_KM_AP}
+            END AS distance_km
+        FROM users u
+        JOIN artisan_profiles ap ON u.id = ap.user_id
+        WHERE u.is_active = true
+          AND u.role = 'artisan'
+          AND (
+            ap.latitude IS NULL OR ap.longitude IS NULL
+            OR {HAVERSINE_KM_AP} <= :radius_km
+          )
+          AND (CAST(:category_id AS uuid) IS NULL OR EXISTS (
+              SELECT 1 FROM artisan_skills ask
+              WHERE ask.artisan_id = ap.user_id AND ask.category_id = CAST(:category_id AS uuid)
+          ))
+          AND (CAST(:q AS text) IS NULL OR u.full_name ILIKE '%' || :q || '%' OR ap.bio ILIKE '%' || :q || '%')
+          AND (CAST(:districts AS varchar[]) IS NULL OR u.district = ANY(CAST(:districts AS varchar[])))
+          AND (CAST(:min_hourly_rate AS integer) IS NULL OR ap.hourly_rate >= CAST(:min_hourly_rate AS integer))
+          AND (CAST(:max_hourly_rate AS integer) IS NULL OR ap.hourly_rate <= CAST(:max_hourly_rate AS integer))
+          AND (NOT :available_now OR ap.is_available = true)
+          AND ap.average_rating >= :min_rating
+        ORDER BY distance_km ASC NULLS LAST, ap.average_rating DESC
         LIMIT 20 OFFSET :offset
     """)
     result = await db.execute(
@@ -347,6 +398,12 @@ async def search_artisans(
             "radius_km": radius_km,
             "category_id": category_id,
             "offset": offset,
+            "q": q or None,
+            "districts": districts,
+            "min_hourly_rate": min_hourly_rate,
+            "max_hourly_rate": max_hourly_rate,
+            "available_now": available_now,
+            "min_rating": min_rating,
         },
     )
     return [dict(row._mapping) for row in result]

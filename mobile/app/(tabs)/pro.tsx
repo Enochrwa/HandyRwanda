@@ -1,6 +1,6 @@
+import { Wallet, Star, Clock, MapPin, CheckCircle } from '@icons';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { useRouter } from 'expo-router';
-import { Wallet, Star, Clock, MapPin, CheckCircle } from 'lucide-react-native';
+import { usePathname, useRouter } from 'expo-router';
 import React, { useState, useEffect } from 'react';
 import {
   View,
@@ -15,6 +15,7 @@ import {
 } from 'react-native';
 import Toast from 'react-native-toast-message';
 
+import { isOnAuthRoute } from '../../src/navigation';
 import { proService } from '../../src/services/proService';
 import { useAuthStore } from '../../src/store/authStore';
 
@@ -31,6 +32,7 @@ const StatCard = ({ title, value, icon: Icon, color }: any) => (
 export default function ProDashboard() {
   const { isAuthenticated, user } = useAuthStore();
   const router = useRouter();
+  const pathname = usePathname();
   const queryClient = useQueryClient();
   const [biddingJobId, setBiddingJobId] = useState<string | null>(null);
   const [bidAmount, setBidAmount] = useState('');
@@ -38,11 +40,13 @@ export default function ProDashboard() {
 
   useEffect(() => {
     if (!isAuthenticated) {
-      router.replace('/auth');
+      if (!isOnAuthRoute(pathname)) {
+        router.replace('/auth');
+      }
     } else if (user?.role !== 'artisan') {
       router.replace('/(tabs)');
     }
-  }, [isAuthenticated, user, router]);
+  }, [isAuthenticated, pathname, user, router]);
 
   const { data: dashboard, isLoading } = useQuery({
     queryKey: ['proDashboard'],

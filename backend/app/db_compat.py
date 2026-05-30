@@ -41,7 +41,8 @@ class UUID(_TypeDecoratorBase):
     # ------------------------------------------------------------------
     def load_dialect_impl(self, dialect: Dialect) -> Any:
         if _has_pg and dialect.name == "postgresql":
-            return dialect.type_descriptor(PG_UUID(as_uuid=self.as_uuid))
+            pg_type = PG_UUID(as_uuid=True) if self.as_uuid else PG_UUID(as_uuid=False)
+            return dialect.type_descriptor(pg_type)
         return dialect.type_descriptor(types.String(36))
 
     def process_bind_param(self, value: Any, dialect: Dialect) -> Any:

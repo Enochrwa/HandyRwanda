@@ -1,3 +1,4 @@
+# File: backend/app/utils/geo.py
 """Plain-SQL geo helpers (no PostGIS required)."""
 
 # Distance in km between a point (:lat, :lng) and ap.latitude / ap.longitude

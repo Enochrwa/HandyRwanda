@@ -1,3 +1,4 @@
+// File: web/src/i18n/index.ts
 import i18n from "i18next";
 import { initReactI18next } from "react-i18next";
 import rw from "./translations/rw.json";

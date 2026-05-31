@@ -1,3 +1,4 @@
+// File: web/src/services/proService.ts
 import api from "./api";
 
 export const proService = {
@@ -12,7 +13,7 @@ export const proService = {
     return res.data;
   },
   async submitBid(jobId: string, price: number, note: string) {
-    const res = await api.post(`/jobs/${jobId}/bids`, {
+    const res = await api.post(`/bids/jobs/${jobId}`, {
       proposed_price: price,
       message: note,
     });

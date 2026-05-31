@@ -1,3 +1,4 @@
+# File: backend/app/routers/artisans.py
 from typing import Any, cast
 from uuid import UUID
 
@@ -17,7 +18,7 @@ from app.models.artisan import (
     artisan_skills,
 )
 from app.models.booking import Booking, BookingStatus
-from app.models.job import Job
+from app.models.job import Bid, BidStatus, Job
 from app.models.user import User, UserRole
 from app.utils.geo import HAVERSINE_KM_AP
 
@@ -149,7 +150,18 @@ async def submit_id_verification(
 @router.get("/categories")
 async def list_categories(db: AsyncSession = Depends(get_db)) -> Any:
     result = await db.execute(select(Category).where(Category.is_active))
-    return result.scalars().all()
+    cats = result.scalars().all()
+    return [
+        {
+            "id": str(c.id),
+            "name_en": c.name_en,
+            "name_rw": c.name_rw,
+            "name_fr": c.name_fr,
+            "icon_emoji": c.icon_emoji,
+            "is_active": c.is_active,
+        }
+        for c in cats
+    ]
 
 
 @router.post("/skills")
@@ -306,12 +318,32 @@ async def get_artisan_dashboard(
             }
         )
 
+    # Active bids (pending)
+    active_bids_res = await db.execute(
+        select(Bid, Job)
+        .join(Job, Bid.job_id == Job.id)
+        .where(Bid.artisan_id == user_id, Bid.status == BidStatus.pending)
+        .order_by(Bid.created_at.desc())
+        .limit(10)
+    )
+    active_bids = [
+        {
+            "bid_id": str(b.id),
+            "job_id": str(b.job_id),
+            "job_title": j.title,
+            "proposed_price": b.proposed_price,
+            "created_at": b.created_at.isoformat() if b.created_at else None,
+        }
+        for b, j in active_bids_res
+    ]
+
     return {
         "earnings_this_month": earnings_this_month,
         "jobs_count": jobs_count,
         "avg_rating": avg_rating,
         "schedule": schedule,
         "nearby_jobs": nearby_jobs,
+        "active_bids": active_bids,
     }
 
 
@@ -368,7 +400,13 @@ async def search_artisans(
             CASE
               WHEN ap.latitude IS NULL OR ap.longitude IS NULL THEN NULL
               ELSE {HAVERSINE_KM_AP}
-            END AS distance_km
+            END AS distance_km,
+            (
+              SELECT c.name_en FROM categories c
+              JOIN artisan_skills ask ON ask.category_id = c.id
+              WHERE ask.artisan_id = u.id
+              LIMIT 1
+            ) AS category_name
         FROM users u
         JOIN artisan_profiles ap ON u.id = ap.user_id
         WHERE u.is_active = true

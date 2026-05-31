@@ -1,3 +1,4 @@
+// File: web/src/routes/onboarding/artisan.tsx
 import { useState, useEffect, useRef } from "react";
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { Header } from "@/components/Header";

@@ -1,19 +1,27 @@
-import { useState, useEffect } from "react";
-import { createFileRoute, useRouter } from "@tanstack/react-router";
+// File: web/src/routes/jobs/post.tsx
+import { useState } from "react";
+import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { Header } from "@/components/Header";
-import { MapPin } from "lucide-react";
-import { artisanService } from "@/services/artisanService";
+import { MapPin, Loader2, CheckCircle, ArrowRight } from "lucide-react";
 import api from "@/services/api";
-import { Category } from "@/types/category";
+import { useQuery } from "@tanstack/react-query";
+import { useAuthStore } from "@/store/authStore";
+import { toast } from "sonner";
+import { AuthModal } from "@/components/AuthModal";
+import { formatRWF } from "@/services/artisanService";
 
 export const Route = createFileRoute("/jobs/post")({
+  head: () => ({ meta: [{ title: "Post a Job — HandyRwanda" }] }),
   component: PostJob,
 });
 
 function PostJob() {
-  const router = useRouter();
+  const navigate = useNavigate();
+  const { isAuthenticated } = useAuthStore();
   const [loading, setLoading] = useState(false);
-  const [categories, setCategories] = useState<Category[]>([]);
+  const [done, setDone] = useState(false);
+  const [authOpen, setAuthOpen] = useState(false);
+  const [when, setWhen] = useState("Tomorrow");
   const [formData, setFormData] = useState({
     category_id: "",
     title: "",
@@ -22,119 +30,246 @@ function PostJob() {
     location_label: "",
   });
 
-  useEffect(() => {
-    artisanService.getCategories().then((cats) => {
-      setCategories(cats);
-      if (cats.length > 0) {
-        setFormData((prev) => ({ ...prev, category_id: cats[0].id }));
-      }
-    });
-  }, []);
+  const { data: categories = [] } = useQuery({
+    queryKey: ["categories"],
+    queryFn: () => api.get("/artisans/categories").then((r) => r.data),
+  });
+
+  const set = (k: string, v: string) => setFormData((p) => ({ ...p, [k]: v }));
 
   const handleSubmit = async () => {
+    if (!isAuthenticated) {
+      setAuthOpen(true);
+      return;
+    }
+    if (!formData.title.trim() || formData.title.length < 5) {
+      toast.error("Add a job title (at least 5 characters)");
+      return;
+    }
+    if (!formData.description.trim() || formData.description.length < 15) {
+      toast.error("Add more description (at least 15 characters)");
+      return;
+    }
+    if (!formData.category_id) {
+      toast.error("Select a service category");
+      return;
+    }
+
     setLoading(true);
     try {
+      const dateOffset: Record<string, number> = {
+        Today: 0,
+        Tomorrow: 1,
+        "This week": 4,
+        Flexible: 7,
+      };
+      const scheduledDate = new Date();
+      scheduledDate.setDate(scheduledDate.getDate() + (dateOffset[when] ?? 1));
+      scheduledDate.setHours(9, 0, 0, 0);
+
       await api.post("/jobs", {
-        ...formData,
-        budget: parseInt(formData.budget),
+        category_id: formData.category_id,
+        title: formData.title.trim(),
+        description: formData.description.trim(),
+        location_label: formData.location_label.trim() || "Kigali",
         latitude: -1.9441,
         longitude: 30.0619,
-        photos_base64: [],
+        scheduled_time: scheduledDate.toISOString(),
+        ...(formData.budget && { budget: parseInt(formData.budget) }),
       });
-      router.navigate({ to: "/search" });
-    } catch (err) {
-      console.error("Job post error:", err);
+      setDone(true);
+    } catch (err: unknown) {
+      const msg = (err as { response?: { data?: { detail?: string } } })?.response?.data?.detail;
+      toast.error(typeof msg === "string" ? msg : "Failed to post job. Please try again.");
     } finally {
       setLoading(false);
     }
   };
 
+  if (done) {
+    return (
+      <div className="min-h-dvh bg-muted/30">
+        <Header />
+        <main className="mx-auto max-w-xl px-4 pt-20 text-center">
+          <div className="mx-auto mb-6 flex h-20 w-20 items-center justify-center rounded-full bg-success/10">
+            <CheckCircle className="h-10 w-10 text-success" />
+          </div>
+          <h1 className="text-3xl font-extrabold">Job posted! 🎉</h1>
+          <p className="mt-3 text-muted-foreground">
+            Verified artisans nearby will see your job and submit bids. You'll get a notification
+            when you receive a bid.
+          </p>
+          <div className="mt-8 flex flex-col gap-3">
+            <button
+              onClick={() => navigate({ to: "/search" })}
+              className="w-full rounded-2xl bg-primary py-4 font-bold text-primary-foreground hover:brightness-95 transition"
+            >
+              Browse Artisans Now <ArrowRight className="inline h-4 w-4 ml-1" />
+            </button>
+            <button
+              onClick={() => navigate({ to: "/messages" })}
+              className="w-full rounded-2xl border border-border bg-card py-4 font-bold hover:bg-muted transition"
+            >
+              View My Messages
+            </button>
+          </div>
+        </main>
+      </div>
+    );
+  }
+
   return (
-    <div className="min-h-screen bg-muted/30 pb-12">
+    <div className="min-h-dvh bg-muted/30 pb-16">
       <Header />
-      <main className="mx-auto max-w-3xl px-4 pt-12">
-        <div className="rounded-3xl border border-border bg-card p-8 shadow-sm">
-          <h1 className="text-3xl font-extrabold">Post a Job</h1>
-          <p className="text-muted-foreground mt-2">
-            Describe what you need fixed and get bids from verified artisans.
+      <main className="mx-auto max-w-2xl px-4 pt-8 sm:pt-12">
+        <div className="rounded-3xl border border-border bg-card p-6 shadow-card sm:p-8">
+          <h1 className="text-2xl font-extrabold sm:text-3xl">Post a Job</h1>
+          <p className="mt-1 text-muted-foreground text-sm">
+            Describe what you need and get bids from verified artisans nearby.
           </p>
 
-          <div className="mt-10 space-y-8">
-            {/* Category selection simplified for MVP web */}
-            <div className="space-y-4">
-              <label className="text-sm font-bold uppercase tracking-wider text-muted-foreground">
-                1. What do you need help with?
+          <div className="mt-8 space-y-6">
+            {/* Category */}
+            <div>
+              <label className="text-xs font-bold uppercase tracking-wider text-muted-foreground mb-3 block">
+                1. Service Category *
               </label>
-              <select
-                className="w-full rounded-xl border border-border bg-muted/20 p-4 font-semibold outline-none focus:border-primary"
-                value={formData.category_id}
-                onChange={(e) => setFormData({ ...formData, category_id: e.target.value })}
-              >
-                {categories.map((cat) => (
-                  <option key={cat.id} value={cat.id}>
-                    {cat.name_en}
-                  </option>
+              <div className="grid grid-cols-3 gap-2 sm:grid-cols-4">
+                {categories.map((cat: { id: string; name_en: string; icon_emoji?: string }) => (
+                  <button
+                    key={cat.id}
+                    onClick={() => set("category_id", cat.id)}
+                    className={`flex flex-col items-center rounded-2xl border-2 p-3 text-center transition ${formData.category_id === cat.id ? "border-primary bg-primary/10" : "border-border bg-muted/30 hover:bg-muted"}`}
+                  >
+                    <span className="text-xl mb-1">{cat.icon_emoji ?? "🛠️"}</span>
+                    <span
+                      className={`text-[11px] font-semibold ${formData.category_id === cat.id ? "text-primary" : "text-foreground"}`}
+                    >
+                      {cat.name_en}
+                    </span>
+                  </button>
                 ))}
-              </select>
+              </div>
             </div>
 
-            <div className="space-y-4">
-              <label className="text-sm font-bold uppercase tracking-wider text-muted-foreground">
-                2. Job Details
+            {/* Title */}
+            <div>
+              <label className="text-xs font-bold uppercase tracking-wider text-muted-foreground mb-1.5 block">
+                2. Job Title *
               </label>
               <input
-                placeholder="Title (e.g., Fix leaking pipe)"
-                className="w-full rounded-xl border border-border bg-muted/20 p-4 font-semibold outline-none focus:border-primary"
                 value={formData.title}
-                onChange={(e) => setFormData({ ...formData, title: e.target.value })}
+                onChange={(e) => set("title", e.target.value)}
+                placeholder="e.g. Fix leaking kitchen sink"
+                maxLength={100}
+                className="w-full rounded-2xl border border-border bg-muted/30 px-4 py-3 text-sm outline-none focus:ring-2 focus:ring-primary/40"
               />
-              <textarea
-                placeholder="Description of the work..."
-                rows={4}
-                className="w-full rounded-xl border border-border bg-muted/20 p-4 font-semibold outline-none focus:border-primary"
-                value={formData.description}
-                onChange={(e) => setFormData({ ...formData, description: e.target.value })}
-              />
+              <div className="text-right text-[10px] text-muted-foreground mt-1">
+                {formData.title.length}/100
+              </div>
             </div>
 
+            {/* Description */}
+            <div>
+              <label className="text-xs font-bold uppercase tracking-wider text-muted-foreground mb-1.5 block">
+                3. Describe the Work *
+              </label>
+              <textarea
+                value={formData.description}
+                onChange={(e) => set("description", e.target.value)}
+                placeholder="Explain the problem clearly — what happened, how long, what you've tried…"
+                rows={4}
+                maxLength={500}
+                className="w-full rounded-2xl border border-border bg-muted/30 px-4 py-3 text-sm outline-none focus:ring-2 focus:ring-primary/40 resize-none"
+              />
+              <div className="text-right text-[10px] text-muted-foreground mt-1">
+                {formData.description.length}/500
+              </div>
+            </div>
+
+            {/* When */}
+            <div>
+              <label className="text-xs font-bold uppercase tracking-wider text-muted-foreground mb-2 block">
+                4. When do you need it?
+              </label>
+              <div className="grid grid-cols-4 gap-2">
+                {["Today", "Tomorrow", "This week", "Flexible"].map((w) => (
+                  <button
+                    key={w}
+                    onClick={() => setWhen(w)}
+                    className={`rounded-xl border-2 py-2.5 text-xs font-bold transition ${when === w ? "border-primary bg-primary/10 text-primary" : "border-border bg-muted/30 hover:bg-muted"}`}
+                  >
+                    {w}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {/* Budget + Location */}
             <div className="grid grid-cols-2 gap-4">
-              <div className="space-y-2">
-                <label className="text-xs font-bold text-muted-foreground uppercase">
-                  Estimated Budget (RWF)
+              <div>
+                <label className="text-xs font-bold uppercase tracking-wider text-muted-foreground mb-1.5 block">
+                  Budget (RWF) — optional
                 </label>
                 <input
                   type="number"
-                  className="w-full rounded-xl border border-border bg-muted/20 p-4 font-semibold outline-none focus:border-primary"
                   value={formData.budget}
-                  onChange={(e) => setFormData({ ...formData, budget: e.target.value })}
+                  onChange={(e) => set("budget", e.target.value)}
+                  placeholder="e.g. 15000"
+                  className="w-full rounded-2xl border border-border bg-muted/30 px-4 py-3 text-sm outline-none focus:ring-2 focus:ring-primary/40"
                 />
               </div>
-              <div className="space-y-2">
-                <label className="text-xs font-bold text-muted-foreground uppercase">
+              <div>
+                <label className="text-xs font-bold uppercase tracking-wider text-muted-foreground mb-1.5 block">
                   Location
                 </label>
                 <div className="relative">
+                  <MapPin className="absolute left-3 top-3.5 h-4 w-4 text-muted-foreground" />
                   <input
-                    className="w-full rounded-xl border border-border bg-muted/20 p-4 pl-10 font-semibold outline-none focus:border-primary"
-                    placeholder="Search area..."
                     value={formData.location_label}
-                    onChange={(e) => setFormData({ ...formData, location_label: e.target.value })}
+                    onChange={(e) => set("location_label", e.target.value)}
+                    placeholder="Neighbourhood / district"
+                    className="w-full rounded-2xl border border-border bg-muted/30 pl-9 pr-4 py-3 text-sm outline-none focus:ring-2 focus:ring-primary/40"
                   />
-                  <MapPin className="absolute left-3 top-4 h-5 w-5 text-muted-foreground" />
                 </div>
               </div>
             </div>
 
             <button
               onClick={handleSubmit}
-              disabled={loading || !formData.title || !formData.category_id}
-              className="w-full rounded-2xl bg-primary py-5 text-lg font-bold text-white shadow-lift hover:brightness-95 transition-all disabled:opacity-50"
+              disabled={loading}
+              className="w-full rounded-2xl bg-accent py-4 font-extrabold text-accent-foreground shadow-lift hover:brightness-95 transition disabled:opacity-50 flex items-center justify-center gap-2"
             >
-              {loading ? "Posting..." : "Post Job & See Artisans"}
+              {loading ? <Loader2 className="h-5 w-5 animate-spin" /> : null}
+              {loading ? "Posting…" : "Post Job — Free ✓"}
             </button>
           </div>
         </div>
+
+        <div className="mt-6 rounded-2xl border border-border bg-card p-5">
+          <h3 className="font-bold mb-3">How it works</h3>
+          <div className="space-y-3">
+            {[
+              { n: "1", t: "Post for free", d: "No fees to post a job request." },
+              { n: "2", t: "Receive bids", d: "Artisans submit competitive quotes within hours." },
+              { n: "3", t: "Choose the best", d: "Compare profiles, ratings, and prices." },
+              { n: "4", t: "Pay via MoMo", d: "Pay directly to the artisan. No hidden fees." },
+            ].map((s) => (
+              <div key={s.n} className="flex items-start gap-3">
+                <div className="w-6 h-6 rounded-full bg-primary/10 flex items-center justify-center shrink-0 mt-0.5">
+                  <span className="text-xs font-bold text-primary">{s.n}</span>
+                </div>
+                <div>
+                  <p className="font-semibold text-sm">{s.t}</p>
+                  <p className="text-xs text-muted-foreground">{s.d}</p>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
       </main>
+
+      <AuthModal isOpen={authOpen} onClose={() => setAuthOpen(false)} />
     </div>
   );
 }

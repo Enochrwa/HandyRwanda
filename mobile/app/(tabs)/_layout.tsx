@@ -1,3 +1,4 @@
+// File: mobile/app/(tabs)/_layout.tsx
 import { Home, Search, MessageCircle, User, LayoutDashboard } from '@icons';
 import { Tabs, useRouter } from 'expo-router';
 import { TouchableOpacity, Text } from 'react-native';

@@ -1,3 +1,4 @@
+# File: backend/app/models/notification.py
 import uuid
 from typing import Any
 

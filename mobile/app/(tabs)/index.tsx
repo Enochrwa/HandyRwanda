@@ -1,3 +1,4 @@
+// File: mobile/app/(tabs)/index.tsx
 import { Search, MapPin, Clock, ChevronRight, User, Star } from '@icons';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useQuery } from '@tanstack/react-query';
@@ -217,6 +218,7 @@ export default function HomeScreen() {
               <TouchableOpacity
                 accessibilityLabel={`Booking: ${booking.title}`}
                 key={booking.id}
+                onPress={() => router.push(`/messages/${booking.id}`)}
                 className="bg-primary/5 p-4 rounded-3xl border border-primary/20 flex-row items-center mb-3"
               >
                 <View className="bg-primary/10 p-3 rounded-2xl mr-4">

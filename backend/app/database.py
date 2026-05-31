@@ -1,3 +1,4 @@
+# File: backend/app/database.py
 import os
 from collections.abc import AsyncGenerator
 from urllib.parse import parse_qs, urlparse, urlunparse

@@ -20,6 +20,12 @@ depends_on: str | Sequence[str] | None = None
 
 
 def upgrade() -> None:
+    op.execute("""
+        DROP TYPE IF EXISTS userrole, verificationstatus, jobstatus, bidstatus,
+                     bookingstatus, transactiontype, transactionstatus, referralstatus
+        CASCADE
+    """)
+
     # Users
     op.create_table(
         "users",

@@ -1,3 +1,4 @@
+// File: mobile/app/(artisan)/onboarding/step3-location.tsx
 import Slider from '@react-native-community/slider';
 import * as Location from 'expo-location';
 import { useRouter } from 'expo-router';

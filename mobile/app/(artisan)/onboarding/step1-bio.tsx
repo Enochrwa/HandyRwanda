@@ -1,170 +1,185 @@
+// File: mobile/app/(artisan)/onboarding/step1-bio.tsx
 import { useRouter } from 'expo-router';
 import React, { useState } from 'react';
-import { View, Text, TextInput, TouchableOpacity, StyleSheet, ScrollView } from 'react-native';
+import {
+  View,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  ScrollView,
+  KeyboardAvoidingView,
+  Platform,
+  ActivityIndicator,
+} from 'react-native';
+import Toast from 'react-native-toast-message';
 
 import api from '../../../src/services/api';
-import { colors, typography, spacing, radius } from '../../../src/theme';
+
+const LANGUAGES = [
+  { code: 'rw', label: '🇷🇼 Kinyarwanda' },
+  { code: 'en', label: '🇬🇧 English' },
+  { code: 'fr', label: '🇫🇷 Français' },
+  { code: 'sw', label: '🇰🇪 Swahili' },
+];
 
 export default function BioStep() {
   const router = useRouter();
   const [bio, setBio] = useState('');
   const [experience, setExperience] = useState('');
+  const [hourlyRate, setHourlyRate] = useState('');
   const [languages, setLanguages] = useState<string[]>(['rw']);
+  const [loading, setLoading] = useState(false);
 
-  const handleNext = async () => {
-    try {
-      await api.post('/artisans/profile', {
-        bio,
-        years_experience: parseInt(experience, 10) || 0,
-        spoken_languages: languages.join(','),
-      });
-      router.push('/(artisan)/onboarding/step2-skills');
-    } catch (error) {
-      console.error(error);
-    }
+  const toggleLang = (code: string) => {
+    setLanguages((prev) =>
+      prev.includes(code) ? prev.filter((l) => l !== code) : [...prev, code],
+    );
   };
 
-  const toggleLang = (lang: string) => {
-    if (languages.includes(lang)) {
-      setLanguages(languages.filter((l) => l !== lang));
-    } else {
-      setLanguages([...languages, lang]);
+  const handleNext = async () => {
+    if (bio.trim().length < 20) {
+      Toast.show({ type: 'error', text1: 'Bio too short', text2: 'Write at least 20 characters' });
+      return;
+    }
+    if (languages.length === 0) {
+      Toast.show({
+        type: 'error',
+        text1: 'Select a language',
+        text2: 'Pick at least one language you speak',
+      });
+      return;
+    }
+    setLoading(true);
+    try {
+      await api.post('/artisans/profile', {
+        bio: bio.trim(),
+        years_experience: parseInt(experience, 10) || 0,
+        spoken_languages: languages.join(','),
+        ...(hourlyRate && { hourly_rate: parseInt(hourlyRate, 10) }),
+      });
+      router.push('/(artisan)/onboarding/step2-skills');
+    } catch (error: any) {
+      const msg = error?.response?.data?.detail;
+      Toast.show({
+        type: 'error',
+        text1: 'Error',
+        text2: typeof msg === 'string' ? msg : 'Failed to save. Try again.',
+      });
+    } finally {
+      setLoading(false);
     }
   };
 
   return (
-    <ScrollView contentContainerStyle={styles.container}>
-      <Text style={styles.title}>Tell us about yourself</Text>
-      <Text style={styles.subtitle}>Step 1 of 4: Profile Bio</Text>
-
-      <View style={styles.inputGroup}>
-        <Text style={styles.label}>Bio (Max 250 chars)</Text>
-        <TextInput
-          style={[styles.input, styles.textArea]}
-          placeholder="Describe your skills and experience..."
-          multiline
-          maxLength={250}
-          value={bio}
-          onChangeText={setBio}
-        />
-        <Text style={styles.counter}>{bio.length}/250</Text>
-      </View>
-
-      <View style={styles.inputGroup}>
-        <Text style={styles.label}>Years of Experience</Text>
-        <TextInput
-          style={styles.input}
-          placeholder="e.g. 5"
-          keyboardType="number-pad"
-          value={experience}
-          onChangeText={setExperience}
-        />
-      </View>
-
-      <View style={styles.inputGroup}>
-        <Text style={styles.label}>Spoken Languages</Text>
-        <View style={styles.chipGroup}>
-          {[
-            { id: 'rw', label: 'Kinyarwanda' },
-            { id: 'en', label: 'English' },
-            { id: 'fr', label: 'Français' },
-            { id: 'sw', label: 'Swahili' },
-          ].map((lang) => (
-            <TouchableOpacity
-              key={lang.id}
-              style={[styles.chip, languages.includes(lang.id) && styles.activeChip]}
-              onPress={() => toggleLang(lang.id)}
-            >
-              <Text style={[styles.chipText, languages.includes(lang.id) && styles.activeChipText]}>
-                {lang.label}
-              </Text>
-            </TouchableOpacity>
+    <KeyboardAvoidingView
+      behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+      className="flex-1 bg-background"
+    >
+      <View className="pt-14 pb-4 px-5 bg-primary">
+        <Text className="text-white text-xl font-extrabold">Tell us about yourself</Text>
+        <Text className="text-white/80 text-sm mt-0.5">Step 1 of 4</Text>
+        <View className="flex-row mt-3 gap-1">
+          {[1, 2, 3, 4].map((s) => (
+            <View
+              key={s}
+              className={`h-1.5 flex-1 rounded-full ${s <= 1 ? 'bg-white' : 'bg-white/30'}`}
+            />
           ))}
         </View>
       </View>
 
-      <TouchableOpacity style={styles.button} onPress={handleNext}>
-        <Text style={styles.buttonText}>Next: Select Skills</Text>
-      </TouchableOpacity>
-    </ScrollView>
+      <ScrollView
+        className="flex-1 px-5 pt-5"
+        showsVerticalScrollIndicator={false}
+        keyboardShouldPersistTaps="handled"
+      >
+        {/* Bio */}
+        <View className="mb-5">
+          <Text className="text-xs font-bold uppercase tracking-wide text-muted-foreground mb-1.5">
+            Bio * <Text className="normal-case font-normal">({bio.length}/250)</Text>
+          </Text>
+          <TextInput
+            value={bio}
+            onChangeText={setBio}
+            placeholder="Describe your skills, experience, and what makes you stand out…"
+            multiline
+            maxLength={250}
+            className="bg-card p-4 rounded-2xl border border-border text-foreground text-sm"
+            style={{ textAlignVertical: 'top', minHeight: 110 }}
+            autoCapitalize="sentences"
+          />
+        </View>
+
+        {/* Experience */}
+        <View className="mb-5">
+          <Text className="text-xs font-bold uppercase tracking-wide text-muted-foreground mb-1.5">
+            Years of Experience
+          </Text>
+          <TextInput
+            value={experience}
+            onChangeText={setExperience}
+            placeholder="e.g. 5"
+            keyboardType="number-pad"
+            maxLength={2}
+            className="bg-card p-4 rounded-2xl border border-border text-foreground text-sm"
+          />
+        </View>
+
+        {/* Hourly Rate */}
+        <View className="mb-5">
+          <Text className="text-xs font-bold uppercase tracking-wide text-muted-foreground mb-1.5">
+            Hourly Rate (RWF) — optional
+          </Text>
+          <TextInput
+            value={hourlyRate}
+            onChangeText={setHourlyRate}
+            placeholder="e.g. 5000"
+            keyboardType="number-pad"
+            className="bg-card p-4 rounded-2xl border border-border text-foreground text-sm"
+          />
+          <Text className="text-[10px] text-muted-foreground mt-1">
+            Set a starting rate. You can always negotiate per job.
+          </Text>
+        </View>
+
+        {/* Languages */}
+        <View className="mb-8">
+          <Text className="text-xs font-bold uppercase tracking-wide text-muted-foreground mb-2">
+            Languages Spoken *
+          </Text>
+          <View className="flex-row flex-wrap gap-2">
+            {LANGUAGES.map((l) => (
+              <TouchableOpacity
+                key={l.code}
+                onPress={() => toggleLang(l.code)}
+                accessibilityLabel={l.label}
+                className={`px-4 py-2.5 rounded-xl border-2 ${languages.includes(l.code) ? 'border-primary bg-primary/10' : 'border-border bg-card'}`}
+              >
+                <Text
+                  className={`text-sm font-semibold ${languages.includes(l.code) ? 'text-primary' : 'text-foreground'}`}
+                >
+                  {l.label}
+                </Text>
+              </TouchableOpacity>
+            ))}
+          </View>
+        </View>
+      </ScrollView>
+
+      <View className="px-5 pb-8 pt-3 bg-card border-t border-border">
+        <TouchableOpacity
+          onPress={handleNext}
+          disabled={loading}
+          accessibilityLabel="Continue to skills"
+          className={`bg-primary rounded-2xl py-4 items-center ${loading ? 'opacity-60' : ''}`}
+        >
+          {loading ? (
+            <ActivityIndicator color="white" />
+          ) : (
+            <Text className="text-white font-extrabold text-base">Continue →</Text>
+          )}
+        </TouchableOpacity>
+      </View>
+    </KeyboardAvoidingView>
   );
 }
-
-const styles = StyleSheet.create({
-  container: {
-    padding: spacing.lg,
-    backgroundColor: colors.bg,
-    flexGrow: 1,
-  },
-  title: {
-    ...typography.heading,
-    color: colors.text,
-    marginBottom: spacing.xs,
-  },
-  subtitle: {
-    ...typography.body,
-    color: colors.textSecondary,
-    marginBottom: spacing.xl,
-  },
-  inputGroup: {
-    marginBottom: spacing.lg,
-  },
-  label: {
-    ...typography.subheading,
-    color: colors.text,
-    marginBottom: spacing.sm,
-  },
-  input: {
-    backgroundColor: colors.surface,
-    padding: spacing.md,
-    borderRadius: radius.md,
-    borderWidth: 1,
-    borderColor: '#E2E8F0',
-    ...typography.body,
-  },
-  textArea: {
-    height: 120,
-    textAlignVertical: 'top',
-  },
-  counter: {
-    textAlign: 'right',
-    ...typography.caption,
-    color: colors.textSecondary,
-    marginTop: 4,
-  },
-  chipGroup: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: spacing.sm,
-  },
-  chip: {
-    paddingVertical: spacing.sm,
-    paddingHorizontal: spacing.md,
-    borderRadius: radius.lg,
-    backgroundColor: colors.surface,
-    borderWidth: 1,
-    borderColor: '#E2E8F0',
-  },
-  activeChip: {
-    backgroundColor: colors.primary,
-    borderColor: colors.primary,
-  },
-  chipText: {
-    ...typography.caption,
-    color: colors.text,
-  },
-  activeChipText: {
-    color: colors.surface,
-  },
-  button: {
-    backgroundColor: colors.primary,
-    padding: spacing.md,
-    borderRadius: radius.md,
-    alignItems: 'center',
-    marginTop: spacing.xl,
-  },
-  buttonText: {
-    ...typography.subheading,
-    color: colors.surface,
-  },
-});

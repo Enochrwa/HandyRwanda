@@ -1,3 +1,4 @@
+// File: web/src/components/VerificationBadge.tsx
 import { ShieldCheck, Clock, XCircle, Award } from "lucide-react";
 import { cn } from "@/lib/utils";
 

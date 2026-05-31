@@ -1,3 +1,4 @@
+// File: web/vitest.config.ts
 /// <reference types="vitest" />
 import { defineConfig } from "vitest/config";
 import react from "@vitejs/plugin-react";

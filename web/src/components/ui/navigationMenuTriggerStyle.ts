@@ -1,3 +1,4 @@
+// File: web/src/components/ui/navigationMenuTriggerStyle.ts
 import { cva } from "class-variance-authority";
 
 export const navigationMenuTriggerStyle = cva(

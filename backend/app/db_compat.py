@@ -1,3 +1,4 @@
+# File: backend/app/db_compat.py
 import json
 import uuid
 from typing import Any

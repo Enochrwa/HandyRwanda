@@ -1,3 +1,4 @@
+// File: mobile/app/(client)/search/map.native.tsx
 import BottomSheet, { BottomSheetView } from '@gorhom/bottom-sheet';
 import * as Location from 'expo-location';
 import { useRouter } from 'expo-router';

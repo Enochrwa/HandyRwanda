@@ -1,3 +1,4 @@
+# File: backend/app/models/referral.py
 import enum
 import uuid
 

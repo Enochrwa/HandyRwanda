@@ -1,3 +1,4 @@
+// File: mobile/src/theme.ts
 export const colors = {
   primary: '#1B5E3B',
   primaryLight: '#2E7D4F',

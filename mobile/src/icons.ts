@@ -1,3 +1,4 @@
+// File: mobile/src/icons.ts
 /**
  * Tree-shaken Lucide icons — import from here, not from "lucide-react-native",
  * which pulls in the full icon set (~1.5k modules) and stalls Metro near 100%.
@@ -29,3 +30,13 @@ export { default as Wallet } from 'lucide-react-native/dist/esm/icons/wallet';
 export { default as Wrench } from 'lucide-react-native/dist/esm/icons/wrench';
 export { default as X } from 'lucide-react-native/dist/esm/icons/x';
 export { default as Zap } from 'lucide-react-native/dist/esm/icons/zap';
+export { default as Edit2 } from 'lucide-react-native/dist/esm/icons/pencil';
+export { default as Phone } from 'lucide-react-native/dist/esm/icons/phone';
+export { default as AlertTriangle } from 'lucide-react-native/dist/esm/icons/triangle-alert';
+export { default as Award } from 'lucide-react-native/dist/esm/icons/award';
+export { default as CheckCircle2 } from 'lucide-react-native/dist/esm/icons/circle-check-big';
+export { default as TrendingUp } from 'lucide-react-native/dist/esm/icons/trending-up';
+export { default as ArrowRight } from 'lucide-react-native/dist/esm/icons/arrow-right';
+export { default as Camera } from 'lucide-react-native/dist/esm/icons/camera';
+export { default as Flame } from 'lucide-react-native/dist/esm/icons/flame';
+export { default as Trophy } from 'lucide-react-native/dist/esm/icons/trophy';

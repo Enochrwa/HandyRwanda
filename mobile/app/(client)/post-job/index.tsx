@@ -1,100 +1,62 @@
+// File: mobile/app/(client)/post-job/index.tsx
+import { useQuery } from '@tanstack/react-query';
 import { useRouter } from 'expo-router';
-import React, { useState, useEffect } from 'react';
-import {
-  View,
-  Text,
-  TouchableOpacity,
-  StyleSheet,
-  ScrollView,
-  ActivityIndicator,
-} from 'react-native';
+import React from 'react';
+import { View, Text, TouchableOpacity, ScrollView, ActivityIndicator } from 'react-native';
 
 import api from '../../../src/services/api';
-import { colors, typography, spacing, radius } from '../../../src/theme';
-
-interface Category {
-  id: string;
-  name_en: string;
-  icon_emoji?: string;
-}
 
 export default function PostJobCategory() {
   const router = useRouter();
-  const [categories, setCategories] = useState<Category[]>([]);
-  const [loading, setLoading] = useState(true);
 
-  useEffect(() => {
-    api.get('/artisans/categories').then((res) => {
-      setCategories(res.data);
-      setLoading(false);
-    });
-  }, []);
+  const { data: categories = [], isLoading } = useQuery({
+    queryKey: ['categories'],
+    queryFn: () => api.get('/artisans/categories').then((r) => r.data),
+  });
 
-  const handleSelect = (catId: string) => {
-    router.push({
-      pathname: '/(client)/post-job/details',
-      params: { categoryId: catId },
-    });
-  };
-
-  if (loading) return <ActivityIndicator style={{ flex: 1 }} />;
+  if (isLoading) {
+    return (
+      <View className="flex-1 bg-background items-center justify-center">
+        <ActivityIndicator color="#1B5E3B" size="large" />
+      </View>
+    );
+  }
 
   return (
-    <ScrollView contentContainerStyle={styles.container}>
-      <Text style={styles.title}>What do you need help with?</Text>
-      <Text style={styles.subtitle}>Select a category to start your job post</Text>
-
-      <View style={styles.grid}>
-        {categories.map((cat) => (
-          <TouchableOpacity key={cat.id} style={styles.card} onPress={() => handleSelect(cat.id)}>
-            <Text style={styles.icon}>{cat.icon_emoji || '🛠️'}</Text>
-            <Text style={styles.catName}>{cat.name_en}</Text>
-          </TouchableOpacity>
-        ))}
+    <View className="flex-1 bg-background">
+      <View className="pt-14 pb-4 px-5 bg-primary">
+        <Text className="text-white text-2xl font-extrabold">Post a Job</Text>
+        <Text className="text-white/80 text-sm mt-1">What do you need help with?</Text>
       </View>
-    </ScrollView>
+
+      <ScrollView className="flex-1 px-5 pt-5" showsVerticalScrollIndicator={false}>
+        <View className="flex-row flex-wrap gap-3 pb-8">
+          {categories.map((cat: { id: string; name_en: string; icon_emoji?: string }) => (
+            <TouchableOpacity
+              key={cat.id}
+              accessibilityLabel={`Post job for ${cat.name_en}`}
+              onPress={() =>
+                router.push({
+                  pathname: '/(client)/post-job/details',
+                  params: { categoryId: cat.id },
+                })
+              }
+              className="w-[47%] aspect-square bg-card rounded-3xl border border-border items-center justify-center p-4"
+            >
+              <Text style={{ fontSize: 36 }} className="mb-2">
+                {cat.icon_emoji ?? '🛠️'}
+              </Text>
+              <Text className="font-bold text-center text-foreground text-sm">{cat.name_en}</Text>
+            </TouchableOpacity>
+          ))}
+
+          {categories.length === 0 && (
+            <View className="w-full py-12 items-center">
+              <Text className="text-muted-foreground">No categories available yet.</Text>
+            </View>
+          )}
+        </View>
+      </ScrollView>
+    </View>
   );
 }
-
-const styles = StyleSheet.create({
-  container: {
-    padding: spacing.lg,
-    backgroundColor: colors.bg,
-    flexGrow: 1,
-  },
-  title: {
-    ...typography.heading,
-    color: colors.text,
-    marginBottom: spacing.xs,
-  },
-  subtitle: {
-    ...typography.body,
-    color: colors.textSecondary,
-    marginBottom: spacing.xl,
-  },
-  grid: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: spacing.md,
-  },
-  card: {
-    width: '47%',
-    aspectRatio: 1,
-    backgroundColor: colors.surface,
-    borderRadius: radius.md,
-    padding: spacing.md,
-    alignItems: 'center',
-    justifyContent: 'center',
-    borderWidth: 1,
-    borderColor: '#E2E8F0',
-  },
-  icon: {
-    fontSize: 32,
-    marginBottom: spacing.xs,
-  },
-  catName: {
-    ...typography.caption,
-    fontWeight: '600',
-    textAlign: 'center',
-  },
-});

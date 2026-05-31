@@ -1,3 +1,4 @@
+// File: web/src/routes/profile/portfolio.tsx
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { Header } from "@/components/Header";
 import { Camera, Trash2, Plus, Loader2, X } from "lucide-react";

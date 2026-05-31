@@ -1,3 +1,4 @@
+// File: mobile/app/(artisan)/onboarding/step4-id.tsx
 import * as ImagePicker from 'expo-image-picker';
 import { useRouter } from 'expo-router';
 import React, { useState } from 'react';
@@ -9,6 +10,7 @@ import {
   ScrollView,
   ActivityIndicator,
   TextInput,
+  Alert,
 } from 'react-native';
 import Toast from 'react-native-toast-message';
 
@@ -21,50 +23,50 @@ export default function IDStep() {
   const [nationalId, setNationalId] = useState('');
   const [loading, setLoading] = useState(false);
 
-  const pickImage = async (setter: (val: string) => void, camera: boolean = false) => {
-    try {
-      const permission = camera
-        ? await ImagePicker.requestCameraPermissionsAsync()
-        : await ImagePicker.requestMediaLibraryPermissionsAsync();
+  const pickImage = async (setter: (val: string) => void, useCamera = false) => {
+    const perm = useCamera
+      ? await ImagePicker.requestCameraPermissionsAsync()
+      : await ImagePicker.requestMediaLibraryPermissionsAsync();
 
-      if (permission.status !== 'granted') {
-        Toast.show({
-          type: 'error',
-          text1: 'Permission denied',
-          text2: 'We need camera/library access',
+    if (perm.status !== 'granted') {
+      Toast.show({ type: 'error', text1: 'Permission denied' });
+      return;
+    }
+
+    const result = useCamera
+      ? await ImagePicker.launchCameraAsync({
+          mediaTypes: ImagePicker.MediaTypeOptions.Images,
+          allowsEditing: true,
+          quality: 0.7,
+          base64: true,
+          cameraType: ImagePicker.CameraType.front,
+        })
+      : await ImagePicker.launchImageLibraryAsync({
+          mediaTypes: ImagePicker.MediaTypeOptions.Images,
+          allowsEditing: true,
+          quality: 0.7,
+          base64: true,
         });
-        return;
-      }
 
-      const options: ImagePicker.ImagePickerOptions = {
-        mediaTypes: ImagePicker.MediaTypeOptions.Images,
-        allowsEditing: true,
-        quality: 0.7,
-        base64: true,
-      };
-
-      const result = camera
-        ? await ImagePicker.launchCameraAsync({
-            ...options,
-            cameraType: ImagePicker.CameraType.front,
-          })
-        : await ImagePicker.launchImageLibraryAsync(options);
-
-      if (!result.canceled) {
-        setter(result.assets[0].base64 || '');
-      }
-    } catch (error) {
-      console.error(error);
-      Toast.show({ type: 'error', text1: 'Error', text2: 'Failed to pick image' });
+    if (!result.canceled && result.assets[0].base64) {
+      setter(result.assets[0].base64);
     }
   };
 
-  const handleFinish = async () => {
-    if (!idPhoto || !selfie || !nationalId) {
+  const handleSubmit = async () => {
+    if (!idPhoto || !selfie) {
       Toast.show({
         type: 'error',
-        text1: 'Missing info',
-        text2: 'Please fill all fields and upload photos',
+        text1: 'Missing documents',
+        text2: 'Please upload both ID and selfie',
+      });
+      return;
+    }
+    if (nationalId.length > 0 && nationalId.replace(/\D/g, '').length !== 16) {
+      Toast.show({
+        type: 'error',
+        text1: 'Invalid National ID',
+        text2: 'Must be exactly 16 digits',
       });
       return;
     }
@@ -72,93 +74,176 @@ export default function IDStep() {
     setLoading(true);
     try {
       await api.post('/artisans/profile/me/id-verification', {
-        national_id_number: nationalId,
-        national_id_doc_base64: idPhoto,
+        id_document_base64: idPhoto,
         selfie_base64: selfie,
+        ...(nationalId && { national_id: nationalId.replace(/\D/g, '') }),
       });
       Toast.show({
         type: 'success',
-        text1: 'Verification submitted!',
-        text2: 'We will review it shortly.',
+        text1: '🎉 Documents submitted!',
+        text2: "We'll review within 24 hours.",
       });
       router.replace('/(tabs)/pro');
     } catch (error: any) {
+      const msg = error?.response?.data?.detail;
       Toast.show({
         type: 'error',
-        text1: 'Error',
-        text2: error.response?.data?.detail ?? 'Failed to submit',
+        text1: 'Submission failed',
+        text2: typeof msg === 'string' ? msg : 'Try again.',
       });
     } finally {
       setLoading(false);
     }
   };
 
+  const handleSkip = () => {
+    Alert.alert(
+      'Skip verification?',
+      'You can submit ID documents later from your profile. Verified artisans get more bookings.',
+      [
+        { text: 'Skip for now', onPress: () => router.replace('/(tabs)/pro') },
+        { text: 'Stay and verify', style: 'cancel' },
+      ],
+    );
+  };
+
   return (
-    <ScrollView contentContainerStyle={{ flexGrow: 1 }} className="bg-background p-6">
-      <Text className="text-2xl font-bold text-foreground">Trust is everything</Text>
-      <Text className="text-muted-foreground mb-8">Step 4 of 4: National ID Verification</Text>
-
-      <View className="mb-6">
-        <Text className="text-sm font-medium mb-1">National ID Number</Text>
-        <TextInput
-          className="bg-card p-4 rounded-xl border border-border text-foreground"
-          placeholder="Enter your 16-digit ID number"
-          keyboardType="numeric"
-          maxLength={16}
-          value={nationalId}
-          onChangeText={setNationalId}
-        />
+    <View className="flex-1 bg-background">
+      <View className="pt-14 pb-4 px-5 bg-primary">
+        <Text className="text-white text-xl font-extrabold">ID Verification</Text>
+        <Text className="text-white/80 text-sm mt-0.5">
+          Step 4 of 4 — Builds trust with clients
+        </Text>
+        <View className="flex-row mt-3 gap-1">
+          {[1, 2, 3, 4].map((s) => (
+            <View key={s} className="h-1.5 flex-1 rounded-full bg-white" />
+          ))}
+        </View>
       </View>
 
-      <View className="mb-6">
-        <Text className="text-sm font-medium mb-2">National ID (Front)</Text>
-        <TouchableOpacity
-          accessibilityLabel="Button"
-          className="aspect-[1.6] bg-card rounded-xl border-2 border-dashed border-border items-center justify-center overflow-hidden"
-          onPress={() => pickImage(setIdPhoto)}
-        >
+      <ScrollView className="flex-1 px-5 pt-5" showsVerticalScrollIndicator={false}>
+        {/* National ID number */}
+        <View className="mb-5">
+          <Text className="text-xs font-bold uppercase tracking-wide text-muted-foreground mb-1.5">
+            National ID Number (16 digits)
+          </Text>
+          <TextInput
+            value={nationalId}
+            onChangeText={setNationalId}
+            placeholder="1 1998 8 0123456 7 89"
+            keyboardType="number-pad"
+            maxLength={18}
+            className="bg-card p-4 rounded-2xl border border-border text-foreground text-sm tracking-widest"
+          />
+        </View>
+
+        {/* ID Document */}
+        <View className="mb-5">
+          <Text className="text-xs font-bold uppercase tracking-wide text-muted-foreground mb-2">
+            ID Document Photo *
+          </Text>
           {idPhoto ? (
-            <Image
-              source={{ uri: `data:image/jpeg;base64,${idPhoto}` }}
-              className="w-full h-full"
-            />
+            <View className="relative">
+              <Image
+                source={{ uri: `data:image/jpeg;base64,${idPhoto}` }}
+                className="w-full h-40 rounded-2xl"
+                resizeMode="cover"
+              />
+              <TouchableOpacity
+                onPress={() => setIdPhoto(null)}
+                accessibilityLabel="Remove ID photo"
+                className="absolute top-2 right-2 bg-black/50 w-8 h-8 rounded-full items-center justify-center"
+              >
+                <Text className="text-white font-bold">✕</Text>
+              </TouchableOpacity>
+              <View className="absolute bottom-2 left-2 bg-success/90 px-2 py-1 rounded-lg">
+                <Text className="text-white text-xs font-bold">✓ Uploaded</Text>
+              </View>
+            </View>
           ) : (
-            <Text className="text-primary font-bold">Tap to Take ID Photo</Text>
+            <TouchableOpacity
+              onPress={() => pickImage(setIdPhoto)}
+              accessibilityLabel="Upload ID document"
+              className="border-2 border-dashed border-border rounded-2xl h-36 items-center justify-center bg-muted/20"
+            >
+              <Text className="text-3xl mb-2">🪪</Text>
+              <Text className="font-semibold text-foreground text-sm">
+                Tap to upload ID card / Passport
+              </Text>
+              <Text className="text-xs text-muted-foreground mt-1">Front of your national ID</Text>
+            </TouchableOpacity>
           )}
-        </TouchableOpacity>
-      </View>
+        </View>
 
-      <View className="mb-6">
-        <Text className="text-sm font-medium mb-2">Take a Selfie</Text>
-        <TouchableOpacity
-          accessibilityLabel="Button"
-          className="aspect-[1.6] bg-card rounded-xl border-2 border-dashed border-border items-center justify-center overflow-hidden"
-          onPress={() => pickImage(setSelfie, true)}
-        >
+        {/* Selfie */}
+        <View className="mb-5">
+          <Text className="text-xs font-bold uppercase tracking-wide text-muted-foreground mb-2">
+            Selfie with ID *
+          </Text>
           {selfie ? (
-            <Image source={{ uri: `data:image/jpeg;base64,${selfie}` }} className="w-full h-full" />
+            <View className="relative">
+              <Image
+                source={{ uri: `data:image/jpeg;base64,${selfie}` }}
+                className="w-full h-40 rounded-2xl"
+                resizeMode="cover"
+              />
+              <TouchableOpacity
+                onPress={() => setSelfie(null)}
+                accessibilityLabel="Remove selfie"
+                className="absolute top-2 right-2 bg-black/50 w-8 h-8 rounded-full items-center justify-center"
+              >
+                <Text className="text-white font-bold">✕</Text>
+              </TouchableOpacity>
+              <View className="absolute bottom-2 left-2 bg-success/90 px-2 py-1 rounded-lg">
+                <Text className="text-white text-xs font-bold">✓ Uploaded</Text>
+              </View>
+            </View>
           ) : (
-            <Text className="text-primary font-bold">Tap to Take Selfie</Text>
+            <TouchableOpacity
+              onPress={() => pickImage(setSelfie, true)}
+              accessibilityLabel="Take selfie"
+              className="border-2 border-dashed border-border rounded-2xl h-36 items-center justify-center bg-muted/20"
+            >
+              <Text className="text-3xl mb-2">🤳</Text>
+              <Text className="font-semibold text-foreground text-sm">
+                Take selfie holding your ID
+              </Text>
+              <Text className="text-xs text-muted-foreground mt-1">Uses front camera</Text>
+            </TouchableOpacity>
+          )}
+        </View>
+
+        {/* Trust note */}
+        <View className="mb-8 bg-blue-50 border border-blue-200 rounded-2xl p-4">
+          <Text className="text-xs font-bold text-blue-800 mb-1">🔒 Your privacy matters</Text>
+          <Text className="text-xs text-blue-700 leading-5">
+            Documents are encrypted and only reviewed by HandyRwanda admins for verification. They
+            are never shared with clients.
+          </Text>
+        </View>
+      </ScrollView>
+
+      <View className="px-5 pb-8 pt-3 bg-card border-t border-border gap-2">
+        <TouchableOpacity
+          onPress={handleSubmit}
+          disabled={loading || !idPhoto || !selfie}
+          accessibilityLabel="Submit verification"
+          className={`bg-primary rounded-2xl py-4 items-center ${!idPhoto || !selfie || loading ? 'opacity-50' : ''}`}
+        >
+          {loading ? (
+            <ActivityIndicator color="white" />
+          ) : (
+            <Text className="text-white font-extrabold text-base">Submit for Verification ✓</Text>
           )}
         </TouchableOpacity>
+        <TouchableOpacity
+          onPress={handleSkip}
+          accessibilityLabel="Skip for now"
+          className="py-3 items-center"
+        >
+          <Text className="text-muted-foreground text-sm">Skip for now</Text>
+        </TouchableOpacity>
       </View>
-
-      <Text className="text-xs text-muted-foreground text-center mb-8 px-4">
-        Photos are encrypted and only used for verification. Verification usually takes 24–48 hours.
-      </Text>
-
-      <TouchableOpacity
-        accessibilityLabel="Button"
-        className={`bg-primary p-4 rounded-xl items-center ${!idPhoto || !selfie || !nationalId ? 'opacity-50' : ''}`}
-        onPress={handleFinish}
-        disabled={loading || !idPhoto || !selfie || !nationalId}
-      >
-        {loading ? (
-          <ActivityIndicator color="white" />
-        ) : (
-          <Text className="text-white font-bold">Finish Onboarding</Text>
-        )}
-      </TouchableOpacity>
-    </ScrollView>
+    </View>
   );
 }

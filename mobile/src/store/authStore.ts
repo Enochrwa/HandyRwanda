@@ -1,20 +1,18 @@
 // File: mobile/src/store/authStore.ts
-
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { create } from 'zustand';
-import { createJSONStorage, persist } from 'zustand/middleware';
+import { persist, createJSONStorage } from 'zustand/middleware';
 
 export interface User {
   id: string;
   fullName: string;
   phone: string;
-  email: string | null;
-  role: 'client' | 'artisan';
-  avatarUrl?: string | null;
-  accountStatus?: 'pending_verification' | 'active' | 'suspended' | 'deactivated';
-  emailVerified?: boolean;
+  email: string;
+  role: 'client' | 'artisan' | 'admin';
+  avatarUrl?: string;
   district?: string | null;
   preferredLang?: string;
+  accountStatus?: 'pending_verification' | 'active' | 'suspended' | 'deactivated';
 }
 
 export interface AuthStore {
@@ -24,32 +22,22 @@ export interface AuthStore {
   isAuthenticated: boolean;
   setAuth: (user: User, token: string, refreshToken: string) => void;
   logout: () => void;
+  updateToken: (token: string) => void;
   updateUser: (partial: Partial<User>) => void;
 }
 
-const atobPolyfill = (input: string) => {
-  const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/=';
-  const str = input.replace(/=+$/, '');
-  let output = '';
-  for (
-    let bc = 0, bs = 0, buffer, i = 0;
-    (buffer = str.charAt(i++));
-    ~buffer && ((bs = bc % 4 ? bs * 64 + buffer : buffer), bc++ % 4)
-      ? (output += String.fromCharCode(255 & (bs >> ((-2 * bc) & 6))))
-      : 0
-  ) {
-    buffer = chars.indexOf(buffer);
-  }
-  return output;
-};
-
-const isTokenExpired = (token: string | null): boolean => {
-  if (!token) return true;
+const isTokenExpired = (token: string): boolean => {
   try {
-    const payload = JSON.parse(
-      atobPolyfill(token.split('.')[1].replace(/-/g, '+').replace(/_/g, '/')),
+    const base64Url = token.split('.')[1];
+    const base64 = base64Url.replace(/-/g, '+').replace(/_/g, '/');
+    const jsonPayload = decodeURIComponent(
+      atob(base64)
+        .split('')
+        .map((c) => '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2))
+        .join(''),
     );
-    return !payload.exp || Date.now() >= payload.exp * 1000;
+    const { exp } = JSON.parse(jsonPayload);
+    return exp * 1000 < Date.now();
   } catch {
     return true;
   }
@@ -63,8 +51,9 @@ export const useAuthStore = create<AuthStore>()(
       refreshToken: null,
       isAuthenticated: false,
       setAuth: (user, token, refreshToken) =>
-        set({ user, token, refreshToken, isAuthenticated: !!token }),
+        set({ user, token, refreshToken, isAuthenticated: true }),
       logout: () => set({ user: null, token: null, refreshToken: null, isAuthenticated: false }),
+      updateToken: (token) => set({ token }),
       updateUser: (partial) => {
         const current = get().user;
         if (current) set({ user: { ...current, ...partial } });
@@ -76,8 +65,6 @@ export const useAuthStore = create<AuthStore>()(
       onRehydrateStorage: () => (state) => {
         if (state?.token && isTokenExpired(state.token)) {
           state.logout();
-        } else if (state?.token) {
-          state.setAuth(state.user!, state.token, state.refreshToken!);
         }
       },
     },

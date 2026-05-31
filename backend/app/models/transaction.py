@@ -1,3 +1,4 @@
+# File: backend/app/models/transaction.py
 import enum
 import uuid
 

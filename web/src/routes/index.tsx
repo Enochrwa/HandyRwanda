@@ -1,8 +1,10 @@
+// File: web/src/routes/index.tsx
 import { useEffect, useState } from "react";
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { Search, ArrowRight, Calendar, ShieldCheck, Sparkles, Loader2 } from "lucide-react";
 import { Header } from "@/components/Header";
 import { ArtisanCard } from "@/components/ArtisanCard";
+import type { Artisan } from "@/types/artisan";
 import { artisans as fallbackArtisans, categories, categoryTint } from "@/services/artisanService";
 import { useAuthStore } from "@/store/authStore";
 import { useQuery } from "@tanstack/react-query";
@@ -59,6 +61,46 @@ function Home() {
       }
     },
     enabled: isAuthenticated,
+  });
+
+  const { data: featuredArtisans } = useQuery({
+    queryKey: ["featured-artisans"],
+    queryFn: () =>
+      api
+        .get("/artisans/search", {
+          params: { latitude: -1.9441, longitude: 30.0619, radius_km: 30, page: 1 },
+        })
+        .then((r) =>
+          r.data.slice(0, 6).map((a: unknown) => {
+            const art = a as Record<string, unknown>;
+            return {
+              id: (art.id ?? "") as string,
+              name: (art.full_name ?? "Unknown") as string,
+              category: (art.category_name ?? "Artisan") as string,
+              categories: [(art.category_name ?? "Artisan") as string],
+              photo: (art.avatar_url ??
+                `https://api.dicebear.com/7.x/avataaars/svg?seed=${art.id}`) as string,
+              rating: (art.average_rating ?? 0) as number,
+              reviews: (art.total_reviews ?? 0) as number,
+              jobs: (art.total_reviews ?? 0) as number,
+              distanceKm: parseFloat((art.distance_km ?? 0) as string) || 0,
+              startingPrice: (art.hourly_rate ?? art.fixed_rate ?? 5000) as number,
+              hourlyRate: art.hourly_rate as number | undefined,
+              verified: ["id_verified", "pro_verified"].includes(
+                (art.verification_status ?? "") as string,
+              ),
+              pro: art.verification_status === "pro_verified",
+              availableNow: art.is_available as boolean,
+              district: (art.district ?? "Kigali") as string,
+              languages: [],
+              experienceYears: 0,
+              bio: "",
+              responseTime: "Responds quickly",
+              weeklyBookings: 0,
+            };
+          }),
+        )
+        .catch(() => null),
   });
 
   return (
@@ -195,7 +237,7 @@ function Home() {
           </div>
           <p className="mb-4 text-sm text-muted-foreground">Good workers near you</p>
           <div className="-mx-4 flex snap-x snap-mandatory gap-3 overflow-x-auto px-4 pb-2 sm:mx-0 sm:px-0">
-            {fallbackArtisans.map((a) => (
+            {(featuredArtisans ?? fallbackArtisans)?.map((a: Artisan) => (
               <div key={a.id} className="w-[85%] shrink-0 snap-start sm:w-[360px]">
                 <ArtisanCard a={a} />
               </div>

@@ -1,5 +1,6 @@
 # File: backend/app/models/message.py
 import uuid
+from datetime import datetime
 
 from sqlalchemy import Boolean, DateTime, ForeignKey, String, func
 from sqlalchemy.orm import Mapped, mapped_column
@@ -23,6 +24,6 @@ class Message(Base):
     translated_content: Mapped[str | None] = mapped_column(String, nullable=True)
     voice_note_url: Mapped[str | None] = mapped_column(String, nullable=True)
     is_read: Mapped[bool] = mapped_column(Boolean, default=False)
-    created_at: Mapped[str | None] = mapped_column(
+    created_at: Mapped[datetime | None] = mapped_column(
         DateTime(timezone=True), server_default=func.now()
     )

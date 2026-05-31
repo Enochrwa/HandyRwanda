@@ -4,6 +4,7 @@ import { createFileRoute, Link } from "@tanstack/react-router";
 import { Search, ArrowRight, Calendar, ShieldCheck, Sparkles, Loader2 } from "lucide-react";
 import { Header } from "@/components/Header";
 import { ArtisanCard } from "@/components/ArtisanCard";
+import type { Artisan } from "@/types/artisan";
 import { artisans as fallbackArtisans, categories, categoryTint } from "@/services/artisanService";
 import { useAuthStore } from "@/store/authStore";
 import { useQuery } from "@tanstack/react-query";
@@ -236,7 +237,7 @@ function Home() {
           </div>
           <p className="mb-4 text-sm text-muted-foreground">Good workers near you</p>
           <div className="-mx-4 flex snap-x snap-mandatory gap-3 overflow-x-auto px-4 pb-2 sm:mx-0 sm:px-0">
-            {(featuredArtisans ?? fallbackArtisans).map((a) => (
+            {(featuredArtisans ?? fallbackArtisans)?.map((a: Artisan) => (
               <div key={a.id} className="w-[85%] shrink-0 snap-start sm:w-[360px]">
                 <ArtisanCard a={a} />
               </div>

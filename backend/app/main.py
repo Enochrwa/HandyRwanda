@@ -97,7 +97,7 @@ async def get_artisan_public(
 ) -> Any:
     user = await db.scalar(
         select(User).where(
-            User.id == artisan_id, User.role == UserRole.artisan, User.is_active == True
+            User.id == artisan_id, User.role == UserRole.artisan, User.is_active
         )
     )  # noqa
     if not user:

@@ -1,5 +1,6 @@
 // File: web/src/routes/pro.tsx
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
+import type { Booking } from "@/types/booking";
 import {
   TrendingUp,
   Star,
@@ -249,7 +250,7 @@ function Pro() {
           <h2 className="text-lg font-bold mb-3">Active Bookings</h2>
           {(() => {
             const bookableStatuses = new Set(["pending_payment", "confirmed", "in_progress"]);
-            const bookable = bookings.filter((b) => bookableStatuses.has(b.status));
+            const bookable = bookings.filter((b: Booking) => bookableStatuses.has(b.status));
             if (bookable.length === 0) {
               return (
                 <div className="rounded-2xl border border-dashed border-border bg-card p-6 text-center text-muted-foreground text-sm">
@@ -259,7 +260,7 @@ function Pro() {
             }
             return (
               <div className="space-y-3">
-                {bookable.map((b) => (
+                {bookable.map((b: Booking) => (
                   <div
                     key={b.id}
                     className="rounded-2xl border border-border bg-card p-4 flex items-center gap-4"

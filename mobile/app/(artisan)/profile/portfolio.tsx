@@ -1,3 +1,4 @@
+// File: mobile/app/(artisan)/profile/portfolio.tsx
 import { Plus, X, Trash2 } from '@icons';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import * as ImagePicker from 'expo-image-picker';

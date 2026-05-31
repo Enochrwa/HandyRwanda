@@ -1,3 +1,4 @@
+// File: web/src/components/ui/sidebar-context.ts
 import * as React from "react";
 
 type SidebarContextProps = {

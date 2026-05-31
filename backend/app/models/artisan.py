@@ -1,3 +1,4 @@
+# File: backend/app/models/artisan.py
 import enum
 import uuid
 from typing import Any

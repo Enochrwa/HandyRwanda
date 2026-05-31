@@ -1,3 +1,4 @@
+# File: backend/app/routers/messages.py
 from typing import Any
 from uuid import UUID
 
@@ -29,22 +30,9 @@ async def get_conversations(
     # A conversation is linked to a booking where the user is either client or artisan
     # We want the latest message for each booking
 
-    subquery = (
-        select(
-            Message.booking_id, func.max(Message.created_at).label("latest_message_at")
-        )
-        .group_by(Message.booking_id)
-        .subquery()
-    )
-
-    query = (
-        select(Booking, Message, User)
-        .join(subquery, Booking.id == subquery.c.booking_id)
-        .join(
-            Message,
-            (Message.booking_id == subquery.c.booking_id)
-            & (Message.created_at == subquery.c.latest_message_at),
-        )
+    # All bookings for this user (any status except cancelled)
+    bookings_res = await db.execute(
+        select(Booking, User)
         .join(
             User,
             or_(
@@ -52,23 +40,30 @@ async def get_conversations(
                 (Booking.artisan_id == User.id) & (Booking.client_id == user_id),
             ),
         )
-        .where(or_(Booking.client_id == user_id, Booking.artisan_id == user_id))
-        .order_by(Message.created_at.desc())
+        .where(
+            or_(Booking.client_id == user_id, Booking.artisan_id == user_id),
+            Booking.status != "cancelled",
+        )
+        .order_by(Booking.created_at.desc())
     )
 
-    result = await db.execute(query)
     conversations = []
-
-    for booking, message, other_user in result:
-        # Get unread count
-        unread_res = await db.execute(
+    for booking, other_user in bookings_res.all():
+        # Latest message
+        latest_msg = await db.scalar(
+            select(Message)
+            .where(Message.booking_id == booking.id)
+            .order_by(Message.created_at.desc())
+            .limit(1)
+        )
+        # Unread count
+        unread_count = await db.scalar(
             select(func.count(Message.id)).where(
                 Message.booking_id == booking.id,
                 Message.sender_id != user_id,
                 Message.is_read.is_(False),
             )
-        )
-        unread_count = unread_res.scalar_one()
+        ) or 0
 
         conversations.append(
             {
@@ -79,14 +74,21 @@ async def get_conversations(
                     "avatar_url": other_user.avatar_url,
                 },
                 "last_message": {
-                    "content": message.content,
-                    "created_at": message.created_at.isoformat(),
-                },
+                    "content": latest_msg.content if latest_msg else None,
+                    "created_at": latest_msg.created_at.isoformat() if latest_msg else None,
+                } if latest_msg else None,
                 "unread_count": unread_count,
                 "booking_status": booking.status,
             }
         )
 
+    # Sort: bookings with unread first, then by latest message time
+    conversations.sort(
+        key=lambda c: (
+            -(c["unread_count"] or 0),
+            -(c["last_message"]["created_at"] or "" if c["last_message"] else ""),
+        )
+    )
     return conversations
 
 

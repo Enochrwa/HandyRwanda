@@ -1,3 +1,4 @@
+# File: backend/app/dependencies/jwt_auth.py
 import os
 from collections.abc import Callable, Coroutine
 from typing import Any

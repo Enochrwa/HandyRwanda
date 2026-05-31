@@ -1,3 +1,4 @@
+# File: backend/app/integrations/supabase_storage.py
 import base64
 import os
 import uuid

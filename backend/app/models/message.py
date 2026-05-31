@@ -1,3 +1,4 @@
+# File: backend/app/models/message.py
 import uuid
 
 from sqlalchemy import Boolean, DateTime, ForeignKey, String, func

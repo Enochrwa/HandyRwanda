@@ -1,3 +1,4 @@
+// File: web/src/services/artisanService.ts
 import jean from "@/assets/artisan-jean.jpg";
 import marie from "@/assets/artisan-marie.jpg";
 import eric from "@/assets/artisan-eric.jpg";

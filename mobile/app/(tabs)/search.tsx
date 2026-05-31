@@ -1,3 +1,4 @@
+// File: mobile/app/(tabs)/search.tsx
 /**
  * Search / Browse Artisans screen
  * - List view (default) + Map view toggle
@@ -84,12 +85,14 @@ type Artisan = {
   average_rating: number;
   total_reviews: number;
   is_available: boolean;
+  verification_status?: string;
   hourly_rate?: number;
   fixed_rate?: number;
   lat?: number;
   lng?: number;
   distance_km?: number;
   category?: string;
+  category_name?: string;
   district?: string;
 };
 

@@ -1,3 +1,4 @@
+# File: backend/app/models/booking.py
 import enum
 import uuid
 

@@ -1,3 +1,4 @@
+// File: mobile/app/onboarding.tsx
 /**
  * HandyRwanda — Onboarding / Welcome screen
  *

@@ -1,3 +1,4 @@
+// File: mobile/src/navigation.ts
 import { router } from 'expo-router';
 
 /** True when the user is already on the auth screen (avoid duplicate redirects). */

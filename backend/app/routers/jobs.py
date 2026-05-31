@@ -1,10 +1,11 @@
+# File: backend/app/routers/jobs.py
 from datetime import datetime
 from typing import Any, cast
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
-from sqlalchemy import select, text
+from sqlalchemy import func, select, text
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.database import get_db
@@ -96,7 +97,7 @@ async def create_job(
     }
 
 
-@router.get("")
+@router.get("/mine")
 async def list_my_jobs(
     status: JobStatus | None = None,
     db: AsyncSession = Depends(get_db),
@@ -231,3 +232,39 @@ async def cancel_job(
     job.status = cast(Any, JobStatus.cancelled)
     await db.commit()
     return {"message": "Job cancelled"}
+
+
+@router.get("")
+async def list_open_jobs(
+    db: AsyncSession = Depends(get_db),
+) -> Any:
+    """Public: list all open jobs for artisans to bid on."""
+    from sqlalchemy import select as _select
+    from app.models.artisan import Category as Cat
+    from app.models.job import Bid
+
+    result = await db.execute(
+        _select(Job, Cat)
+        .join(Cat, Job.category_id == Cat.id)
+        .where(Job.status == JobStatus.open)
+        .order_by(Job.created_at.desc())
+        .limit(50)
+    )
+    jobs = []
+    for job, cat in result:
+        # count bids
+        bid_count = await db.scalar(
+            _select(func.count(Bid.id)).where(Bid.job_id == job.id)
+        ) or 0
+        jobs.append({
+            "id": str(job.id),
+            "title": job.title,
+            "description": job.description,
+            "budget": job.budget,
+            "location_label": job.location_label,
+            "scheduled_time": job.scheduled_time.isoformat() if job.scheduled_time else None,
+            "created_at": job.created_at.isoformat() if job.created_at else None,
+            "bid_count": bid_count,
+            "category": {"name_en": cat.name_en, "icon_emoji": cat.icon_emoji},
+        })
+    return jobs

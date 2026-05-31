@@ -3,11 +3,38 @@ import os
 from collections.abc import AsyncGenerator
 from contextlib import asynccontextmanager
 
-from fastapi import FastAPI
+from fastapi import FastAPI, WebSocket, WebSocketDisconnect
 from fastapi.middleware.cors import CORSMiddleware
 
 from app.database import init_db
-from app.routers import admin, artisans, auth, bids, bookings, jobs, messages
+from app.routers import admin, artisans, auth, bids, bookings, jobs, messages, notifications, reviews
+
+
+# ── WebSocket connection manager ──────────────────────────────────────────────
+
+class ConnectionManager:
+    def __init__(self) -> None:
+        # booking_id -> list of websocket connections
+        self._connections: dict[str, list[WebSocket]] = {}
+
+    async def connect(self, booking_id: str, ws: WebSocket) -> None:
+        await ws.accept()
+        self._connections.setdefault(booking_id, []).append(ws)
+
+    def disconnect(self, booking_id: str, ws: WebSocket) -> None:
+        conns = self._connections.get(booking_id, [])
+        if ws in conns:
+            conns.remove(ws)
+
+    async def broadcast(self, booking_id: str, data: dict) -> None:
+        for ws in list(self._connections.get(booking_id, [])):
+            try:
+                await ws.send_json(data)
+            except Exception:
+                self.disconnect(booking_id, ws)
+
+
+manager = ConnectionManager()
 
 
 @asynccontextmanager
@@ -17,7 +44,7 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
     yield
 
 
-app = FastAPI(title="HandyRwanda API", version="1.0.0", lifespan=lifespan)
+app = FastAPI(title="HandyRwanda API", version="2.0.0", lifespan=lifespan)
 
 app.add_middleware(
     CORSMiddleware,
@@ -34,13 +61,118 @@ app.include_router(jobs.router)
 app.include_router(bids.router)
 app.include_router(messages.router)
 app.include_router(bookings.router)
+app.include_router(notifications.router)
+app.include_router(reviews.router)
+
+
+# ── WebSocket endpoint for real-time messaging ─────────────────────────────
+
+@app.websocket("/ws/messages/{booking_id}")
+async def websocket_messages(websocket: WebSocket, booking_id: str) -> None:
+    await manager.connect(booking_id, websocket)
+    try:
+        while True:
+            data = await websocket.receive_json()
+            # Broadcast to all participants in this booking thread
+            await manager.broadcast(booking_id, data)
+    except WebSocketDisconnect:
+        manager.disconnect(booking_id, websocket)
+
+
+# ── Artisan public profile endpoint (by user_id) ──────────────────────────────
+
+from typing import Any
+from uuid import UUID
+from fastapi import Depends
+from sqlalchemy import select
+from sqlalchemy.ext.asyncio import AsyncSession
+from app.database import get_db
+from app.models.artisan import ArtisanProfile, Category, PortfolioPhoto, artisan_skills
+from app.models.review import Review
+from app.models.user import User, UserRole
+
+
+@app.get("/artisans/{artisan_id}/public")
+async def get_artisan_public(artisan_id: UUID, db: AsyncSession = Depends(get_db)) -> Any:
+    """Full public profile for an artisan — used by web and mobile profile pages."""
+    user = await db.scalar(select(User).where(User.id == artisan_id, User.role == UserRole.artisan, User.is_active == True))  # noqa
+    if not user:
+        from fastapi import HTTPException
+        raise HTTPException(status_code=404, detail="Artisan not found.")
+
+    profile = await db.scalar(select(ArtisanProfile).where(ArtisanProfile.user_id == artisan_id))
+
+    # Categories/skills
+    cats_result = await db.execute(
+        select(Category)
+        .join(artisan_skills, artisan_skills.c.category_id == Category.id)
+        .where(artisan_skills.c.artisan_id == artisan_id)
+    )
+    categories = [{"id": str(c.id), "name_en": c.name_en, "name_rw": c.name_rw, "icon_emoji": c.icon_emoji}
+                  for c in cats_result.scalars().all()]
+
+    # Portfolio
+    portfolio_result = await db.execute(
+        select(PortfolioPhoto).where(PortfolioPhoto.artisan_id == artisan_id).limit(12)
+    )
+    portfolio = [{"id": str(p.id), "image_url": p.image_url, "job_type": p.job_type, "description": p.description}
+                 for p in portfolio_result.scalars().all()]
+
+    # Recent reviews
+    reviews_result = await db.execute(
+        select(Review, User.full_name.label("client_name"), User.avatar_url.label("client_avatar"))
+        .join(User, Review.client_id == User.id)
+        .where(Review.artisan_id == artisan_id, Review.is_flagged == False)  # noqa
+        .order_by(Review.created_at.desc())
+        .limit(10)
+    )
+    reviews = [
+        {
+            "id": str(r[0].id),
+            "rating": r[0].rating,
+            "comment": r[0].comment,
+            "artisan_reply": r[0].artisan_reply,
+            "client_name": r[1],
+            "client_avatar": r[2],
+            "created_at": r[0].created_at.isoformat() if r[0].created_at else None,
+        }
+        for r in reviews_result
+    ]
+
+    return {
+        "id": str(user.id),
+        "full_name": user.full_name,
+        "phone_number": user.phone_number,
+        "email": user.email,
+        "avatar_url": user.avatar_url,
+        "district": user.district,
+        "preferred_lang": user.preferred_lang,
+        "profile": {
+            "bio": profile.bio if profile else None,
+            "years_experience": profile.years_experience if profile else 0,
+            "service_radius_km": profile.service_radius_km if profile else 10,
+            "hourly_rate": profile.hourly_rate if profile else None,
+            "fixed_rate": profile.fixed_rate if profile else None,
+            "spoken_languages": profile.spoken_languages if profile else None,
+            "verification_status": profile.verification_status if profile else "unverified",
+            "is_available": profile.is_available if profile else False,
+            "average_rating": profile.average_rating if profile else 0.0,
+            "total_reviews": profile.total_reviews if profile else 0,
+            "completion_rate": profile.completion_rate if profile else 0.0,
+            "response_rate": profile.response_rate if profile else 0.0,
+            "community_score": profile.community_score if profile else 0,
+        },
+        "categories": categories,
+        "portfolio": portfolio,
+        "reviews": reviews,
+    }
 
 
 @app.get("/")
 async def root() -> dict[str, str]:
-    return {"message": "Welcome to HandyRwanda API"}
+    return {"message": "Welcome to HandyRwanda API v2.0"}
 
 
 @app.get("/health")
 async def health() -> dict[str, str]:
-    return {"status": "ok"}
+    return {"status": "ok", "version": "2.0.0"}

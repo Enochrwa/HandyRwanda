@@ -1,3 +1,4 @@
+# File: backend/app/models/__init__.py
 from . import (
     artisan,
     booking,

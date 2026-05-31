@@ -1,3 +1,4 @@
+// File: web/src/routes/pro.tsx
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import {
   TrendingUp,
@@ -18,7 +19,9 @@ import { useState, useEffect } from "react";
 import { useAuthStore } from "@/store/authStore";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { proService } from "@/services/proService";
+import api from "@/services/api";
 import { toast } from "sonner";
+import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -51,6 +54,25 @@ function Pro() {
     queryKey: ["artisan-dashboard"],
     queryFn: proService.getDashboard,
     enabled: isAuthenticated && user?.role === "artisan",
+  });
+
+  const { data: myBids = [] } = useQuery({
+    queryKey: ["my-bids"],
+    queryFn: () => api.get("/artisans/dashboard").then((r) => r.data?.active_bids ?? []),
+    enabled: isAuthenticated && user?.role === "artisan",
+  });
+
+  const { data: bookings = [] } = useQuery({
+    queryKey: ["my-bookings"],
+    queryFn: () => api.get("/bookings").then((r) => r.data),
+    enabled: isAuthenticated && user?.role === "artisan",
+    refetchInterval: 30000,
+  });
+
+  const confirmReceipt = useMutation({
+    mutationFn: (bookingId: string) => api.post(`/bookings/${bookingId}/confirm-receipt`),
+    onSuccess: () => { toast.success("Receipt confirmed! Job is now in progress."); queryClient.invalidateQueries({ queryKey: ["my-bookings"] }); },
+    onError: () => toast.error("Failed to confirm receipt"),
   });
 
   const toggleMutation = useMutation({
@@ -217,6 +239,40 @@ function Pro() {
               </div>
             )}
           </div>
+        </section>
+
+        {/* My active bookings */}
+        <section className="mt-8">
+          <h2 className="text-lg font-bold mb-3">Active Bookings</h2>
+          {bookings.filter((b: any) => ["pending_payment", "confirmed", "in_progress"].includes(b.status)).length === 0 ? (
+            <div className="rounded-2xl border border-dashed border-border bg-card p-6 text-center text-muted-foreground text-sm">
+              No active bookings right now.
+            </div>
+          ) : (
+            <div className="space-y-3">
+              {bookings.filter((b: any) => ["pending_payment", "confirmed", "in_progress"].includes(b.status)).map((b: any) => (
+                <div key={b.id} className="rounded-2xl border border-border bg-card p-4 flex items-center gap-4">
+                  <div className="flex-1 min-w-0">
+                    <p className="font-semibold truncate">{b.title}</p>
+                    <p className="text-sm text-muted-foreground">{b.other_name} · {b.agreed_price?.toLocaleString()} RWF</p>
+                    <span className={`mt-1 inline-block rounded-full px-2 py-0.5 text-[10px] font-bold ${b.status === "in_progress" ? "bg-success/10 text-success" : b.status === "confirmed" ? "bg-blue-100 text-blue-700" : "bg-amber-100 text-amber-700"}`}>
+                      {b.status.replace("_", " ")}
+                    </span>
+                  </div>
+                  <div className="flex gap-2 shrink-0">
+                    {b.status === "confirmed" && (
+                      <Button size="sm" onClick={() => confirmReceipt.mutate(b.id)} disabled={confirmReceipt.isPending}>
+                        Confirm Receipt
+                      </Button>
+                    )}
+                    <Button size="sm" variant="outline" asChild>
+                      <a href={`/messages?booking=${b.id}`}>Chat</a>
+                    </Button>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
         </section>
 
         <section className="mt-10 rounded-2xl border border-primary/30 bg-gradient-to-br from-primary/10 to-accent/10 p-6">

@@ -1,3 +1,4 @@
+// File: mobile/i18n/index.ts
 import * as Localization from 'expo-localization';
 import { I18n } from 'i18n-js';
 

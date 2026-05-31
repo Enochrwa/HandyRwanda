@@ -1,3 +1,4 @@
+// File: web/src/components/ArtisanCard.tsx
 import { Link } from "@tanstack/react-router";
 import { Star, MapPin, ShieldCheck, Zap, Circle } from "lucide-react";
 import { categoryTint, formatRWF } from "@/services/artisanService";
@@ -43,7 +44,7 @@ export function ArtisanCard({ a }: { a: Artisan }) {
                 From
               </div>
               <div className="font-bold text-foreground">
-                {formatRWF(a.startingPrice)}
+                {formatRWF(a.startingPrice ?? a.hourlyRate ?? 5000)}
                 <span className="ml-1 text-xs text-muted-foreground">RWF</span>
               </div>
             </div>

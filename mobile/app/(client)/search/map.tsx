@@ -1,3 +1,4 @@
+// File: mobile/app/(client)/search/map.tsx
 import React, { useState, useEffect } from 'react';
 import { View, Text } from 'react-native';
 

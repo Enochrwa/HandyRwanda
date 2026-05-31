@@ -1,10 +1,11 @@
+// File: web/src/routes/messages.tsx
 import { createFileRoute, useNavigate, useSearch } from "@tanstack/react-router";
 import { Header } from "@/components/Header";
-import { useState, useEffect, useRef, useMemo } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
 import { useAuthStore } from "@/store/authStore";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import api from "@/services/api";
-import { Send, Loader2, User, MessageCircle, ArrowLeft } from "lucide-react";
+import { Send, Loader2, MessageCircle, ArrowLeft, Phone, CheckCircle, AlertTriangle, Clock } from "lucide-react";
 import { formatDistanceToNow } from "date-fns";
 import { toast } from "sonner";
 import { Input } from "@/components/ui/input";
@@ -13,25 +14,16 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 
 export const Route = createFileRoute("/messages")({
-  validateSearch: (search: Record<string, unknown>): { booking?: string } => {
-    return {
-      booking: typeof search.booking === "string" ? search.booking : undefined,
-    };
-  },
+  validateSearch: (search: Record<string, unknown>): { booking?: string } => ({
+    booking: typeof search.booking === "string" ? search.booking : undefined,
+  }),
   component: MessagesPage,
 });
 
 interface Conversation {
   booking_id: string;
-  other_user: {
-    id: string;
-    full_name: string;
-    avatar_url?: string;
-  };
-  last_message: {
-    content: string;
-    created_at: string;
-  };
+  other_user: { id: string; full_name: string; avatar_url?: string };
+  last_message: { content: string; created_at: string };
   unread_count: number;
   booking_status: string;
 }
@@ -48,263 +40,295 @@ function MessagesPage() {
   const { isAuthenticated, user } = useAuthStore();
   const navigate = useNavigate();
   const { booking: selectedBookingId } = useSearch({ from: "/messages" });
-  const queryClient = useQueryClient();
-  const [messageText, setMessageText] = useState("");
-  const messagesEndRef = useRef<HTMLDivElement>(null);
+  const [text, setText] = useState("");
+  const bottomRef = useRef<HTMLDivElement>(null);
+  const wsRef = useRef<WebSocket | null>(null);
+  const qc = useQueryClient();
+  const [wsMessages, setWsMessages] = useState<Message[]>([]);
 
   useEffect(() => {
-    if (!isAuthenticated) {
-      navigate({ to: "/" });
-    }
+    if (!isAuthenticated) { navigate({ to: "/" }); }
   }, [isAuthenticated, navigate]);
 
-  const { data: conversations, isLoading: isLoadingConvs } = useQuery<Conversation[]>({
+  const { data: conversations = [], isLoading: loadingConvs } = useQuery({
     queryKey: ["conversations"],
-    queryFn: () => api.get("/messages/conversations").then((res) => res.data),
+    queryFn: () => api.get("/messages/conversations").then((r) => r.data),
+    refetchInterval: 15000,
     enabled: isAuthenticated,
-    refetchInterval: 30000,
   });
 
-  const { data: messages, isLoading: isLoadingMessages } = useQuery<Message[]>({
+  const { data: messages = [], isLoading: loadingMsgs } = useQuery({
     queryKey: ["messages", selectedBookingId],
-    queryFn: () => api.get(`/messages/${selectedBookingId}`).then((res) => res.data),
-    enabled: !!selectedBookingId && isAuthenticated,
-    refetchInterval: 8000,
+    queryFn: () => selectedBookingId ? api.get(`/messages/${selectedBookingId}`).then((r) => r.data) : [],
+    enabled: !!selectedBookingId,
+    refetchInterval: false,
   });
 
-  const sendMutation = useMutation({
-    mutationFn: (content: string) =>
-      api.post(`/messages/${selectedBookingId}`, { content }).then((res) => res.data),
-    onSuccess: (newMessage) => {
-      setMessageText("");
-      queryClient.setQueryData(["messages", selectedBookingId], (old: Message[] | undefined) =>
-        old ? [...old, newMessage] : [newMessage],
-      );
-      queryClient.invalidateQueries({ queryKey: ["conversations"] });
-    },
-    onError: (err: unknown) => {
-      const error = err as { response?: { data?: { detail?: string } } };
-      toast.error(error?.response?.data?.detail ?? "Failed to send message");
-    },
+  const { data: bookingDetail } = useQuery({
+    queryKey: ["booking-detail", selectedBookingId],
+    queryFn: () => selectedBookingId ? api.get(`/bookings/${selectedBookingId}`).then((r) => r.data) : null,
+    enabled: !!selectedBookingId,
   });
 
-  const activeConversation = useMemo(
-    () => conversations?.find((c) => c.booking_id === selectedBookingId),
-    [conversations, selectedBookingId],
-  );
+  // WebSocket for real-time messages
+  useEffect(() => {
+    if (!selectedBookingId) { wsRef.current?.close(); return; }
+    setWsMessages([]);
+
+    const wsUrl = (import.meta.env.VITE_API_URL || "http://localhost:8000")
+      .replace(/^http/, "ws") + `/ws/messages/${selectedBookingId}`;
+
+    const ws = new WebSocket(wsUrl);
+    wsRef.current = ws;
+    ws.onmessage = (e) => {
+      try {
+        const msg = JSON.parse(e.data) as Message;
+        setWsMessages((prev) => [...prev, msg]);
+        qc.invalidateQueries({ queryKey: ["conversations"] });
+      } catch {}
+    };
+    ws.onerror = () => {}; // silent — fallback to polling
+    return () => ws.close();
+  }, [selectedBookingId, qc]);
+
+  // Combine API messages with WebSocket messages
+  const allMessages = [...messages, ...wsMessages.filter((wm) => !messages.find((m: Message) => m.id === wm.id))];
+  allMessages.sort((a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime());
 
   useEffect(() => {
-    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
-  }, [messages]);
+    bottomRef.current?.scrollIntoView({ behavior: "smooth" });
+  }, [allMessages.length]);
 
-  const handleSend = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!messageText.trim() || sendMutation.isPending) return;
-    sendMutation.mutate(messageText.trim());
+  const sendMsg = useMutation({
+    mutationFn: (content: string) =>
+      api.post(`/messages/${selectedBookingId}`, { content }).then((r) => r.data),
+    onSuccess: (msg) => {
+      setText("");
+      // Broadcast via WebSocket for real-time
+      if (wsRef.current?.readyState === WebSocket.OPEN) {
+        wsRef.current.send(JSON.stringify(msg));
+      }
+      qc.invalidateQueries({ queryKey: ["messages", selectedBookingId] });
+      qc.invalidateQueries({ queryKey: ["conversations"] });
+    },
+    onError: () => toast.error("Failed to send message."),
+  });
+
+  const confirmPayment = useMutation({
+    mutationFn: () => api.post(`/bookings/${selectedBookingId}/confirm-payment`),
+    onSuccess: () => { toast.success("Payment confirmed!"); qc.invalidateQueries({ queryKey: ["booking-detail", selectedBookingId] }); },
+  });
+
+  const confirmComplete = useMutation({
+    mutationFn: () => api.post(`/bookings/${selectedBookingId}/complete`),
+    onSuccess: () => { toast.success("Job marked as complete!"); qc.invalidateQueries({ queryKey: ["booking-detail", selectedBookingId] }); },
+  });
+
+  const raiseDispute = useMutation({
+    mutationFn: () => api.post(`/bookings/${selectedBookingId}/dispute`, { reason: "Issue with job quality" }),
+    onSuccess: () => { toast.info("Dispute raised. Admin will review."); qc.invalidateQueries({ queryKey: ["booking-detail", selectedBookingId] }); },
+  });
+
+  const handleSend = useCallback(() => {
+    const t = text.trim();
+    if (!t || !selectedBookingId) return;
+    sendMsg.mutate(t);
+  }, [text, selectedBookingId, sendMsg]);
+
+  const statusColor: Record<string, string> = {
+    pending_payment: "bg-amber-100 text-amber-700",
+    confirmed: "bg-blue-100 text-blue-700",
+    in_progress: "bg-green-100 text-green-700",
+    completed: "bg-success/10 text-success",
+    cancelled: "bg-muted text-muted-foreground",
+    disputed: "bg-destructive/10 text-destructive",
   };
+
+  const selectedConv = conversations.find((c: Conversation) => c.booking_id === selectedBookingId);
 
   if (!isAuthenticated) return null;
 
   return (
-    <div className="flex flex-col h-dvh bg-background">
+    <div className="min-h-dvh flex flex-col">
       <Header />
-      <main className="flex-1 overflow-hidden flex max-w-6xl mx-auto w-full border-x border-border">
-        {/* Left Panel: Conversations */}
-        <div
-          className={`w-full md:w-80 flex-shrink-0 flex flex-col border-r border-border bg-card ${selectedBookingId ? "hidden md:flex" : "flex"}`}
-        >
+      <div className="flex flex-1 overflow-hidden max-h-[calc(100dvh-64px)]">
+        {/* Sidebar: conversation list */}
+        <aside className={`w-full sm:w-80 border-r border-border flex flex-col ${selectedBookingId ? "hidden sm:flex" : "flex"}`}>
           <div className="p-4 border-b border-border">
-            <h1 className="text-xl font-extrabold flex items-center gap-2">
-              <MessageCircle className="h-5 w-5 text-primary" />
-              Messages
-            </h1>
+            <h2 className="font-bold text-lg">Messages</h2>
           </div>
           <div className="flex-1 overflow-y-auto">
-            {isLoadingConvs ? (
-              Array.from({ length: 4 }).map((_, i) => (
-                <div key={i} className="p-4 border-b border-border/50 animate-pulse flex gap-3">
-                  <div className="h-12 w-12 rounded-full bg-muted" />
-                  <div className="flex-1 space-y-2 py-1">
-                    <div className="h-4 bg-muted rounded w-3/4" />
-                    <div className="h-3 bg-muted rounded w-1/2" />
-                  </div>
-                </div>
-              ))
-            ) : conversations?.length === 0 ? (
-              <div className="flex flex-col items-center justify-center p-8 text-center h-full">
-                <div className="text-4xl mb-2">💬</div>
-                <p className="text-sm font-medium text-muted-foreground">
-                  No messages yet. Book an artisan to start chatting.
-                </p>
+            {loadingConvs ? (
+              <div className="flex items-center justify-center h-32"><Loader2 className="h-6 w-6 animate-spin text-primary" /></div>
+            ) : conversations.length === 0 ? (
+              <div className="flex flex-col items-center justify-center h-48 text-center p-6">
+                <MessageCircle className="h-10 w-10 text-muted-foreground mb-3" />
+                <p className="font-semibold">No conversations yet</p>
+                <p className="text-sm text-muted-foreground mt-1">Book an artisan to start chatting.</p>
               </div>
             ) : (
-              conversations?.map((conv) => (
+              conversations.map((c: Conversation) => (
                 <button
-                  key={conv.booking_id}
-                  onClick={() =>
-                    navigate({ to: "/messages", search: { booking: conv.booking_id } })
-                  }
-                  className={`w-full p-4 flex gap-3 text-left hover:bg-muted/50 transition-colors border-b border-border/50 relative ${selectedBookingId === conv.booking_id ? "bg-muted/80" : ""}`}
+                  key={c.booking_id}
+                  onClick={() => navigate({ to: "/messages", search: { booking: c.booking_id } })}
+                  className={`w-full text-left px-4 py-4 border-b border-border hover:bg-muted/30 transition-colors ${selectedBookingId === c.booking_id ? "bg-primary/5 border-l-4 border-l-primary" : ""}`}
                 >
-                  <Avatar className="h-12 w-12 flex-shrink-0">
-                    <AvatarImage src={conv.other_user.avatar_url} />
-                    <AvatarFallback className="bg-primary text-primary-foreground font-bold">
-                      {conv.other_user.full_name.charAt(0).toUpperCase()}
-                    </AvatarFallback>
-                  </Avatar>
-                  <div className="flex-1 min-w-0">
-                    <div className="flex justify-between items-baseline mb-0.5">
-                      <span className="font-bold text-sm truncate">
-                        {conv.other_user.full_name}
-                      </span>
-                      <span className="text-[10px] text-muted-foreground">
-                        {formatDistanceToNow(new Date(conv.last_message.created_at), {
-                          addSuffix: true,
-                        })}
-                      </span>
-                    </div>
-                    <p className="text-xs text-muted-foreground truncate pr-4">
-                      {conv.last_message.content}
-                    </p>
-                    <div className="mt-1 flex items-center gap-2">
-                      <Badge
-                        variant="outline"
-                        className="text-[9px] h-4 py-0 px-1 uppercase tracking-tighter"
-                      >
-                        {conv.booking_status.replace("_", " ")}
-                      </Badge>
+                  <div className="flex items-center gap-3">
+                    <Avatar className="h-10 w-10 shrink-0">
+                      <AvatarImage src={c.other_user.avatar_url} />
+                      <AvatarFallback>{c.other_user.full_name[0]}</AvatarFallback>
+                    </Avatar>
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center justify-between">
+                        <p className="font-semibold truncate">{c.other_user.full_name}</p>
+                        <span className="text-xs text-muted-foreground shrink-0">
+                          {c.last_message?.created_at ? formatDistanceToNow(new Date(c.last_message.created_at), { addSuffix: false }) : ""}
+                        </span>
+                      </div>
+                      <p className="text-sm text-muted-foreground truncate mt-0.5">{c.last_message?.content ?? "No messages yet"}</p>
+                      <div className="flex items-center gap-2 mt-1">
+                        <span className={`rounded-full px-1.5 py-0.5 text-[10px] font-bold ${statusColor[c.booking_status] ?? "bg-muted text-muted-foreground"}`}>
+                          {c.booking_status?.replace("_", " ")}
+                        </span>
+                        {c.unread_count > 0 && (
+                          <span className="rounded-full bg-primary px-1.5 py-0.5 text-[10px] font-bold text-primary-foreground">{c.unread_count}</span>
+                        )}
+                      </div>
                     </div>
                   </div>
-                  {conv.unread_count > 0 && (
-                    <div className="absolute right-4 top-1/2 -translate-y-1/2 flex items-center justify-center">
-                      <div className="h-2 w-2 rounded-full bg-accent" />
-                    </div>
-                  )}
                 </button>
               ))
             )}
           </div>
-        </div>
+        </aside>
 
-        {/* Right Panel: Chat Thread */}
-        <div
-          className={`flex-1 flex flex-col bg-background ${!selectedBookingId ? "hidden md:flex" : "flex"}`}
-        >
-          {selectedBookingId ? (
-            <>
-              {/* Chat Header */}
-              <div className="p-3 border-b border-border bg-card/50 backdrop-blur-sm flex items-center gap-3">
-                <button
-                  onClick={() => navigate({ to: "/messages", search: { booking: undefined } })}
-                  className="p-2 -ml-1 rounded-full hover:bg-muted md:hidden"
-                >
-                  <ArrowLeft className="h-5 w-5" />
-                </button>
-                <Avatar className="h-10 w-10">
-                  <AvatarImage src={activeConversation?.other_user.avatar_url} />
-                  <AvatarFallback className="bg-primary text-primary-foreground font-bold">
-                    {activeConversation?.other_user.full_name.charAt(0).toUpperCase() || "?"}
-                  </AvatarFallback>
-                </Avatar>
-                <div>
-                  <h2 className="font-bold text-sm leading-tight">
-                    {activeConversation?.other_user.full_name}
-                  </h2>
-                  <p className="text-[11px] text-muted-foreground font-medium uppercase tracking-wider">
-                    {activeConversation?.booking_status.replace("_", " ")} · Ref:{" "}
-                    {selectedBookingId.slice(0, 8)}
-                  </p>
+        {/* Main chat area */}
+        {selectedBookingId ? (
+          <main className="flex flex-1 flex-col">
+            {/* Chat header */}
+            <div className="flex items-center gap-3 border-b border-border px-4 py-3">
+              <button onClick={() => navigate({ to: "/messages" })} className="sm:hidden p-1 rounded-lg hover:bg-muted transition-colors">
+                <ArrowLeft className="h-5 w-5" />
+              </button>
+              <Avatar className="h-9 w-9">
+                <AvatarImage src={selectedConv?.other_user.avatar_url} />
+                <AvatarFallback>{selectedConv?.other_user.full_name[0] ?? "?"}</AvatarFallback>
+              </Avatar>
+              <div className="flex-1">
+                <p className="font-semibold">{selectedConv?.other_user.full_name ?? "Loading…"}</p>
+                {bookingDetail && (
+                  <span className={`text-[10px] font-bold rounded-full px-2 py-0.5 ${statusColor[bookingDetail.status] ?? "bg-muted"}`}>
+                    {bookingDetail.status?.replace("_", " ")}
+                  </span>
+                )}
+              </div>
+              {bookingDetail?.artisan?.phone_number && (
+                <a href={`tel:${bookingDetail.artisan.phone_number}`}
+                  className="p-2 rounded-full bg-muted hover:bg-muted/80 transition-colors">
+                  <Phone className="h-4 w-4" />
+                </a>
+              )}
+            </div>
+
+            {/* Booking action banner */}
+            {bookingDetail && (
+              <div className="border-b border-border bg-muted/30 px-4 py-2">
+                {bookingDetail.status === "pending_payment" && bookingDetail.is_client && (
+                  <div className="flex items-center gap-3 flex-wrap">
+                    <div className="flex items-center gap-1.5 text-sm text-amber-700">
+                      <Clock className="h-4 w-4" />
+                      <span>Send <strong>{formatRWF(bookingDetail.agreed_price)} RWF</strong> to {bookingDetail.artisan?.phone_number} via MoMo</span>
+                    </div>
+                    <Button size="sm" onClick={() => confirmPayment.mutate()} disabled={confirmPayment.isPending} className="bg-amber-500 hover:bg-amber-600 text-white">
+                      {confirmPayment.isPending ? <Loader2 className="h-3 w-3 animate-spin" /> : <CheckCircle className="h-3 w-3" />}
+                      I've sent payment
+                    </Button>
+                  </div>
+                )}
+                {bookingDetail.status === "in_progress" && bookingDetail.is_client && (
+                  <div className="flex items-center gap-3 flex-wrap">
+                    <span className="text-sm text-muted-foreground">Job in progress — tap to confirm completion</span>
+                    <Button size="sm" variant="outline" onClick={() => confirmComplete.mutate()} disabled={confirmComplete.isPending}>
+                      <CheckCircle className="h-3 w-3 mr-1" /> Mark Complete
+                    </Button>
+                    <Button size="sm" variant="ghost" onClick={() => raiseDispute.mutate()} disabled={raiseDispute.isPending} className="text-destructive hover:text-destructive">
+                      <AlertTriangle className="h-3 w-3 mr-1" /> Dispute
+                    </Button>
+                  </div>
+                )}
+                {bookingDetail.status === "completed" && (
+                  <div className="flex items-center gap-2 text-sm text-success">
+                    <CheckCircle className="h-4 w-4" /> Job completed
+                    {bookingDetail.is_client && (
+                      <Button size="sm" variant="outline" asChild>
+                        <a href={`/artisan/${bookingDetail.artisan?.id}`}>Leave a review</a>
+                      </Button>
+                    )}
+                  </div>
+                )}
+              </div>
+            )}
+
+            {/* Messages */}
+            <div className="flex-1 overflow-y-auto px-4 py-4 space-y-3">
+              {loadingMsgs ? (
+                <div className="flex items-center justify-center h-32"><Loader2 className="h-6 w-6 animate-spin text-primary" /></div>
+              ) : allMessages.length === 0 ? (
+                <div className="flex flex-col items-center justify-center h-full text-center text-muted-foreground">
+                  <MessageCircle className="h-10 w-10 mb-2" />
+                  <p>No messages yet. Say hello!</p>
+                </div>
+              ) : (
+                allMessages.map((msg: Message) => {
+                  const isMine = msg.sender_id === user?.id;
+                  return (
+                    <div key={msg.id} className={`flex ${isMine ? "justify-end" : "justify-start"}`}>
+                      <div className={`max-w-[75%] rounded-2xl px-4 py-2.5 ${isMine ? "bg-primary text-primary-foreground rounded-br-sm" : "bg-muted text-foreground rounded-bl-sm"}`}>
+                        <p className="text-sm leading-relaxed">{msg.content}</p>
+                        <p className={`text-[10px] mt-1 ${isMine ? "text-primary-foreground/70" : "text-muted-foreground"}`}>
+                          {msg.created_at ? formatDistanceToNow(new Date(msg.created_at), { addSuffix: true }) : ""}
+                        </p>
+                      </div>
+                    </div>
+                  );
+                })
+              )}
+              <div ref={bottomRef} />
+            </div>
+
+            {/* Message input */}
+            {bookingDetail?.status !== "completed" && bookingDetail?.status !== "cancelled" && (
+              <div className="border-t border-border p-3">
+                <div className="flex gap-2">
+                  <Input
+                    value={text}
+                    onChange={(e) => setText(e.target.value)}
+                    onKeyDown={(e) => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); handleSend(); } }}
+                    placeholder="Type a message…"
+                    className="flex-1 rounded-2xl"
+                    disabled={sendMsg.isPending}
+                  />
+                  <Button onClick={handleSend} disabled={!text.trim() || sendMsg.isPending} className="rounded-2xl px-4">
+                    {sendMsg.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
+                  </Button>
                 </div>
               </div>
-
-              {/* Messages Area */}
-              <div className="flex-1 overflow-y-auto p-4 space-y-4">
-                {isLoadingMessages ? (
-                  <div className="flex justify-center items-center h-full">
-                    <Loader2 className="h-8 w-8 animate-spin text-muted-foreground opacity-20" />
-                  </div>
-                ) : (
-                  messages?.map((msg, i) => {
-                    const isOwn = msg.sender_id === user?.id;
-                    const prevMsg = messages[i - 1];
-                    const showAvatar = !isOwn && (!prevMsg || prevMsg.sender_id !== msg.sender_id);
-
-                    return (
-                      <div
-                        key={msg.id}
-                        className={`flex ${isOwn ? "justify-end" : "justify-start"} items-end gap-2`}
-                      >
-                        {!isOwn && (
-                          <div className="w-8 flex-shrink-0">
-                            {showAvatar && (
-                              <Avatar className="h-8 w-8">
-                                <AvatarImage src={activeConversation?.other_user.avatar_url} />
-                                <AvatarFallback className="bg-primary text-primary-foreground text-xs font-bold">
-                                  {activeConversation?.other_user.full_name.charAt(0).toUpperCase()}
-                                </AvatarFallback>
-                              </Avatar>
-                            )}
-                          </div>
-                        )}
-                        <div className="max-w-[80%] flex flex-col">
-                          <div
-                            className={`px-4 py-2 rounded-2xl text-sm ${
-                              isOwn
-                                ? "bg-primary text-primary-foreground rounded-br-sm"
-                                : "bg-muted text-foreground rounded-bl-sm"
-                            }`}
-                          >
-                            {msg.content}
-                          </div>
-                          <span
-                            className={`text-[9px] text-muted-foreground mt-1 ${isOwn ? "text-right" : "text-left"}`}
-                          >
-                            {formatDistanceToNow(new Date(msg.created_at), { addSuffix: true })}
-                          </span>
-                        </div>
-                      </div>
-                    );
-                  })
-                )}
-                <div ref={messagesEndRef} />
-              </div>
-
-              {/* Input Area */}
-              <form onSubmit={handleSend} className="p-4 bg-card border-t border-border flex gap-2">
-                <Input
-                  value={messageText}
-                  onChange={(e) => setMessageText(e.target.value)}
-                  placeholder="Type a message..."
-                  className="flex-1 rounded-xl h-11"
-                  disabled={sendMutation.isPending}
-                />
-                <Button
-                  type="submit"
-                  size="icon"
-                  className="h-11 w-11 rounded-xl"
-                  disabled={!messageText.trim() || sendMutation.isPending}
-                >
-                  {sendMutation.isPending ? (
-                    <Loader2 className="h-5 w-5 animate-spin" />
-                  ) : (
-                    <Send className="h-5 w-5" />
-                  )}
-                </Button>
-              </form>
-            </>
-          ) : (
-            <div className="flex-1 flex flex-col items-center justify-center p-8 text-center text-muted-foreground">
-              <div className="h-20 w-20 rounded-full bg-muted flex items-center justify-center mb-4">
-                <MessageCircle className="h-10 w-10 opacity-20" />
-              </div>
-              <h2 className="text-lg font-bold text-foreground">Your Conversations</h2>
-              <p className="max-w-xs mt-1">
-                Select a conversation from the left to start messaging.
-              </p>
+            )}
+          </main>
+        ) : (
+          <main className="hidden sm:flex flex-1 items-center justify-center text-center text-muted-foreground">
+            <div>
+              <MessageCircle className="mx-auto h-16 w-16 mb-4" />
+              <p className="text-lg font-semibold">Select a conversation</p>
+              <p className="text-sm mt-1">Choose a conversation from the left to start chatting.</p>
             </div>
-          )}
-        </div>
-      </main>
+          </main>
+        )}
+      </div>
     </div>
   );
+}
+
+function formatRWF(n: number) {
+  return new Intl.NumberFormat("rw-RW").format(n);
 }

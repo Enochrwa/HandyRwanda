@@ -1,3 +1,4 @@
+// File: web/src/routes/search.tsx
 import { useState, useReducer, useMemo } from "react";
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { Search as SearchIcon, SlidersHorizontal, MapPin, Star, X, Loader2 } from "lucide-react";
@@ -147,18 +148,27 @@ function SearchPage() {
     return apiResults.map((a: any) => ({
       id: a.id,
       name: a.full_name || a.name,
-      category: a.category || "Artisan",
+      category: a.category || a.category_name || "Artisan",
+      categories: [a.category || a.category_name || "Artisan"],
       photo: a.avatar_url || `https://api.dicebear.com/7.x/avataaars/svg?seed=${a.id}`,
       rating: a.average_rating || 0,
       reviews: a.total_reviews || 0,
-      district: a.location_label || "Kigali",
-      distanceKm: a.distance_km || 0,
-      verified: a.verification_status === "verified",
-      pro: (a.community_score || 0) > 80,
+      jobs: a.total_reviews || 0,
+      district: a.district || a.location_label || "Kigali",
+      location_label: a.location_label || a.district || "Kigali",
+      distanceKm: parseFloat(a.distance_km) || 0,
+      verified: ["id_verified", "pro_verified"].includes(a.verification_status),
+      pro: a.verification_status === "pro_verified" || (a.community_score || 0) > 80,
       availableNow: a.is_available,
       hourlyRate: a.hourly_rate,
+      startingPrice: a.hourly_rate || a.fixed_rate || 5000,
       lat: a.lat,
       lng: a.lng,
+      languages: [],
+      experienceYears: 0,
+      bio: "",
+      responseTime: "Responds quickly",
+      weeklyBookings: 0,
     }));
   }, [data, isLoading, q, filterState]);
 

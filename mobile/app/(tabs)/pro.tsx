@@ -1,3 +1,4 @@
+// File: mobile/app/(tabs)/pro.tsx
 import { Wallet, Star, Clock, MapPin, CheckCircle } from '@icons';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { usePathname, useRouter } from 'expo-router';
@@ -15,6 +16,7 @@ import {
 } from 'react-native';
 import Toast from 'react-native-toast-message';
 
+import api from '../../src/services/api';
 import { isOnAuthRoute } from '../../src/navigation';
 import { proService } from '../../src/services/proService';
 import { useAuthStore } from '../../src/store/authStore';
@@ -61,6 +63,25 @@ export default function ProDashboard() {
       Toast.show({ type: 'success', text1: 'Status updated' });
     },
     onError: () => Toast.show({ type: 'error', text1: 'Failed to update status' }),
+  });
+
+  const { data: activeBookings = [] } = useQuery({
+    queryKey: ['artisan-bookings'],
+    queryFn: () => api.get('/bookings').then((r) =>
+      r.data.filter((b: any) => ['pending_payment', 'confirmed', 'in_progress'].includes(b.status))
+    ),
+    enabled: isAuthenticated && user?.role === 'artisan',
+    refetchInterval: 30000,
+  });
+
+  const confirmReceipt = useMutation({
+    mutationFn: (bookingId: string) => api.post(`/bookings/${bookingId}/confirm-receipt`),
+    onSuccess: () => {
+      Toast.show({ type: 'success', text1: '✅ Receipt confirmed!', text2: 'Job is now in progress.' });
+      queryClient.invalidateQueries({ queryKey: ['artisan-bookings'] });
+      queryClient.invalidateQueries({ queryKey: ['proDashboard'] });
+    },
+    onError: () => Toast.show({ type: 'error', text1: 'Failed to confirm receipt' }),
   });
 
   const submitBid = useMutation({
@@ -136,6 +157,47 @@ export default function ProDashboard() {
             color="#E8A020"
           />
         </View>
+
+        {/* Active Bookings with Actions */}
+        {activeBookings.length > 0 && (
+          <View className="mb-6">
+            <Text className="text-lg font-bold mb-3">Active Bookings</Text>
+            {activeBookings.map((b: any) => (
+              <View key={b.id} className="bg-card p-4 rounded-2xl border border-border mb-3">
+                <View className="flex-row justify-between items-start mb-2">
+                  <Text className="font-bold flex-1 mr-2">{b.title}</Text>
+                  <View className="px-2 py-0.5 rounded-full bg-muted">
+                    <Text className="text-[10px] font-bold text-foreground">
+                      {b.status.replace('_', ' ').toUpperCase()}
+                    </Text>
+                  </View>
+                </View>
+                <Text className="text-sm text-muted-foreground mb-3">
+                  {b.other_name} • {b.agreed_price?.toLocaleString()} RWF
+                </Text>
+                <View className="flex-row gap-2">
+                  {b.status === 'confirmed' && (
+                    <TouchableOpacity
+                      onPress={() => confirmReceipt.mutate(b.id)}
+                      disabled={confirmReceipt.isPending}
+                      className="flex-1 bg-success rounded-xl py-2.5 items-center"
+                      accessibilityLabel="Confirm receipt"
+                    >
+                      <Text className="text-white text-sm font-bold">✓ Confirm Receipt</Text>
+                    </TouchableOpacity>
+                  )}
+                  <TouchableOpacity
+                    onPress={() => router.push(`/messages/${b.id}`)}
+                    className="flex-1 bg-primary/10 rounded-xl py-2.5 items-center border border-primary/20"
+                    accessibilityLabel="Open chat"
+                  >
+                    <Text className="text-primary text-sm font-bold">💬 Chat</Text>
+                  </TouchableOpacity>
+                </View>
+              </View>
+            ))}
+          </View>
+        )}
 
         {/* Schedule */}
         <View className="mb-6">

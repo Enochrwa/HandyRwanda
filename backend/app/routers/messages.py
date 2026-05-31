@@ -79,7 +79,9 @@ async def get_conversations(
                 "last_message": (
                     {
                         "content": latest_msg.content,
-                        "created_at": latest_msg.created_at.isoformat(),
+                        "created_at": latest_msg.created_at.isoformat()
+                        if latest_msg.created_at is not None
+                        else None,
                     }
                     if latest_msg is not None
                     else None

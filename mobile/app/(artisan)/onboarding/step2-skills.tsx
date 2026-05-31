@@ -2,9 +2,7 @@
 import { useQuery, useMutation } from '@tanstack/react-query';
 import { useRouter } from 'expo-router';
 import React, { useState } from 'react';
-import {
-  View, Text, TouchableOpacity, ScrollView, ActivityIndicator,
-} from 'react-native';
+import { View, Text, TouchableOpacity, ScrollView, ActivityIndicator } from 'react-native';
 import Toast from 'react-native-toast-message';
 
 import api from '../../../src/services/api';
@@ -30,14 +28,16 @@ export default function SkillsStep() {
     onSuccess: () => router.push('/(artisan)/onboarding/step3-location'),
     onError: (err: any) => {
       const msg = err?.response?.data?.detail;
-      Toast.show({ type: 'error', text1: 'Failed to save skills', text2: typeof msg === 'string' ? msg : 'Try again' });
+      Toast.show({
+        type: 'error',
+        text1: 'Failed to save skills',
+        text2: typeof msg === 'string' ? msg : 'Try again',
+      });
     },
   });
 
   const toggleSkill = (id: string) => {
-    setSelected((prev) =>
-      prev.includes(id) ? prev.filter((s) => s !== id) : [...prev, id]
-    );
+    setSelected((prev) => (prev.includes(id) ? prev.filter((s) => s !== id) : [...prev, id]));
   };
 
   return (
@@ -48,7 +48,10 @@ export default function SkillsStep() {
         <Text className="text-white/80 text-sm mt-0.5">Step 2 of 4 — Select all that apply</Text>
         <View className="flex-row mt-3 gap-1">
           {[1, 2, 3, 4].map((s) => (
-            <View key={s} className={`h-1.5 flex-1 rounded-full ${s <= 2 ? 'bg-white' : 'bg-white/30'}`} />
+            <View
+              key={s}
+              className={`h-1.5 flex-1 rounded-full ${s <= 2 ? 'bg-white' : 'bg-white/30'}`}
+            />
           ))}
         </View>
       </View>
@@ -80,7 +83,9 @@ export default function SkillsStep() {
                   <Text style={{ fontSize: 34 }} className="mb-2">
                     {cat.icon_emoji ?? '🛠️'}
                   </Text>
-                  <Text className={`text-xs font-bold text-center ${isSelected ? 'text-primary' : 'text-foreground'}`}>
+                  <Text
+                    className={`text-xs font-bold text-center ${isSelected ? 'text-primary' : 'text-foreground'}`}
+                  >
                     {cat.name_en}
                   </Text>
                   {cat.name_rw && (
@@ -105,13 +110,15 @@ export default function SkillsStep() {
           onPress={() => saveMutation.mutate(selected)}
           disabled={selected.length === 0 || saveMutation.isPending}
           accessibilityLabel="Continue to set service area"
-          className={`bg-primary rounded-2xl py-4 items-center flex-row justify-center gap-2 ${(selected.length === 0 || saveMutation.isPending) ? 'opacity-50' : ''}`}
+          className={`bg-primary rounded-2xl py-4 items-center flex-row justify-center gap-2 ${selected.length === 0 || saveMutation.isPending ? 'opacity-50' : ''}`}
         >
-          {saveMutation.isPending
-            ? <ActivityIndicator color="white" />
-            : <Text className="text-white font-extrabold text-base">
-                Continue → {selected.length > 0 ? `(${selected.length} selected)` : ''}
-              </Text>}
+          {saveMutation.isPending ? (
+            <ActivityIndicator color="white" />
+          ) : (
+            <Text className="text-white font-extrabold text-base">
+              Continue → {selected.length > 0 ? `(${selected.length} selected)` : ''}
+            </Text>
+          )}
         </TouchableOpacity>
       </View>
     </View>

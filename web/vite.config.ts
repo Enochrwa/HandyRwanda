@@ -14,10 +14,10 @@ export default defineConfig({
       output: {
         manualChunks: {
           "react-vendor": ["react", "react-dom", "react/jsx-runtime"],
-          "router": ["@tanstack/react-router"],
-          "query": ["@tanstack/react-query"],
-          "charts": ["recharts"],
-          "ui": ["lucide-react", "sonner", "date-fns"],
+          router: ["@tanstack/react-router"],
+          query: ["@tanstack/react-query"],
+          charts: ["recharts"],
+          ui: ["lucide-react", "sonner", "date-fns"],
         },
       },
     },

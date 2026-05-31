@@ -2,9 +2,7 @@
 import { useQuery } from '@tanstack/react-query';
 import { useRouter } from 'expo-router';
 import React from 'react';
-import {
-  View, Text, TouchableOpacity, ScrollView, ActivityIndicator,
-} from 'react-native';
+import { View, Text, TouchableOpacity, ScrollView, ActivityIndicator } from 'react-native';
 
 import api from '../../../src/services/api';
 
@@ -37,10 +35,17 @@ export default function PostJobCategory() {
             <TouchableOpacity
               key={cat.id}
               accessibilityLabel={`Post job for ${cat.name_en}`}
-              onPress={() => router.push({ pathname: '/(client)/post-job/details', params: { categoryId: cat.id } })}
+              onPress={() =>
+                router.push({
+                  pathname: '/(client)/post-job/details',
+                  params: { categoryId: cat.id },
+                })
+              }
               className="w-[47%] aspect-square bg-card rounded-3xl border border-border items-center justify-center p-4"
             >
-              <Text style={{ fontSize: 36 }} className="mb-2">{cat.icon_emoji ?? '🛠️'}</Text>
+              <Text style={{ fontSize: 36 }} className="mb-2">
+                {cat.icon_emoji ?? '🛠️'}
+              </Text>
               <Text className="font-bold text-center text-foreground text-sm">{cat.name_en}</Text>
             </TouchableOpacity>
           ))}

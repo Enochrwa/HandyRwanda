@@ -1,12 +1,20 @@
 // File: mobile/app/messages/[bookingId].tsx
-import { Send, ChevronLeft, Phone, CheckCircle, AlertTriangle, Clock } from '@icons';
+import { Send, ChevronLeft, Phone, CheckCircle, AlertTriangle } from '@icons';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { format } from 'date-fns';
 import { useLocalSearchParams, usePathname, useRouter } from 'expo-router';
 import React, { useState, useRef, useEffect } from 'react';
 import {
-  View, Text, FlatList, TextInput, TouchableOpacity,
-  KeyboardAvoidingView, Platform, ActivityIndicator, Linking, Alert,
+  View,
+  Text,
+  FlatList,
+  TextInput,
+  TouchableOpacity,
+  KeyboardAvoidingView,
+  Platform,
+  ActivityIndicator,
+  Linking,
+  Alert,
 } from 'react-native';
 import Toast from 'react-native-toast-message';
 
@@ -51,7 +59,13 @@ export default function ChatThread() {
       const prev = qc.getQueryData(['messages', bookingId]);
       qc.setQueryData(['messages', bookingId], (old: any) => [
         ...(old || []),
-        { id: Date.now().toString(), sender_id: user?.id, content: newText, created_at: new Date().toISOString(), is_read: false },
+        {
+          id: Date.now().toString(),
+          sender_id: user?.id,
+          content: newText,
+          created_at: new Date().toISOString(),
+          is_read: false,
+        },
       ]);
       return { prev };
     },
@@ -68,7 +82,11 @@ export default function ChatThread() {
   const confirmPayment = useMutation({
     mutationFn: () => api.post(`/bookings/${bookingId}/confirm-payment`),
     onSuccess: () => {
-      Toast.show({ type: 'success', text1: '💰 Payment confirmed!', text2: 'Artisan has been notified.' });
+      Toast.show({
+        type: 'success',
+        text1: '💰 Payment confirmed!',
+        text2: 'Artisan has been notified.',
+      });
       qc.invalidateQueries({ queryKey: ['booking-detail', bookingId] });
     },
     onError: () => Toast.show({ type: 'error', text1: 'Failed to confirm payment' }),
@@ -83,7 +101,8 @@ export default function ChatThread() {
   });
 
   const raiseDispute = useMutation({
-    mutationFn: () => api.post(`/bookings/${bookingId}/dispute`, { reason: 'Issue raised via app' }),
+    mutationFn: () =>
+      api.post(`/bookings/${bookingId}/dispute`, { reason: 'Issue raised via app' }),
     onSuccess: () => {
       Toast.show({ type: 'info', text1: '⚠️ Dispute raised', text2: 'Admin will review shortly.' });
       qc.invalidateQueries({ queryKey: ['booking-detail', bookingId] });
@@ -128,8 +147,13 @@ export default function ChatThread() {
             <Text className="text-base font-bold">{otherUser?.name ?? 'Chat'}</Text>
             {status && (
               <View className="flex-row items-center gap-1 mt-0.5">
-                <View className="w-2 h-2 rounded-full" style={{ backgroundColor: statusColors[status] ?? '#6B6B6B' }} />
-                <Text className="text-xs text-muted-foreground capitalize">{status.replace('_', ' ')}</Text>
+                <View
+                  className="w-2 h-2 rounded-full"
+                  style={{ backgroundColor: statusColors[status] ?? '#6B6B6B' }}
+                />
+                <Text className="text-xs text-muted-foreground capitalize">
+                  {status.replace('_', ' ')}
+                </Text>
               </View>
             )}
           </View>
@@ -150,16 +174,19 @@ export default function ChatThread() {
               <View className="mt-3 bg-amber-50 border border-amber-200 rounded-2xl px-4 py-3">
                 <Text className="text-xs font-bold text-amber-800 mb-1">💰 Payment Required</Text>
                 <Text className="text-xs text-amber-700 mb-2">
-                  Send {formatRWF(booking.agreed_price)} RWF to {booking.artisan?.phone_number} via MoMo, then confirm:
+                  Send {formatRWF(booking.agreed_price)} RWF to {booking.artisan?.phone_number} via
+                  MoMo, then confirm:
                 </Text>
                 <TouchableOpacity
                   onPress={() => confirmPayment.mutate()}
                   disabled={confirmPayment.isPending}
                   className="bg-amber-500 rounded-xl py-2 items-center"
                 >
-                  {confirmPayment.isPending
-                    ? <ActivityIndicator color="white" size="small" />
-                    : <Text className="text-white text-xs font-bold">✓ I've sent payment</Text>}
+                  {confirmPayment.isPending ? (
+                    <ActivityIndicator color="white" size="small" />
+                  ) : (
+                    <Text className="text-white text-xs font-bold">✓ I've sent payment</Text>
+                  )}
                 </TouchableOpacity>
               </View>
             )}
@@ -213,9 +240,15 @@ export default function ChatThread() {
             const isMe = item.sender_id === user?.id;
             return (
               <View className={`mb-3 flex-row ${isMe ? 'justify-end' : 'justify-start'}`}>
-                <View className={`max-w-[80%] px-4 py-2.5 rounded-2xl ${isMe ? 'bg-primary rounded-br-sm' : 'bg-muted rounded-bl-sm'}`}>
-                  <Text className={`text-sm leading-5 ${isMe ? 'text-white' : 'text-foreground'}`}>{item.content}</Text>
-                  <Text className={`text-[9px] mt-1 ${isMe ? 'text-white/70' : 'text-muted-foreground'}`}>
+                <View
+                  className={`max-w-[80%] px-4 py-2.5 rounded-2xl ${isMe ? 'bg-primary rounded-br-sm' : 'bg-muted rounded-bl-sm'}`}
+                >
+                  <Text className={`text-sm leading-5 ${isMe ? 'text-white' : 'text-foreground'}`}>
+                    {item.content}
+                  </Text>
+                  <Text
+                    className={`text-[9px] mt-1 ${isMe ? 'text-white/70' : 'text-muted-foreground'}`}
+                  >
                     {item.created_at ? format(new Date(item.created_at), 'HH:mm') : ''}
                   </Text>
                 </View>
@@ -237,13 +270,18 @@ export default function ChatThread() {
             onChangeText={setContent}
           />
           <TouchableOpacity
-            onPress={() => { if (!content.trim() || sendMutation.isPending) return; sendMutation.mutate(content.trim()); }}
+            onPress={() => {
+              if (!content.trim() || sendMutation.isPending) return;
+              sendMutation.mutate(content.trim());
+            }}
             disabled={!content.trim() || sendMutation.isPending}
             className={`w-12 h-12 rounded-full items-center justify-center ${content.trim() ? 'bg-primary' : 'bg-muted'}`}
           >
-            {sendMutation.isPending
-              ? <ActivityIndicator color="white" size="small" />
-              : <Send color={content.trim() ? 'white' : '#9CA3AF'} size={18} />}
+            {sendMutation.isPending ? (
+              <ActivityIndicator color="white" size="small" />
+            ) : (
+              <Send color={content.trim() ? 'white' : '#9CA3AF'} size={18} />
+            )}
           </TouchableOpacity>
         </View>
       )}

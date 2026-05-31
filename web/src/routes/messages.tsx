@@ -5,7 +5,16 @@ import { useState, useEffect, useRef, useCallback } from "react";
 import { useAuthStore } from "@/store/authStore";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import api from "@/services/api";
-import { Send, Loader2, MessageCircle, ArrowLeft, Phone, CheckCircle, AlertTriangle, Clock } from "lucide-react";
+import {
+  Send,
+  Loader2,
+  MessageCircle,
+  ArrowLeft,
+  Phone,
+  CheckCircle,
+  AlertTriangle,
+  Clock,
+} from "lucide-react";
 import { formatDistanceToNow } from "date-fns";
 import { toast } from "sonner";
 import { Input } from "@/components/ui/input";
@@ -47,7 +56,9 @@ function MessagesPage() {
   const [wsMessages, setWsMessages] = useState<Message[]>([]);
 
   useEffect(() => {
-    if (!isAuthenticated) { navigate({ to: "/" }); }
+    if (!isAuthenticated) {
+      navigate({ to: "/" });
+    }
   }, [isAuthenticated, navigate]);
 
   const { data: conversations = [], isLoading: loadingConvs } = useQuery({
@@ -59,24 +70,30 @@ function MessagesPage() {
 
   const { data: messages = [], isLoading: loadingMsgs } = useQuery({
     queryKey: ["messages", selectedBookingId],
-    queryFn: () => selectedBookingId ? api.get(`/messages/${selectedBookingId}`).then((r) => r.data) : [],
+    queryFn: () =>
+      selectedBookingId ? api.get(`/messages/${selectedBookingId}`).then((r) => r.data) : [],
     enabled: !!selectedBookingId,
     refetchInterval: false,
   });
 
   const { data: bookingDetail } = useQuery({
     queryKey: ["booking-detail", selectedBookingId],
-    queryFn: () => selectedBookingId ? api.get(`/bookings/${selectedBookingId}`).then((r) => r.data) : null,
+    queryFn: () =>
+      selectedBookingId ? api.get(`/bookings/${selectedBookingId}`).then((r) => r.data) : null,
     enabled: !!selectedBookingId,
   });
 
   // WebSocket for real-time messages
   useEffect(() => {
-    if (!selectedBookingId) { wsRef.current?.close(); return; }
+    if (!selectedBookingId) {
+      wsRef.current?.close();
+      return;
+    }
     setWsMessages([]);
 
-    const wsUrl = (import.meta.env.VITE_API_URL || "http://localhost:8000")
-      .replace(/^http/, "ws") + `/ws/messages/${selectedBookingId}`;
+    const wsUrl =
+      (import.meta.env.VITE_API_URL || "http://localhost:8000").replace(/^http/, "ws") +
+      `/ws/messages/${selectedBookingId}`;
 
     const ws = new WebSocket(wsUrl);
     wsRef.current = ws;
@@ -85,14 +102,19 @@ function MessagesPage() {
         const msg = JSON.parse(e.data) as Message;
         setWsMessages((prev) => [...prev, msg]);
         qc.invalidateQueries({ queryKey: ["conversations"] });
-      } catch {}
+      } catch {
+        // silently ignore parse errors
+      }
     };
     ws.onerror = () => {}; // silent — fallback to polling
     return () => ws.close();
   }, [selectedBookingId, qc]);
 
   // Combine API messages with WebSocket messages
-  const allMessages = [...messages, ...wsMessages.filter((wm) => !messages.find((m: Message) => m.id === wm.id))];
+  const allMessages = [
+    ...messages,
+    ...wsMessages.filter((wm) => !messages.find((m: Message) => m.id === wm.id)),
+  ];
   allMessages.sort((a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime());
 
   useEffect(() => {
@@ -116,17 +138,27 @@ function MessagesPage() {
 
   const confirmPayment = useMutation({
     mutationFn: () => api.post(`/bookings/${selectedBookingId}/confirm-payment`),
-    onSuccess: () => { toast.success("Payment confirmed!"); qc.invalidateQueries({ queryKey: ["booking-detail", selectedBookingId] }); },
+    onSuccess: () => {
+      toast.success("Payment confirmed!");
+      qc.invalidateQueries({ queryKey: ["booking-detail", selectedBookingId] });
+    },
   });
 
   const confirmComplete = useMutation({
     mutationFn: () => api.post(`/bookings/${selectedBookingId}/complete`),
-    onSuccess: () => { toast.success("Job marked as complete!"); qc.invalidateQueries({ queryKey: ["booking-detail", selectedBookingId] }); },
+    onSuccess: () => {
+      toast.success("Job marked as complete!");
+      qc.invalidateQueries({ queryKey: ["booking-detail", selectedBookingId] });
+    },
   });
 
   const raiseDispute = useMutation({
-    mutationFn: () => api.post(`/bookings/${selectedBookingId}/dispute`, { reason: "Issue with job quality" }),
-    onSuccess: () => { toast.info("Dispute raised. Admin will review."); qc.invalidateQueries({ queryKey: ["booking-detail", selectedBookingId] }); },
+    mutationFn: () =>
+      api.post(`/bookings/${selectedBookingId}/dispute`, { reason: "Issue with job quality" }),
+    onSuccess: () => {
+      toast.info("Dispute raised. Admin will review.");
+      qc.invalidateQueries({ queryKey: ["booking-detail", selectedBookingId] });
+    },
   });
 
   const handleSend = useCallback(() => {
@@ -153,18 +185,24 @@ function MessagesPage() {
       <Header />
       <div className="flex flex-1 overflow-hidden max-h-[calc(100dvh-64px)]">
         {/* Sidebar: conversation list */}
-        <aside className={`w-full sm:w-80 border-r border-border flex flex-col ${selectedBookingId ? "hidden sm:flex" : "flex"}`}>
+        <aside
+          className={`w-full sm:w-80 border-r border-border flex flex-col ${selectedBookingId ? "hidden sm:flex" : "flex"}`}
+        >
           <div className="p-4 border-b border-border">
             <h2 className="font-bold text-lg">Messages</h2>
           </div>
           <div className="flex-1 overflow-y-auto">
             {loadingConvs ? (
-              <div className="flex items-center justify-center h-32"><Loader2 className="h-6 w-6 animate-spin text-primary" /></div>
+              <div className="flex items-center justify-center h-32">
+                <Loader2 className="h-6 w-6 animate-spin text-primary" />
+              </div>
             ) : conversations.length === 0 ? (
               <div className="flex flex-col items-center justify-center h-48 text-center p-6">
                 <MessageCircle className="h-10 w-10 text-muted-foreground mb-3" />
                 <p className="font-semibold">No conversations yet</p>
-                <p className="text-sm text-muted-foreground mt-1">Book an artisan to start chatting.</p>
+                <p className="text-sm text-muted-foreground mt-1">
+                  Book an artisan to start chatting.
+                </p>
               </div>
             ) : (
               conversations.map((c: Conversation) => (
@@ -182,16 +220,26 @@ function MessagesPage() {
                       <div className="flex items-center justify-between">
                         <p className="font-semibold truncate">{c.other_user.full_name}</p>
                         <span className="text-xs text-muted-foreground shrink-0">
-                          {c.last_message?.created_at ? formatDistanceToNow(new Date(c.last_message.created_at), { addSuffix: false }) : ""}
+                          {c.last_message?.created_at
+                            ? formatDistanceToNow(new Date(c.last_message.created_at), {
+                                addSuffix: false,
+                              })
+                            : ""}
                         </span>
                       </div>
-                      <p className="text-sm text-muted-foreground truncate mt-0.5">{c.last_message?.content ?? "No messages yet"}</p>
+                      <p className="text-sm text-muted-foreground truncate mt-0.5">
+                        {c.last_message?.content ?? "No messages yet"}
+                      </p>
                       <div className="flex items-center gap-2 mt-1">
-                        <span className={`rounded-full px-1.5 py-0.5 text-[10px] font-bold ${statusColor[c.booking_status] ?? "bg-muted text-muted-foreground"}`}>
+                        <span
+                          className={`rounded-full px-1.5 py-0.5 text-[10px] font-bold ${statusColor[c.booking_status] ?? "bg-muted text-muted-foreground"}`}
+                        >
                           {c.booking_status?.replace("_", " ")}
                         </span>
                         {c.unread_count > 0 && (
-                          <span className="rounded-full bg-primary px-1.5 py-0.5 text-[10px] font-bold text-primary-foreground">{c.unread_count}</span>
+                          <span className="rounded-full bg-primary px-1.5 py-0.5 text-[10px] font-bold text-primary-foreground">
+                            {c.unread_count}
+                          </span>
                         )}
                       </div>
                     </div>
@@ -207,7 +255,10 @@ function MessagesPage() {
           <main className="flex flex-1 flex-col">
             {/* Chat header */}
             <div className="flex items-center gap-3 border-b border-border px-4 py-3">
-              <button onClick={() => navigate({ to: "/messages" })} className="sm:hidden p-1 rounded-lg hover:bg-muted transition-colors">
+              <button
+                onClick={() => navigate({ to: "/messages" })}
+                className="sm:hidden p-1 rounded-lg hover:bg-muted transition-colors"
+              >
                 <ArrowLeft className="h-5 w-5" />
               </button>
               <Avatar className="h-9 w-9">
@@ -217,14 +268,18 @@ function MessagesPage() {
               <div className="flex-1">
                 <p className="font-semibold">{selectedConv?.other_user.full_name ?? "Loading…"}</p>
                 {bookingDetail && (
-                  <span className={`text-[10px] font-bold rounded-full px-2 py-0.5 ${statusColor[bookingDetail.status] ?? "bg-muted"}`}>
+                  <span
+                    className={`text-[10px] font-bold rounded-full px-2 py-0.5 ${statusColor[bookingDetail.status] ?? "bg-muted"}`}
+                  >
                     {bookingDetail.status?.replace("_", " ")}
                   </span>
                 )}
               </div>
               {bookingDetail?.artisan?.phone_number && (
-                <a href={`tel:${bookingDetail.artisan.phone_number}`}
-                  className="p-2 rounded-full bg-muted hover:bg-muted/80 transition-colors">
+                <a
+                  href={`tel:${bookingDetail.artisan.phone_number}`}
+                  className="p-2 rounded-full bg-muted hover:bg-muted/80 transition-colors"
+                >
                   <Phone className="h-4 w-4" />
                 </a>
               )}
@@ -237,21 +292,46 @@ function MessagesPage() {
                   <div className="flex items-center gap-3 flex-wrap">
                     <div className="flex items-center gap-1.5 text-sm text-amber-700">
                       <Clock className="h-4 w-4" />
-                      <span>Send <strong>{formatRWF(bookingDetail.agreed_price)} RWF</strong> to {bookingDetail.artisan?.phone_number} via MoMo</span>
+                      <span>
+                        Send <strong>{formatRWF(bookingDetail.agreed_price)} RWF</strong> to{" "}
+                        {bookingDetail.artisan?.phone_number} via MoMo
+                      </span>
                     </div>
-                    <Button size="sm" onClick={() => confirmPayment.mutate()} disabled={confirmPayment.isPending} className="bg-amber-500 hover:bg-amber-600 text-white">
-                      {confirmPayment.isPending ? <Loader2 className="h-3 w-3 animate-spin" /> : <CheckCircle className="h-3 w-3" />}
+                    <Button
+                      size="sm"
+                      onClick={() => confirmPayment.mutate()}
+                      disabled={confirmPayment.isPending}
+                      className="bg-amber-500 hover:bg-amber-600 text-white"
+                    >
+                      {confirmPayment.isPending ? (
+                        <Loader2 className="h-3 w-3 animate-spin" />
+                      ) : (
+                        <CheckCircle className="h-3 w-3" />
+                      )}
                       I've sent payment
                     </Button>
                   </div>
                 )}
                 {bookingDetail.status === "in_progress" && bookingDetail.is_client && (
                   <div className="flex items-center gap-3 flex-wrap">
-                    <span className="text-sm text-muted-foreground">Job in progress — tap to confirm completion</span>
-                    <Button size="sm" variant="outline" onClick={() => confirmComplete.mutate()} disabled={confirmComplete.isPending}>
+                    <span className="text-sm text-muted-foreground">
+                      Job in progress — tap to confirm completion
+                    </span>
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      onClick={() => confirmComplete.mutate()}
+                      disabled={confirmComplete.isPending}
+                    >
                       <CheckCircle className="h-3 w-3 mr-1" /> Mark Complete
                     </Button>
-                    <Button size="sm" variant="ghost" onClick={() => raiseDispute.mutate()} disabled={raiseDispute.isPending} className="text-destructive hover:text-destructive">
+                    <Button
+                      size="sm"
+                      variant="ghost"
+                      onClick={() => raiseDispute.mutate()}
+                      disabled={raiseDispute.isPending}
+                      className="text-destructive hover:text-destructive"
+                    >
                       <AlertTriangle className="h-3 w-3 mr-1" /> Dispute
                     </Button>
                   </div>
@@ -272,7 +352,9 @@ function MessagesPage() {
             {/* Messages */}
             <div className="flex-1 overflow-y-auto px-4 py-4 space-y-3">
               {loadingMsgs ? (
-                <div className="flex items-center justify-center h-32"><Loader2 className="h-6 w-6 animate-spin text-primary" /></div>
+                <div className="flex items-center justify-center h-32">
+                  <Loader2 className="h-6 w-6 animate-spin text-primary" />
+                </div>
               ) : allMessages.length === 0 ? (
                 <div className="flex flex-col items-center justify-center h-full text-center text-muted-foreground">
                   <MessageCircle className="h-10 w-10 mb-2" />
@@ -282,11 +364,20 @@ function MessagesPage() {
                 allMessages.map((msg: Message) => {
                   const isMine = msg.sender_id === user?.id;
                   return (
-                    <div key={msg.id} className={`flex ${isMine ? "justify-end" : "justify-start"}`}>
-                      <div className={`max-w-[75%] rounded-2xl px-4 py-2.5 ${isMine ? "bg-primary text-primary-foreground rounded-br-sm" : "bg-muted text-foreground rounded-bl-sm"}`}>
+                    <div
+                      key={msg.id}
+                      className={`flex ${isMine ? "justify-end" : "justify-start"}`}
+                    >
+                      <div
+                        className={`max-w-[75%] rounded-2xl px-4 py-2.5 ${isMine ? "bg-primary text-primary-foreground rounded-br-sm" : "bg-muted text-foreground rounded-bl-sm"}`}
+                      >
                         <p className="text-sm leading-relaxed">{msg.content}</p>
-                        <p className={`text-[10px] mt-1 ${isMine ? "text-primary-foreground/70" : "text-muted-foreground"}`}>
-                          {msg.created_at ? formatDistanceToNow(new Date(msg.created_at), { addSuffix: true }) : ""}
+                        <p
+                          className={`text-[10px] mt-1 ${isMine ? "text-primary-foreground/70" : "text-muted-foreground"}`}
+                        >
+                          {msg.created_at
+                            ? formatDistanceToNow(new Date(msg.created_at), { addSuffix: true })
+                            : ""}
                         </p>
                       </div>
                     </div>
@@ -303,13 +394,26 @@ function MessagesPage() {
                   <Input
                     value={text}
                     onChange={(e) => setText(e.target.value)}
-                    onKeyDown={(e) => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); handleSend(); } }}
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter" && !e.shiftKey) {
+                        e.preventDefault();
+                        handleSend();
+                      }
+                    }}
                     placeholder="Type a message…"
                     className="flex-1 rounded-2xl"
                     disabled={sendMsg.isPending}
                   />
-                  <Button onClick={handleSend} disabled={!text.trim() || sendMsg.isPending} className="rounded-2xl px-4">
-                    {sendMsg.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
+                  <Button
+                    onClick={handleSend}
+                    disabled={!text.trim() || sendMsg.isPending}
+                    className="rounded-2xl px-4"
+                  >
+                    {sendMsg.isPending ? (
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                    ) : (
+                      <Send className="h-4 w-4" />
+                    )}
                   </Button>
                 </div>
               </div>

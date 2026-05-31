@@ -8,7 +8,7 @@ from uuid import UUID
 
 from fastapi import APIRouter, Depends, Query
 from pydantic import BaseModel
-from sqlalchemy import func, select, text, update
+from sqlalchemy import delete, func, select, text, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.database import get_db
@@ -59,13 +59,17 @@ async def list_pending_artisans(
                 "full_name": row[0].full_name,
                 "email": row[0].email,
                 "avatar_url": row[0].avatar_url,
-                "created_at": row[0].created_at.isoformat() if row[0].created_at else None,
+                "created_at": row[0].created_at.isoformat()
+                if row[0].created_at
+                else None,
             },
             "profile": {
                 "id_document_url": row[1].id_document_url,
                 "selfie_url": row[1].selfie_url,
                 "verification_status": row[1].verification_status,
-                "submitted_at": row[1].updated_at.isoformat() if row[1].updated_at else None,
+                "submitted_at": row[1].updated_at.isoformat()
+                if row[1].updated_at
+                else None,
             },
         }
         for row in result.all()
@@ -138,7 +142,11 @@ async def resolve_dispute(
     await db.execute(
         update(Booking)
         .where(Booking.id == booking_id)
-        .values(status=BookingStatus.completed if payload.winner == "artisan" else BookingStatus.cancelled)
+        .values(
+            status=BookingStatus.completed
+            if payload.winner == "artisan"
+            else BookingStatus.cancelled
+        )
     )
     await db.commit()
     return {"message": f"Dispute resolved in favour of {payload.winner}."}
@@ -153,12 +161,18 @@ async def get_analytics(
     current_user: dict[str, Any] = Depends(require_role(UserRole.admin)),
 ) -> Any:
     # Total users
-    total_users = await db.scalar(select(func.count(User.id)).where(User.is_active == True))  # noqa: E712
+    total_users = await db.scalar(
+        select(func.count(User.id)).where(User.is_active == True)
+    )  # noqa: E712
     total_artisans = await db.scalar(
-        select(func.count(User.id)).where(User.role == UserRole.artisan, User.is_active == True)  # noqa: E712
+        select(func.count(User.id)).where(
+            User.role == UserRole.artisan, User.is_active == True
+        )  # noqa: E712
     )
     total_clients = await db.scalar(
-        select(func.count(User.id)).where(User.role == UserRole.client, User.is_active == True)  # noqa: E712
+        select(func.count(User.id)).where(
+            User.role == UserRole.client, User.is_active == True
+        )  # noqa: E712
     )
 
     # Bookings
@@ -195,7 +209,10 @@ async def get_analytics(
         ORDER BY date_trunc('month', created_at)
     """)
     monthly_res = await db.execute(monthly_query)
-    monthly = [{"month": r.month, "bookings": r.bookings, "revenue": r.revenue} for r in monthly_res]
+    monthly = [
+        {"month": r.month, "bookings": r.bookings, "revenue": r.revenue}
+        for r in monthly_res
+    ]
 
     # Top artisans
     top_artisans_query = text("""
@@ -211,13 +228,26 @@ async def get_analytics(
     """)
     top_res = await db.execute(top_artisans_query)
     top_artisans = [
-        {"name": r.full_name, "rating": float(r.average_rating), "reviews": r.total_reviews, "jobs": r.completed_jobs}
+        {
+            "name": r.full_name,
+            "rating": float(r.average_rating),
+            "reviews": r.total_reviews,
+            "jobs": r.completed_jobs,
+        }
         for r in top_res
     ]
 
     return {
-        "users": {"total": total_users, "artisans": total_artisans, "clients": total_clients},
-        "bookings": {"total": total_bookings, "completed": completed, "disputed": disputed},
+        "users": {
+            "total": total_users,
+            "artisans": total_artisans,
+            "clients": total_clients,
+        },
+        "bookings": {
+            "total": total_bookings,
+            "completed": completed,
+            "disputed": disputed,
+        },
         "pending_verifications": pending_verif,
         "total_revenue_rwf": total_revenue,
         "monthly_trend": monthly,
@@ -260,7 +290,9 @@ async def list_users(
     query = select(User).order_by(User.created_at.desc())
     if q:
         query = query.where(
-            User.full_name.ilike(f"%{q}%") | User.email.ilike(f"%{q}%") | User.phone_number.ilike(f"%{q}%")
+            User.full_name.ilike(f"%{q}%")
+            | User.email.ilike(f"%{q}%")
+            | User.phone_number.ilike(f"%{q}%")
         )
     if role:
         query = query.where(User.role == role)
@@ -290,7 +322,9 @@ async def suspend_user(
     current_user: dict[str, Any] = Depends(require_role(UserRole.admin)),
 ) -> Any:
     await db.execute(
-        update(User).where(User.id == user_id).values(account_status=AccountStatus.suspended)
+        update(User)
+        .where(User.id == user_id)
+        .values(account_status=AccountStatus.suspended)
     )
     await db.commit()
     return {"message": "User suspended."}
@@ -303,7 +337,9 @@ async def activate_user(
     current_user: dict[str, Any] = Depends(require_role(UserRole.admin)),
 ) -> Any:
     await db.execute(
-        update(User).where(User.id == user_id).values(account_status=AccountStatus.active, is_active=True)
+        update(User)
+        .where(User.id == user_id)
+        .values(account_status=AccountStatus.active, is_active=True)
     )
     await db.commit()
     return {"message": "User activated."}
@@ -341,8 +377,6 @@ async def delete_review(
     db: AsyncSession = Depends(get_db),
     current_user: dict[str, Any] = Depends(require_role(UserRole.admin)),
 ) -> Any:
-    from sqlalchemy import delete as sql_delete
-    from app.models.review import Review as Rev
-    await db.execute(sql_delete(Rev).where(Rev.id == review_id))
+    await db.execute(delete(Review).where(Review.id == review_id))
     await db.commit()
     return {"message": "Review deleted."}

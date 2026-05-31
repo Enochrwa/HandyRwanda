@@ -2,8 +2,13 @@
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import React, { useState, useRef, useEffect } from 'react';
 import {
-  View, Text, TextInput, TouchableOpacity, ActivityIndicator,
-  KeyboardAvoidingView, Platform,
+  View,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  ActivityIndicator,
+  KeyboardAvoidingView,
+  Platform,
 } from 'react-native';
 import Toast from 'react-native-toast-message';
 
@@ -64,7 +69,11 @@ export default function OTPScreen() {
     } catch (err: any) {
       const detail = err?.response?.data?.detail;
       const msg = typeof detail === 'string' ? detail : detail?.message;
-      Toast.show({ type: 'error', text1: 'Invalid code', text2: msg ?? 'Code expired or wrong. Try again.' });
+      Toast.show({
+        type: 'error',
+        text1: 'Invalid code',
+        text2: msg ?? 'Code expired or wrong. Try again.',
+      });
     } finally {
       setLoading(false);
     }
@@ -104,7 +113,9 @@ export default function OTPScreen() {
         <TextInput
           ref={inputRef}
           value={otp}
-          onChangeText={(v) => { setOtp(v.replace(/\D/g, '').slice(0, 6)); }}
+          onChangeText={(v) => {
+            setOtp(v.replace(/\D/g, '').slice(0, 6));
+          }}
           onSubmitEditing={handleVerify}
           placeholder="000000"
           keyboardType="number-pad"
@@ -119,11 +130,13 @@ export default function OTPScreen() {
           onPress={handleVerify}
           disabled={loading || otp.length < 6}
           accessibilityLabel="Verify code"
-          className={`bg-primary rounded-2xl py-4 items-center mb-4 ${(loading || otp.length < 6) ? 'opacity-50' : ''}`}
+          className={`bg-primary rounded-2xl py-4 items-center mb-4 ${loading || otp.length < 6 ? 'opacity-50' : ''}`}
         >
-          {loading
-            ? <ActivityIndicator color="white" />
-            : <Text className="text-white font-extrabold text-base">Verify Code →</Text>}
+          {loading ? (
+            <ActivityIndicator color="white" />
+          ) : (
+            <Text className="text-white font-extrabold text-base">Verify Code →</Text>
+          )}
         </TouchableOpacity>
 
         {/* Resend */}
@@ -133,7 +146,9 @@ export default function OTPScreen() {
           accessibilityLabel="Resend code"
           className="items-center py-3"
         >
-          <Text className={`text-sm font-semibold ${cooldown > 0 ? 'text-muted-foreground' : 'text-primary'}`}>
+          <Text
+            className={`text-sm font-semibold ${cooldown > 0 ? 'text-muted-foreground' : 'text-primary'}`}
+          >
             {cooldown > 0 ? `Resend in ${cooldown}s` : "Didn't get the code? Resend"}
           </Text>
         </TouchableOpacity>

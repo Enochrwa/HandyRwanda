@@ -16,8 +16,8 @@ import {
 } from 'react-native';
 import Toast from 'react-native-toast-message';
 
-import api from '../../src/services/api';
 import { isOnAuthRoute } from '../../src/navigation';
+import api from '../../src/services/api';
 import { proService } from '../../src/services/proService';
 import { useAuthStore } from '../../src/store/authStore';
 
@@ -67,9 +67,14 @@ export default function ProDashboard() {
 
   const { data: activeBookings = [] } = useQuery({
     queryKey: ['artisan-bookings'],
-    queryFn: () => api.get('/bookings').then((r) =>
-      r.data.filter((b: any) => ['pending_payment', 'confirmed', 'in_progress'].includes(b.status))
-    ),
+    queryFn: () =>
+      api
+        .get('/bookings')
+        .then((r) =>
+          r.data.filter((b: any) =>
+            ['pending_payment', 'confirmed', 'in_progress'].includes(b.status),
+          ),
+        ),
     enabled: isAuthenticated && user?.role === 'artisan',
     refetchInterval: 30000,
   });
@@ -77,7 +82,11 @@ export default function ProDashboard() {
   const confirmReceipt = useMutation({
     mutationFn: (bookingId: string) => api.post(`/bookings/${bookingId}/confirm-receipt`),
     onSuccess: () => {
-      Toast.show({ type: 'success', text1: '✅ Receipt confirmed!', text2: 'Job is now in progress.' });
+      Toast.show({
+        type: 'success',
+        text1: '✅ Receipt confirmed!',
+        text2: 'Job is now in progress.',
+      });
       queryClient.invalidateQueries({ queryKey: ['artisan-bookings'] });
       queryClient.invalidateQueries({ queryKey: ['proDashboard'] });
     },

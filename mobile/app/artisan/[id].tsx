@@ -1,11 +1,18 @@
 // File: mobile/app/artisan/[id].tsx
-import { Star, MapPin, MessageCircle, ChevronLeft, Shield, Award, Phone, CheckCircle } from '@icons';
-import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { Star, MapPin, MessageCircle, ChevronLeft, Shield, Phone } from '@icons';
+import { useQuery } from '@tanstack/react-query';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import React, { useState } from 'react';
 import {
-  View, Text, ScrollView, Image, TouchableOpacity, ActivityIndicator,
-  Modal, TextInput, Alert, Linking,
+  View,
+  Text,
+  ScrollView,
+  Image,
+  TouchableOpacity,
+  ActivityIndicator,
+  Modal,
+  TextInput,
+  Linking,
 } from 'react-native';
 import Toast from 'react-native-toast-message';
 
@@ -41,19 +48,32 @@ export default function ArtisanProfile() {
   });
 
   const handleMessage = () => {
-    if (!isAuthenticated) { router.push('/auth'); return; }
+    if (!isAuthenticated) {
+      router.push('/auth');
+      return;
+    }
     const conversation = conversations?.find((c: any) => c.other_user.id === id);
     if (conversation) {
       router.push(`/messages/${conversation.booking_id}`);
     } else {
-      Toast.show({ type: 'info', text1: 'Book first', text2: 'Book this artisan to start chatting' });
+      Toast.show({
+        type: 'info',
+        text1: 'Book first',
+        text2: 'Book this artisan to start chatting',
+      });
     }
   };
 
   const handleBook = () => {
-    if (!isAuthenticated) { router.push('/auth'); return; }
+    if (!isAuthenticated) {
+      router.push('/auth');
+      return;
+    }
     setBookingOpen(true);
-    setStep(1); setDone(false); setJobDesc(''); setBudget('');
+    setStep(1);
+    setDone(false);
+    setJobDesc('');
+    setBudget('');
   };
 
   const submitBooking = async () => {
@@ -72,12 +92,16 @@ export default function ArtisanProfile() {
         longitude: 30.0619,
         location_label: user?.district ?? 'Kigali',
         scheduled_time: scheduledDate.toISOString(),
-        budget: budget ? parseInt(budget) : undefined,
+        budget: budget ? parseInt(budget, 10) : undefined,
       });
       setStep(3);
       setDone(true);
     } catch (err: any) {
-      Toast.show({ type: 'error', text1: 'Failed', text2: err?.response?.data?.detail ?? 'Try again' });
+      Toast.show({
+        type: 'error',
+        text1: 'Failed',
+        text2: err?.response?.data?.detail ?? 'Try again',
+      });
     } finally {
       setSubmitting(false);
     }
@@ -95,7 +119,10 @@ export default function ArtisanProfile() {
     return (
       <View className="flex-1 bg-background items-center justify-center p-6">
         <Text className="text-2xl font-bold text-center">Artisan not found</Text>
-        <TouchableOpacity onPress={() => router.back()} className="mt-4 bg-primary px-6 py-3 rounded-2xl">
+        <TouchableOpacity
+          onPress={() => router.back()}
+          className="mt-4 bg-primary px-6 py-3 rounded-2xl"
+        >
           <Text className="text-white font-bold">Go Back</Text>
         </TouchableOpacity>
       </View>
@@ -103,8 +130,18 @@ export default function ArtisanProfile() {
   }
 
   const p = artisan.profile;
-  const verBadgeColor = p.verification_status === 'pro_verified' ? '#7C3AED' : p.verification_status === 'id_verified' ? '#1B5E3B' : '#6B6B6B';
-  const verLabel = p.verification_status === 'pro_verified' ? 'Pro Verified' : p.verification_status === 'id_verified' ? 'ID Verified' : 'Unverified';
+  const verBadgeColor =
+    p.verification_status === 'pro_verified'
+      ? '#7C3AED'
+      : p.verification_status === 'id_verified'
+        ? '#1B5E3B'
+        : '#6B6B6B';
+  const verLabel =
+    p.verification_status === 'pro_verified'
+      ? 'Pro Verified'
+      : p.verification_status === 'id_verified'
+        ? 'ID Verified'
+        : 'Unverified';
 
   return (
     <View className="flex-1 bg-background">
@@ -112,7 +149,11 @@ export default function ArtisanProfile() {
         {/* Hero */}
         <View className="relative h-56 bg-muted">
           {artisan.avatar_url && (
-            <Image source={{ uri: artisan.avatar_url }} className="w-full h-full" resizeMode="cover" />
+            <Image
+              source={{ uri: artisan.avatar_url }}
+              className="w-full h-full"
+              resizeMode="cover"
+            />
           )}
           <View className="absolute inset-0 bg-gradient-to-t from-black/50 to-transparent" />
           <TouchableOpacity
@@ -138,18 +179,27 @@ export default function ArtisanProfile() {
                 <View className="flex-row flex-wrap gap-2 mt-1.5">
                   {artisan.categories?.slice(0, 2).map((c: any) => (
                     <View key={c.id} className="bg-primary/10 px-2.5 py-0.5 rounded-full">
-                      <Text className="text-primary text-xs font-bold">{c.icon_emoji} {c.name_en}</Text>
+                      <Text className="text-primary text-xs font-bold">
+                        {c.icon_emoji} {c.name_en}
+                      </Text>
                     </View>
                   ))}
-                  <View className="flex-row items-center gap-1 px-2 py-0.5 rounded-full" style={{ backgroundColor: verBadgeColor + '15' }}>
+                  <View
+                    className="flex-row items-center gap-1 px-2 py-0.5 rounded-full"
+                    style={{ backgroundColor: verBadgeColor + '15' }}
+                  >
                     <Shield size={10} color={verBadgeColor} />
-                    <Text className="text-xs font-bold" style={{ color: verBadgeColor }}>{verLabel}</Text>
+                    <Text className="text-xs font-bold" style={{ color: verBadgeColor }}>
+                      {verLabel}
+                    </Text>
                   </View>
                 </View>
               </View>
               <View className="bg-accent/10 px-3 py-1 rounded-full flex-row items-center">
                 <Star size={14} color="#E8A020" fill="#E8A020" />
-                <Text className="ml-1 text-sm font-bold text-accent">{p.average_rating.toFixed(1)}</Text>
+                <Text className="ml-1 text-sm font-bold text-accent">
+                  {p.average_rating.toFixed(1)}
+                </Text>
               </View>
             </View>
 
@@ -183,12 +233,14 @@ export default function ArtisanProfile() {
             </Text>
             {p.spoken_languages && (
               <Text className="mt-3 text-sm text-muted-foreground">
-                🗣 Speaks: <Text className="font-semibold text-foreground">{p.spoken_languages}</Text>
+                🗣 Speaks:{' '}
+                <Text className="font-semibold text-foreground">{p.spoken_languages}</Text>
               </Text>
             )}
             {p.hourly_rate && (
               <Text className="mt-2 text-sm text-muted-foreground">
-                💰 Rate: <Text className="font-bold text-foreground">{formatRWF(p.hourly_rate)} RWF/hr</Text>
+                💰 Rate:{' '}
+                <Text className="font-bold text-foreground">{formatRWF(p.hourly_rate)} RWF/hr</Text>
               </Text>
             )}
           </View>
@@ -196,12 +248,22 @@ export default function ArtisanProfile() {
           {/* Portfolio */}
           {artisan.portfolio?.length > 0 && (
             <View className="mt-5">
-              <Text className="text-lg font-bold mb-3">Portfolio ({artisan.portfolio.length} photos)</Text>
+              <Text className="text-lg font-bold mb-3">
+                Portfolio ({artisan.portfolio.length} photos)
+              </Text>
               <ScrollView horizontal showsHorizontalScrollIndicator={false} className="gap-3">
                 {artisan.portfolio.map((p: any) => (
                   <View key={p.id} className="mr-3">
-                    <Image source={{ uri: p.image_url }} className="w-36 h-36 rounded-2xl bg-muted" resizeMode="cover" />
-                    {p.job_type && <Text className="text-xs text-muted-foreground mt-1 text-center">{p.job_type}</Text>}
+                    <Image
+                      source={{ uri: p.image_url }}
+                      className="w-36 h-36 rounded-2xl bg-muted"
+                      resizeMode="cover"
+                    />
+                    {p.job_type && (
+                      <Text className="text-xs text-muted-foreground mt-1 text-center">
+                        {p.job_type}
+                      </Text>
+                    )}
                   </View>
                 ))}
               </ScrollView>
@@ -218,15 +280,24 @@ export default function ArtisanProfile() {
                     <Text className="font-semibold">{r.client_name}</Text>
                     <View className="flex-row">
                       {Array.from({ length: 5 }).map((_, i) => (
-                        <Star key={i} size={12} color="#E8A020" fill={i < r.rating ? "#E8A020" : "none"} />
+                        <Star
+                          key={i}
+                          size={12}
+                          color="#E8A020"
+                          fill={i < r.rating ? '#E8A020' : 'none'}
+                        />
                       ))}
                     </View>
                   </View>
                   {r.comment && <Text className="text-sm text-muted-foreground">{r.comment}</Text>}
                   {r.artisan_reply && (
                     <View className="mt-2 border-l-2 border-primary pl-3">
-                      <Text className="text-xs font-bold text-primary">{artisan.full_name.split(' ')[0]} replied:</Text>
-                      <Text className="text-xs text-muted-foreground mt-0.5">{r.artisan_reply}</Text>
+                      <Text className="text-xs font-bold text-primary">
+                        {artisan.full_name.split(' ')[0]} replied:
+                      </Text>
+                      <Text className="text-xs text-muted-foreground mt-0.5">
+                        {r.artisan_reply}
+                      </Text>
                     </View>
                   )}
                 </View>
@@ -258,16 +329,29 @@ export default function ArtisanProfile() {
           onPress={handleBook}
           className="flex-1 bg-accent rounded-2xl items-center justify-center h-14"
         >
-          <Text className="text-white font-extrabold text-base">Book Now — {p.hourly_rate ? formatRWF(p.hourly_rate) + ' RWF/hr' : 'Get Quote'}</Text>
+          <Text className="text-white font-extrabold text-base">
+            Book Now — {p.hourly_rate ? formatRWF(p.hourly_rate) + ' RWF/hr' : 'Get Quote'}
+          </Text>
         </TouchableOpacity>
       </View>
 
       {/* Booking Modal */}
-      <Modal visible={bookingOpen} animationType="slide" presentationStyle="pageSheet" onRequestClose={() => setBookingOpen(false)}>
+      <Modal
+        visible={bookingOpen}
+        animationType="slide"
+        presentationStyle="pageSheet"
+        onRequestClose={() => setBookingOpen(false)}
+      >
         <View className="flex-1 bg-background p-5">
           <View className="flex-row items-center justify-between mb-5">
             <Text className="text-xl font-extrabold">Book {artisan.full_name.split(' ')[0]}</Text>
-            <TouchableOpacity onPress={() => { setBookingOpen(false); setDone(false); }} className="p-2 bg-muted rounded-full">
+            <TouchableOpacity
+              onPress={() => {
+                setBookingOpen(false);
+                setDone(false);
+              }}
+              className="p-2 bg-muted rounded-full"
+            >
               <Text className="font-bold">✕</Text>
             </TouchableOpacity>
           </View>
@@ -280,12 +364,22 @@ export default function ArtisanProfile() {
                 {artisan.full_name.split(' ')[0]} will confirm within 2 hours.
               </Text>
               <View className="mt-5 bg-muted/30 rounded-2xl p-4 w-full border border-border">
-                <Text className="text-xs font-bold text-muted-foreground mb-1">PAYMENT INSTRUCTIONS</Text>
+                <Text className="text-xs font-bold text-muted-foreground mb-1">
+                  PAYMENT INSTRUCTIONS
+                </Text>
                 <Text className="text-sm">Send payment via MoMo to:</Text>
-                <Text className="text-2xl font-black text-primary mt-1">{artisan.phone_number}</Text>
+                <Text className="text-2xl font-black text-primary mt-1">
+                  {artisan.phone_number}
+                </Text>
                 <Text className="text-xs text-muted-foreground mt-1">Reference: HandyRwanda</Text>
               </View>
-              <TouchableOpacity onPress={() => { setBookingOpen(false); setDone(false); }} className="mt-6 bg-primary rounded-2xl px-8 py-4 w-full items-center">
+              <TouchableOpacity
+                onPress={() => {
+                  setBookingOpen(false);
+                  setDone(false);
+                }}
+                className="mt-6 bg-primary rounded-2xl px-8 py-4 w-full items-center"
+              >
                 <Text className="text-white font-bold text-base">Done</Text>
               </TouchableOpacity>
             </View>
@@ -294,13 +388,18 @@ export default function ArtisanProfile() {
               {/* Progress */}
               <View className="flex-row gap-1.5 mb-6">
                 {[1, 2].map((s) => (
-                  <View key={s} className={`h-1.5 flex-1 rounded-full ${s <= step ? 'bg-primary' : 'bg-muted'}`} />
+                  <View
+                    key={s}
+                    className={`h-1.5 flex-1 rounded-full ${s <= step ? 'bg-primary' : 'bg-muted'}`}
+                  />
                 ))}
               </View>
 
               {step === 1 && (
                 <View>
-                  <Text className="text-sm font-bold text-muted-foreground uppercase tracking-wide mb-2">Describe the job</Text>
+                  <Text className="text-sm font-bold text-muted-foreground uppercase tracking-wide mb-2">
+                    Describe the job
+                  </Text>
                   <TextInput
                     value={jobDesc}
                     onChangeText={setJobDesc}
@@ -310,20 +409,33 @@ export default function ArtisanProfile() {
                     className="bg-muted/50 p-4 rounded-2xl border border-border text-sm mb-4"
                     style={{ textAlignVertical: 'top', minHeight: 100 }}
                   />
-                  <Text className="text-sm font-bold text-muted-foreground uppercase tracking-wide mb-2">When?</Text>
+                  <Text className="text-sm font-bold text-muted-foreground uppercase tracking-wide mb-2">
+                    When?
+                  </Text>
                   <View className="flex-row gap-2 mb-4">
                     {['Today', 'Tomorrow', 'This week'].map((w) => (
-                      <TouchableOpacity key={w} onPress={() => setWhen(w)}
-                        className={`flex-1 py-3 rounded-xl border-2 items-center ${when === w ? 'border-primary bg-primary/10' : 'border-border bg-muted/30'}`}>
-                        <Text className={`text-xs font-bold ${when === w ? 'text-primary' : 'text-foreground'}`}>{w}</Text>
+                      <TouchableOpacity
+                        key={w}
+                        onPress={() => setWhen(w)}
+                        className={`flex-1 py-3 rounded-xl border-2 items-center ${when === w ? 'border-primary bg-primary/10' : 'border-border bg-muted/30'}`}
+                      >
+                        <Text
+                          className={`text-xs font-bold ${when === w ? 'text-primary' : 'text-foreground'}`}
+                        >
+                          {w}
+                        </Text>
                       </TouchableOpacity>
                     ))}
                   </View>
-                  <Text className="text-sm font-bold text-muted-foreground uppercase tracking-wide mb-2">Budget (RWF) — optional</Text>
+                  <Text className="text-sm font-bold text-muted-foreground uppercase tracking-wide mb-2">
+                    Budget (RWF) — optional
+                  </Text>
                   <TextInput
                     value={budget}
                     onChangeText={setBudget}
-                    placeholder={p.hourly_rate ? `Suggested: ${formatRWF(p.hourly_rate)}` : 'Enter your budget'}
+                    placeholder={
+                      p.hourly_rate ? `Suggested: ${formatRWF(p.hourly_rate)}` : 'Enter your budget'
+                    }
                     keyboardType="numeric"
                     className="bg-muted/50 p-4 rounded-2xl border border-border text-sm mb-6"
                   />
@@ -344,9 +456,12 @@ export default function ArtisanProfile() {
                     ['Artisan', artisan.full_name],
                     ['Job', jobDesc.length > 80 ? jobDesc.slice(0, 80) + '…' : jobDesc],
                     ['When', when],
-                    ['Budget', budget ? `${formatRWF(parseInt(budget))} RWF` : 'To be agreed'],
+                    ['Budget', budget ? `${formatRWF(parseInt(budget, 10))} RWF` : 'To be agreed'],
                   ].map(([label, value]) => (
-                    <View key={label} className="flex-row justify-between bg-muted/30 rounded-xl px-4 py-3 mb-2">
+                    <View
+                      key={label}
+                      className="flex-row justify-between bg-muted/30 rounded-xl px-4 py-3 mb-2"
+                    >
                       <Text className="text-muted-foreground text-sm">{label}</Text>
                       <Text className="font-semibold text-sm text-right flex-1 ml-4">{value}</Text>
                     </View>
@@ -354,11 +469,15 @@ export default function ArtisanProfile() {
                   <View className="mt-4 bg-amber-50 border border-amber-200 rounded-2xl p-4">
                     <Text className="text-xs font-bold text-amber-800">💡 Payment</Text>
                     <Text className="text-xs text-amber-700 mt-1">
-                      After booking is confirmed, you'll send MoMo directly to the artisan's number. No in-app payment needed.
+                      After booking is confirmed, you'll send MoMo directly to the artisan's number.
+                      No in-app payment needed.
                     </Text>
                   </View>
                   <View className="flex-row gap-3 mt-6">
-                    <TouchableOpacity onPress={() => setStep(1)} className="flex-1 bg-muted rounded-2xl py-4 items-center border border-border">
+                    <TouchableOpacity
+                      onPress={() => setStep(1)}
+                      className="flex-1 bg-muted rounded-2xl py-4 items-center border border-border"
+                    >
                       <Text className="font-bold">Back</Text>
                     </TouchableOpacity>
                     <TouchableOpacity
@@ -366,7 +485,9 @@ export default function ArtisanProfile() {
                       disabled={submitting}
                       className="flex-2 flex-grow bg-accent rounded-2xl py-4 items-center"
                     >
-                      <Text className="text-white font-extrabold">{submitting ? 'Sending…' : 'Send Request ✓'}</Text>
+                      <Text className="text-white font-extrabold">
+                        {submitting ? 'Sending…' : 'Send Request ✓'}
+                      </Text>
                     </TouchableOpacity>
                   </View>
                 </View>

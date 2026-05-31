@@ -2,8 +2,14 @@
 import { useRouter } from 'expo-router';
 import React, { useState } from 'react';
 import {
-  View, Text, TextInput, TouchableOpacity, ScrollView,
-  KeyboardAvoidingView, Platform, ActivityIndicator,
+  View,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  ScrollView,
+  KeyboardAvoidingView,
+  Platform,
+  ActivityIndicator,
 } from 'react-native';
 import Toast from 'react-native-toast-message';
 
@@ -26,7 +32,7 @@ export default function BioStep() {
 
   const toggleLang = (code: string) => {
     setLanguages((prev) =>
-      prev.includes(code) ? prev.filter((l) => l !== code) : [...prev, code]
+      prev.includes(code) ? prev.filter((l) => l !== code) : [...prev, code],
     );
   };
 
@@ -36,7 +42,11 @@ export default function BioStep() {
       return;
     }
     if (languages.length === 0) {
-      Toast.show({ type: 'error', text1: 'Select a language', text2: 'Pick at least one language you speak' });
+      Toast.show({
+        type: 'error',
+        text1: 'Select a language',
+        text2: 'Pick at least one language you speak',
+      });
       return;
     }
     setLoading(true);
@@ -50,7 +60,11 @@ export default function BioStep() {
       router.push('/(artisan)/onboarding/step2-skills');
     } catch (error: any) {
       const msg = error?.response?.data?.detail;
-      Toast.show({ type: 'error', text1: 'Error', text2: typeof msg === 'string' ? msg : 'Failed to save. Try again.' });
+      Toast.show({
+        type: 'error',
+        text1: 'Error',
+        text2: typeof msg === 'string' ? msg : 'Failed to save. Try again.',
+      });
     } finally {
       setLoading(false);
     }
@@ -66,12 +80,19 @@ export default function BioStep() {
         <Text className="text-white/80 text-sm mt-0.5">Step 1 of 4</Text>
         <View className="flex-row mt-3 gap-1">
           {[1, 2, 3, 4].map((s) => (
-            <View key={s} className={`h-1.5 flex-1 rounded-full ${s <= 1 ? 'bg-white' : 'bg-white/30'}`} />
+            <View
+              key={s}
+              className={`h-1.5 flex-1 rounded-full ${s <= 1 ? 'bg-white' : 'bg-white/30'}`}
+            />
           ))}
         </View>
       </View>
 
-      <ScrollView className="flex-1 px-5 pt-5" showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
+      <ScrollView
+        className="flex-1 px-5 pt-5"
+        showsVerticalScrollIndicator={false}
+        keyboardShouldPersistTaps="handled"
+      >
         {/* Bio */}
         <View className="mb-5">
           <Text className="text-xs font-bold uppercase tracking-wide text-muted-foreground mb-1.5">
@@ -91,7 +112,9 @@ export default function BioStep() {
 
         {/* Experience */}
         <View className="mb-5">
-          <Text className="text-xs font-bold uppercase tracking-wide text-muted-foreground mb-1.5">Years of Experience</Text>
+          <Text className="text-xs font-bold uppercase tracking-wide text-muted-foreground mb-1.5">
+            Years of Experience
+          </Text>
           <TextInput
             value={experience}
             onChangeText={setExperience}
@@ -104,7 +127,9 @@ export default function BioStep() {
 
         {/* Hourly Rate */}
         <View className="mb-5">
-          <Text className="text-xs font-bold uppercase tracking-wide text-muted-foreground mb-1.5">Hourly Rate (RWF) — optional</Text>
+          <Text className="text-xs font-bold uppercase tracking-wide text-muted-foreground mb-1.5">
+            Hourly Rate (RWF) — optional
+          </Text>
           <TextInput
             value={hourlyRate}
             onChangeText={setHourlyRate}
@@ -119,7 +144,9 @@ export default function BioStep() {
 
         {/* Languages */}
         <View className="mb-8">
-          <Text className="text-xs font-bold uppercase tracking-wide text-muted-foreground mb-2">Languages Spoken *</Text>
+          <Text className="text-xs font-bold uppercase tracking-wide text-muted-foreground mb-2">
+            Languages Spoken *
+          </Text>
           <View className="flex-row flex-wrap gap-2">
             {LANGUAGES.map((l) => (
               <TouchableOpacity
@@ -128,7 +155,9 @@ export default function BioStep() {
                 accessibilityLabel={l.label}
                 className={`px-4 py-2.5 rounded-xl border-2 ${languages.includes(l.code) ? 'border-primary bg-primary/10' : 'border-border bg-card'}`}
               >
-                <Text className={`text-sm font-semibold ${languages.includes(l.code) ? 'text-primary' : 'text-foreground'}`}>
+                <Text
+                  className={`text-sm font-semibold ${languages.includes(l.code) ? 'text-primary' : 'text-foreground'}`}
+                >
                   {l.label}
                 </Text>
               </TouchableOpacity>
@@ -144,7 +173,11 @@ export default function BioStep() {
           accessibilityLabel="Continue to skills"
           className={`bg-primary rounded-2xl py-4 items-center ${loading ? 'opacity-60' : ''}`}
         >
-          {loading ? <ActivityIndicator color="white" /> : <Text className="text-white font-extrabold text-base">Continue →</Text>}
+          {loading ? (
+            <ActivityIndicator color="white" />
+          ) : (
+            <Text className="text-white font-extrabold text-base">Continue →</Text>
+          )}
         </TouchableOpacity>
       </View>
     </KeyboardAvoidingView>

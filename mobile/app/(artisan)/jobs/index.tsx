@@ -5,7 +5,12 @@ import { formatDistanceToNow } from 'date-fns';
 import { useRouter } from 'expo-router';
 import React, { useState } from 'react';
 import {
-  View, Text, FlatList, TouchableOpacity, ActivityIndicator, RefreshControl,
+  View,
+  Text,
+  FlatList,
+  TouchableOpacity,
+  ActivityIndicator,
+  RefreshControl,
 } from 'react-native';
 
 import api from '../../../src/services/api';
@@ -30,7 +35,11 @@ export default function ArtisanJobFeed() {
   const router = useRouter();
   const [refreshing, setRefreshing] = useState(false);
 
-  const { data: jobs = [], isLoading, refetch } = useQuery({
+  const {
+    data: jobs = [],
+    isLoading,
+    refetch,
+  } = useQuery({
     queryKey: ['open-jobs'],
     queryFn: () => api.get('/jobs').then((r) => r.data),
     refetchInterval: 60000,
@@ -125,11 +134,7 @@ export default function ArtisanJobFeed() {
           contentContainerStyle={{ paddingTop: 16, paddingBottom: 32 }}
           showsVerticalScrollIndicator={false}
           refreshControl={
-            <RefreshControl
-              refreshing={refreshing}
-              onRefresh={handleRefresh}
-              tintColor="#1B5E3B"
-            />
+            <RefreshControl refreshing={refreshing} onRefresh={handleRefresh} tintColor="#1B5E3B" />
           }
           ListEmptyComponent={
             <View className="flex-1 items-center justify-center mt-20 px-8">

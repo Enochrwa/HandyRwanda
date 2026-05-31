@@ -13,7 +13,7 @@ from app.dependencies.jwt_auth import get_current_user, require_role
 from app.integrations.huggingface import get_job_category_match
 from app.integrations.supabase_storage import upload_image
 from app.models.artisan import ArtisanProfile, Category
-from app.models.job import Job, JobStatus
+from app.models.job import Bid, Job, JobStatus
 from app.models.user import UserRole
 from app.services.price_anchor_service import get_price_anchor
 
@@ -239,13 +239,9 @@ async def list_open_jobs(
     db: AsyncSession = Depends(get_db),
 ) -> Any:
     """Public: list all open jobs for artisans to bid on."""
-    from sqlalchemy import select as _select
-    from app.models.artisan import Category as Cat
-    from app.models.job import Bid
-
     result = await db.execute(
-        _select(Job, Cat)
-        .join(Cat, Job.category_id == Cat.id)
+        select(Job, Category)
+        .join(Category, Job.category_id == Category.id)
         .where(Job.status == JobStatus.open)
         .order_by(Job.created_at.desc())
         .limit(50)
@@ -253,18 +249,22 @@ async def list_open_jobs(
     jobs = []
     for job, cat in result:
         # count bids
-        bid_count = await db.scalar(
-            _select(func.count(Bid.id)).where(Bid.job_id == job.id)
-        ) or 0
-        jobs.append({
-            "id": str(job.id),
-            "title": job.title,
-            "description": job.description,
-            "budget": job.budget,
-            "location_label": job.location_label,
-            "scheduled_time": job.scheduled_time.isoformat() if job.scheduled_time else None,
-            "created_at": job.created_at.isoformat() if job.created_at else None,
-            "bid_count": bid_count,
-            "category": {"name_en": cat.name_en, "icon_emoji": cat.icon_emoji},
-        })
+        bid_count = (
+            await db.scalar(select(func.count(Bid.id)).where(Bid.job_id == job.id)) or 0
+        )
+        jobs.append(
+            {
+                "id": str(job.id),
+                "title": job.title,
+                "description": job.description,
+                "budget": job.budget,
+                "location_label": job.location_label,
+                "scheduled_time": job.scheduled_time.isoformat()
+                if job.scheduled_time
+                else None,
+                "created_at": job.created_at.isoformat() if job.created_at else None,
+                "bid_count": bid_count,
+                "category": {"name_en": cat.name_en, "icon_emoji": cat.icon_emoji},
+            }
+        )
     return jobs

@@ -18,7 +18,7 @@ from app.models.artisan import (
     artisan_skills,
 )
 from app.models.booking import Booking, BookingStatus
-from app.models.job import Job
+from app.models.job import Bid, BidStatus, Job
 from app.models.user import User, UserRole
 from app.utils.geo import HAVERSINE_KM_AP
 
@@ -319,7 +319,6 @@ async def get_artisan_dashboard(
         )
 
     # Active bids (pending)
-    from app.models.job import Bid, BidStatus
     active_bids_res = await db.execute(
         select(Bid, Job)
         .join(Job, Bid.job_id == Job.id)

@@ -3,8 +3,14 @@ import * as ImagePicker from 'expo-image-picker';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import React, { useState } from 'react';
 import {
-  View, Text, TextInput, TouchableOpacity, ScrollView, Image,
-  KeyboardAvoidingView, Platform,
+  View,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  ScrollView,
+  Image,
+  KeyboardAvoidingView,
+  Platform,
 } from 'react-native';
 import Toast from 'react-native-toast-message';
 
@@ -40,7 +46,11 @@ export default function JobDetails() {
       return;
     }
     if (!description.trim() || description.length < 15) {
-      Toast.show({ type: 'error', text1: 'Add more detail', text2: 'Describe the job clearly (15+ chars)' });
+      Toast.show({
+        type: 'error',
+        text1: 'Add more detail',
+        text2: 'Describe the job clearly (15+ chars)',
+      });
       return;
     }
     router.push({
@@ -59,15 +69,24 @@ export default function JobDetails() {
         <Text className="text-xl font-extrabold">Job Details</Text>
         <View className="flex-row mt-2">
           {[1, 2, 3].map((s) => (
-            <View key={s} className={`h-1 flex-1 rounded-full mr-1 ${s <= 1 ? 'bg-primary' : 'bg-muted'}`} />
+            <View
+              key={s}
+              className={`h-1 flex-1 rounded-full mr-1 ${s <= 1 ? 'bg-primary' : 'bg-muted'}`}
+            />
           ))}
         </View>
       </View>
 
-      <ScrollView className="flex-1 px-5 pt-5" showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
+      <ScrollView
+        className="flex-1 px-5 pt-5"
+        showsVerticalScrollIndicator={false}
+        keyboardShouldPersistTaps="handled"
+      >
         {/* Title */}
         <View className="mb-5">
-          <Text className="text-xs font-bold uppercase tracking-wide text-muted-foreground mb-1.5">Job Title *</Text>
+          <Text className="text-xs font-bold uppercase tracking-wide text-muted-foreground mb-1.5">
+            Job Title *
+          </Text>
           <TextInput
             value={title}
             onChangeText={setTitle}
@@ -76,12 +95,16 @@ export default function JobDetails() {
             autoCapitalize="sentences"
             maxLength={100}
           />
-          <Text className="text-[10px] text-muted-foreground text-right mt-1">{title.length}/100</Text>
+          <Text className="text-[10px] text-muted-foreground text-right mt-1">
+            {title.length}/100
+          </Text>
         </View>
 
         {/* Description */}
         <View className="mb-5">
-          <Text className="text-xs font-bold uppercase tracking-wide text-muted-foreground mb-1.5">Description *</Text>
+          <Text className="text-xs font-bold uppercase tracking-wide text-muted-foreground mb-1.5">
+            Description *
+          </Text>
           <TextInput
             value={description}
             onChangeText={setDescription}
@@ -93,12 +116,16 @@ export default function JobDetails() {
             autoCapitalize="sentences"
             maxLength={500}
           />
-          <Text className="text-[10px] text-muted-foreground text-right mt-1">{description.length}/500</Text>
+          <Text className="text-[10px] text-muted-foreground text-right mt-1">
+            {description.length}/500
+          </Text>
         </View>
 
         {/* When */}
         <View className="mb-5">
-          <Text className="text-xs font-bold uppercase tracking-wide text-muted-foreground mb-1.5">When do you need it?</Text>
+          <Text className="text-xs font-bold uppercase tracking-wide text-muted-foreground mb-1.5">
+            When do you need it?
+          </Text>
           <View className="flex-row gap-2">
             {['Today', 'Tomorrow', 'This week', 'Flexible'].map((w) => (
               <TouchableOpacity
@@ -107,7 +134,11 @@ export default function JobDetails() {
                 accessibilityLabel={w}
                 className={`flex-1 py-2.5 rounded-xl border-2 items-center ${when === w ? 'border-primary bg-primary/10' : 'border-border bg-card'}`}
               >
-                <Text className={`text-[11px] font-bold ${when === w ? 'text-primary' : 'text-foreground'}`}>{w}</Text>
+                <Text
+                  className={`text-[11px] font-bold ${when === w ? 'text-primary' : 'text-foreground'}`}
+                >
+                  {w}
+                </Text>
               </TouchableOpacity>
             ))}
           </View>
@@ -115,7 +146,9 @@ export default function JobDetails() {
 
         {/* Budget */}
         <View className="mb-5">
-          <Text className="text-xs font-bold uppercase tracking-wide text-muted-foreground mb-1.5">Your Budget (RWF) — optional</Text>
+          <Text className="text-xs font-bold uppercase tracking-wide text-muted-foreground mb-1.5">
+            Your Budget (RWF) — optional
+          </Text>
           <TextInput
             value={budget}
             onChangeText={setBudget}
@@ -123,7 +156,9 @@ export default function JobDetails() {
             keyboardType="numeric"
             className="bg-card p-4 rounded-2xl border border-border text-foreground text-sm"
           />
-          <Text className="text-[10px] text-muted-foreground mt-1">Leave blank to receive open bids</Text>
+          <Text className="text-[10px] text-muted-foreground mt-1">
+            Leave blank to receive open bids
+          </Text>
         </View>
 
         {/* Photos */}
@@ -134,7 +169,10 @@ export default function JobDetails() {
           <View className="flex-row gap-3">
             {photos.map((p, i) => (
               <View key={i} className="relative w-20 h-20">
-                <Image source={{ uri: `data:image/jpeg;base64,${p}` }} className="w-full h-full rounded-2xl" />
+                <Image
+                  source={{ uri: `data:image/jpeg;base64,${p}` }}
+                  className="w-full h-full rounded-2xl"
+                />
                 <TouchableOpacity
                   onPress={() => setPhotos(photos.filter((_, j) => j !== i))}
                   accessibilityLabel="Remove photo"

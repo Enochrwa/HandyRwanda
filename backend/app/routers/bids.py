@@ -27,21 +27,18 @@ from app.models.user import User, UserRole
 router = APIRouter(prefix="/bids", tags=["bids"])
 
 
-# ── Helpers ──────────────────────────────────────────────────────────────────
-
 async def _notify(
     db: AsyncSession,
     user_id: UUID,
     event_type: str,
     title: str,
     body: str,
-    payload: dict | None = None,
+    payload: dict[str, object] | None = None,
 ) -> None:
-    n = Notification(user_id=user_id, event_type=event_type, title=title, body=body, payload=payload)
+    n = Notification(
+        user_id=user_id, event_type=event_type, title=title, body=body, payload=payload
+    )
     db.add(n)
-
-
-# ── Endpoints ─────────────────────────────────────────────────────────────────
 
 
 class BidCreate(BaseModel):
@@ -67,9 +64,13 @@ async def submit_bid(
         raise HTTPException(status_code=400, detail="You have already bid on this job.")
 
     # Fetch job to get client_id for notification
-    job = await db.scalar(select(Job).where(Job.id == job_id, Job.status == JobStatus.open))
+    job = await db.scalar(
+        select(Job).where(Job.id == job_id, Job.status == JobStatus.open)
+    )
     if not job:
-        raise HTTPException(status_code=404, detail="Job not found or no longer accepting bids.")
+        raise HTTPException(
+            status_code=404, detail="Job not found or no longer accepting bids."
+        )
 
     # Fetch artisan name for notification
     artisan = await db.scalar(select(User).where(User.id == user_id))
@@ -87,7 +88,8 @@ async def submit_bid(
 
     # Notify client
     await _notify(
-        db, job.client_id,
+        db,
+        job.client_id,
         "new_bid",
         f"New bid from {artisan_name} 📋",
         f"{artisan_name} bid {payload.proposed_price:,} RWF on your job '{job.title}'.",
@@ -121,11 +123,15 @@ async def list_bids(
     if not job:
         raise HTTPException(status_code=404, detail="Job not found.")
 
-    query = select(Bid, User.full_name, User.avatar_url).join(User, Bid.artisan_id == User.id)
+    query = select(Bid, User.full_name, User.avatar_url).join(
+        User, Bid.artisan_id == User.id
+    )
 
     if user_role == UserRole.client:
         if job.client_id != user_id:
-            raise HTTPException(status_code=403, detail="Not authorized to view bids for this job.")
+            raise HTTPException(
+                status_code=403, detail="Not authorized to view bids for this job."
+            )
         query = query.where(Bid.job_id == job_id)
     else:
         query = query.where(Bid.job_id == job_id, Bid.artisan_id == user_id)
@@ -190,7 +196,8 @@ async def accept_bid(
     client = await db.scalar(select(User).where(User.id == user_id))
     client_name = client.full_name if client else "A client"
     await _notify(
-        db, bid.artisan_id,
+        db,
+        bid.artisan_id,
         "booking_confirmed",
         "Bid accepted! 🎉",
         f"{client_name} accepted your bid of {bid.proposed_price:,} RWF for '{job.title}'. "
@@ -222,12 +229,15 @@ async def reject_bid(
     if not data or data[1].client_id != user_id:
         raise HTTPException(status_code=404, detail="Bid not found.")
 
-    await db.execute(update(Bid).where(Bid.id == bid_id).values(status=BidStatus.rejected))
+    await db.execute(
+        update(Bid).where(Bid.id == bid_id).values(status=BidStatus.rejected)
+    )
 
     # Notify artisan
     bid = data[0]
     await _notify(
-        db, bid.artisan_id,
+        db,
+        bid.artisan_id,
         "bid_rejected",
         "Bid not selected",
         "Your bid was not selected for this job. Keep it up — more jobs are posted daily!",

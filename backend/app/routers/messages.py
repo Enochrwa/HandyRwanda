@@ -57,13 +57,16 @@ async def get_conversations(
             .limit(1)
         )
         # Unread count
-        unread_count = await db.scalar(
-            select(func.count(Message.id)).where(
-                Message.booking_id == booking.id,
-                Message.sender_id != user_id,
-                Message.is_read.is_(False),
+        unread_count = (
+            await db.scalar(
+                select(func.count(Message.id)).where(
+                    Message.booking_id == booking.id,
+                    Message.sender_id != user_id,
+                    Message.is_read.is_(False),
+                )
             )
-        ) or 0
+            or 0
+        )
 
         conversations.append(
             {
@@ -75,19 +78,25 @@ async def get_conversations(
                 },
                 "last_message": {
                     "content": latest_msg.content if latest_msg else None,
-                    "created_at": latest_msg.created_at.isoformat() if latest_msg else None,
-                } if latest_msg else None,
+                    "created_at": latest_msg.created_at.isoformat()
+                    if latest_msg
+                    else None,
+                }
+                if latest_msg
+                else None,
                 "unread_count": unread_count,
                 "booking_status": booking.status,
             }
         )
 
     # Sort: bookings with unread first, then by latest message time
+    # Sort: bookings with unread first, then by latest message time
     conversations.sort(
         key=lambda c: (
-            -(c["unread_count"] or 0),
-            -(c["last_message"]["created_at"] or "" if c["last_message"] else ""),
-        )
+            c["unread_count"] or 0,
+            c["last_message"]["created_at"] or "" if c.get("last_message") else "",
+        ),
+        reverse=True,
     )
     return conversations
 

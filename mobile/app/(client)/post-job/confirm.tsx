@@ -1,7 +1,7 @@
 // File: mobile/app/(client)/post-job/confirm.tsx
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import React, { useState } from 'react';
-import { View, Text, TouchableOpacity, ScrollView, ActivityIndicator, Alert } from 'react-native';
+import { View, Text, TouchableOpacity, ScrollView, ActivityIndicator } from 'react-native';
 import Toast from 'react-native-toast-message';
 
 import api from '../../../src/services/api';
@@ -20,7 +20,12 @@ export default function ConfirmJob() {
   const handleSubmit = async () => {
     setLoading(true);
     try {
-      const dateOffset: Record<string, number> = { Today: 0, Tomorrow: 1, 'This week': 4, Flexible: 7 };
+      const dateOffset: Record<string, number> = {
+        Today: 0,
+        Tomorrow: 1,
+        'This week': 4,
+        Flexible: 7,
+      };
       const scheduledDate = new Date();
       scheduledDate.setDate(scheduledDate.getDate() + (dateOffset[params.when ?? 'Tomorrow'] ?? 1));
 
@@ -41,11 +46,19 @@ export default function ConfirmJob() {
       }
 
       await api.post('/jobs', jobData);
-      Toast.show({ type: 'success', text1: '🎉 Job Posted!', text2: 'Artisans will start bidding shortly.' });
+      Toast.show({
+        type: 'success',
+        text1: '🎉 Job Posted!',
+        text2: 'Artisans will start bidding shortly.',
+      });
       router.replace('/(tabs)/search');
     } catch (error: any) {
       const msg = error?.response?.data?.detail;
-      Toast.show({ type: 'error', text1: 'Failed to post job', text2: typeof msg === 'string' ? msg : 'Please try again.' });
+      Toast.show({
+        type: 'error',
+        text1: 'Failed to post job',
+        text2: typeof msg === 'string' ? msg : 'Please try again.',
+      });
     } finally {
       setLoading(false);
     }
@@ -55,7 +68,12 @@ export default function ConfirmJob() {
     { label: 'Title', value: params.title },
     { label: 'When', value: params.when ?? 'Flexible' },
     { label: 'Budget', value: budget ? `${formatRWF(budget)} RWF` : 'Open to bids' },
-    { label: 'Location', value: params.locationLabel ?? `${parseFloat(params.latitude ?? '0').toFixed(4)}, ${parseFloat(params.longitude ?? '0').toFixed(4)}` },
+    {
+      label: 'Location',
+      value:
+        params.locationLabel ??
+        `${parseFloat(params.latitude ?? '0').toFixed(4)}, ${parseFloat(params.longitude ?? '0').toFixed(4)}`,
+    },
   ];
 
   return (
@@ -72,8 +90,13 @@ export default function ConfirmJob() {
       <ScrollView className="flex-1 px-5 pt-5" showsVerticalScrollIndicator={false}>
         <View className="bg-card rounded-3xl border border-border overflow-hidden mb-5">
           {rows.map(({ label, value }, i) => (
-            <View key={label} className={`px-5 py-4 ${i < rows.length - 1 ? 'border-b border-border' : ''}`}>
-              <Text className="text-xs font-bold uppercase tracking-wide text-muted-foreground mb-1">{label}</Text>
+            <View
+              key={label}
+              className={`px-5 py-4 ${i < rows.length - 1 ? 'border-b border-border' : ''}`}
+            >
+              <Text className="text-xs font-bold uppercase tracking-wide text-muted-foreground mb-1">
+                {label}
+              </Text>
               <Text className="font-semibold text-foreground text-sm">{value}</Text>
             </View>
           ))}
@@ -81,7 +104,9 @@ export default function ConfirmJob() {
 
         {params.description ? (
           <View className="bg-card rounded-3xl border border-border p-5 mb-5">
-            <Text className="text-xs font-bold uppercase tracking-wide text-muted-foreground mb-2">Description</Text>
+            <Text className="text-xs font-bold uppercase tracking-wide text-muted-foreground mb-2">
+              Description
+            </Text>
             <Text className="text-foreground text-sm leading-5">{params.description}</Text>
           </View>
         ) : null}
@@ -89,7 +114,8 @@ export default function ConfirmJob() {
         <View className="bg-primary/5 border border-primary/20 rounded-2xl p-4 mb-8">
           <Text className="text-xs font-bold text-primary mb-1">📋 What happens next?</Text>
           <Text className="text-xs text-muted-foreground leading-5">
-            Verified artisans nearby will see your job and submit bids. You'll receive notifications and can compare them before accepting.
+            Verified artisans nearby will see your job and submit bids. You'll receive notifications
+            and can compare them before accepting.
           </Text>
         </View>
       </ScrollView>
@@ -108,9 +134,11 @@ export default function ConfirmJob() {
           accessibilityLabel="Post job"
           className={`flex-[2] bg-accent rounded-2xl py-4 items-center ${loading ? 'opacity-60' : ''}`}
         >
-          {loading
-            ? <ActivityIndicator color="white" />
-            : <Text className="text-white font-extrabold text-base">Post Job — Free ✓</Text>}
+          {loading ? (
+            <ActivityIndicator color="white" />
+          ) : (
+            <Text className="text-white font-extrabold text-base">Post Job — Free ✓</Text>
+          )}
         </TouchableOpacity>
       </View>
     </View>

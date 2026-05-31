@@ -16,8 +16,8 @@ export default function BidSentSuccess() {
 
       <Text className="text-3xl font-extrabold text-center mb-3">Bid Sent! 🎉</Text>
       <Text className="text-muted-foreground text-center leading-6 mb-10">
-        Your bid has been submitted. We'll notify you as soon as the client responds.
-        Keep checking the jobs feed for more opportunities!
+        Your bid has been submitted. We'll notify you as soon as the client responds. Keep checking
+        the jobs feed for more opportunities!
       </Text>
 
       {/* Tips card */}

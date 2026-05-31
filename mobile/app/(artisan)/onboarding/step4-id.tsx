@@ -3,8 +3,14 @@ import * as ImagePicker from 'expo-image-picker';
 import { useRouter } from 'expo-router';
 import React, { useState } from 'react';
 import {
-  View, Text, TouchableOpacity, Image, ScrollView, ActivityIndicator,
-  TextInput, Alert,
+  View,
+  Text,
+  TouchableOpacity,
+  Image,
+  ScrollView,
+  ActivityIndicator,
+  TextInput,
+  Alert,
 } from 'react-native';
 import Toast from 'react-native-toast-message';
 
@@ -49,11 +55,19 @@ export default function IDStep() {
 
   const handleSubmit = async () => {
     if (!idPhoto || !selfie) {
-      Toast.show({ type: 'error', text1: 'Missing documents', text2: 'Please upload both ID and selfie' });
+      Toast.show({
+        type: 'error',
+        text1: 'Missing documents',
+        text2: 'Please upload both ID and selfie',
+      });
       return;
     }
     if (nationalId.length > 0 && nationalId.replace(/\D/g, '').length !== 16) {
-      Toast.show({ type: 'error', text1: 'Invalid National ID', text2: 'Must be exactly 16 digits' });
+      Toast.show({
+        type: 'error',
+        text1: 'Invalid National ID',
+        text2: 'Must be exactly 16 digits',
+      });
       return;
     }
 
@@ -64,11 +78,19 @@ export default function IDStep() {
         selfie_base64: selfie,
         ...(nationalId && { national_id: nationalId.replace(/\D/g, '') }),
       });
-      Toast.show({ type: 'success', text1: '🎉 Documents submitted!', text2: 'We\'ll review within 24 hours.' });
+      Toast.show({
+        type: 'success',
+        text1: '🎉 Documents submitted!',
+        text2: "We'll review within 24 hours.",
+      });
       router.replace('/(tabs)/pro');
     } catch (error: any) {
       const msg = error?.response?.data?.detail;
-      Toast.show({ type: 'error', text1: 'Submission failed', text2: typeof msg === 'string' ? msg : 'Try again.' });
+      Toast.show({
+        type: 'error',
+        text1: 'Submission failed',
+        text2: typeof msg === 'string' ? msg : 'Try again.',
+      });
     } finally {
       setLoading(false);
     }
@@ -81,7 +103,7 @@ export default function IDStep() {
       [
         { text: 'Skip for now', onPress: () => router.replace('/(tabs)/pro') },
         { text: 'Stay and verify', style: 'cancel' },
-      ]
+      ],
     );
   };
 
@@ -89,7 +111,9 @@ export default function IDStep() {
     <View className="flex-1 bg-background">
       <View className="pt-14 pb-4 px-5 bg-primary">
         <Text className="text-white text-xl font-extrabold">ID Verification</Text>
-        <Text className="text-white/80 text-sm mt-0.5">Step 4 of 4 — Builds trust with clients</Text>
+        <Text className="text-white/80 text-sm mt-0.5">
+          Step 4 of 4 — Builds trust with clients
+        </Text>
         <View className="flex-row mt-3 gap-1">
           {[1, 2, 3, 4].map((s) => (
             <View key={s} className="h-1.5 flex-1 rounded-full bg-white" />
@@ -115,7 +139,9 @@ export default function IDStep() {
 
         {/* ID Document */}
         <View className="mb-5">
-          <Text className="text-xs font-bold uppercase tracking-wide text-muted-foreground mb-2">ID Document Photo *</Text>
+          <Text className="text-xs font-bold uppercase tracking-wide text-muted-foreground mb-2">
+            ID Document Photo *
+          </Text>
           {idPhoto ? (
             <View className="relative">
               <Image
@@ -141,7 +167,9 @@ export default function IDStep() {
               className="border-2 border-dashed border-border rounded-2xl h-36 items-center justify-center bg-muted/20"
             >
               <Text className="text-3xl mb-2">🪪</Text>
-              <Text className="font-semibold text-foreground text-sm">Tap to upload ID card / Passport</Text>
+              <Text className="font-semibold text-foreground text-sm">
+                Tap to upload ID card / Passport
+              </Text>
               <Text className="text-xs text-muted-foreground mt-1">Front of your national ID</Text>
             </TouchableOpacity>
           )}
@@ -149,7 +177,9 @@ export default function IDStep() {
 
         {/* Selfie */}
         <View className="mb-5">
-          <Text className="text-xs font-bold uppercase tracking-wide text-muted-foreground mb-2">Selfie with ID *</Text>
+          <Text className="text-xs font-bold uppercase tracking-wide text-muted-foreground mb-2">
+            Selfie with ID *
+          </Text>
           {selfie ? (
             <View className="relative">
               <Image
@@ -175,7 +205,9 @@ export default function IDStep() {
               className="border-2 border-dashed border-border rounded-2xl h-36 items-center justify-center bg-muted/20"
             >
               <Text className="text-3xl mb-2">🤳</Text>
-              <Text className="font-semibold text-foreground text-sm">Take selfie holding your ID</Text>
+              <Text className="font-semibold text-foreground text-sm">
+                Take selfie holding your ID
+              </Text>
               <Text className="text-xs text-muted-foreground mt-1">Uses front camera</Text>
             </TouchableOpacity>
           )}
@@ -185,7 +217,8 @@ export default function IDStep() {
         <View className="mb-8 bg-blue-50 border border-blue-200 rounded-2xl p-4">
           <Text className="text-xs font-bold text-blue-800 mb-1">🔒 Your privacy matters</Text>
           <Text className="text-xs text-blue-700 leading-5">
-            Documents are encrypted and only reviewed by HandyRwanda admins for verification. They are never shared with clients.
+            Documents are encrypted and only reviewed by HandyRwanda admins for verification. They
+            are never shared with clients.
           </Text>
         </View>
       </ScrollView>
@@ -195,13 +228,19 @@ export default function IDStep() {
           onPress={handleSubmit}
           disabled={loading || !idPhoto || !selfie}
           accessibilityLabel="Submit verification"
-          className={`bg-primary rounded-2xl py-4 items-center ${(!idPhoto || !selfie || loading) ? 'opacity-50' : ''}`}
+          className={`bg-primary rounded-2xl py-4 items-center ${!idPhoto || !selfie || loading ? 'opacity-50' : ''}`}
         >
-          {loading
-            ? <ActivityIndicator color="white" />
-            : <Text className="text-white font-extrabold text-base">Submit for Verification ✓</Text>}
+          {loading ? (
+            <ActivityIndicator color="white" />
+          ) : (
+            <Text className="text-white font-extrabold text-base">Submit for Verification ✓</Text>
+          )}
         </TouchableOpacity>
-        <TouchableOpacity onPress={handleSkip} accessibilityLabel="Skip for now" className="py-3 items-center">
+        <TouchableOpacity
+          onPress={handleSkip}
+          accessibilityLabel="Skip for now"
+          className="py-3 items-center"
+        >
           <Text className="text-muted-foreground text-sm">Skip for now</Text>
         </TouchableOpacity>
       </View>

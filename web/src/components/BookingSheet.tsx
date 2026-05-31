@@ -1,6 +1,15 @@
 // File: web/src/components/BookingSheet.tsx
 import { useEffect, useState } from "react";
-import { ArrowRight, ShieldCheck, X, Loader2, Check, Phone, AlertCircle, Calendar } from "lucide-react";
+import {
+  ArrowRight,
+  ShieldCheck,
+  X,
+  Loader2,
+  Check,
+  Phone,
+  AlertCircle,
+  Calendar,
+} from "lucide-react";
 import { formatRWF } from "@/services/artisanService";
 import type { Artisan } from "@/types/artisan";
 import { useAuthStore } from "@/store/authStore";
@@ -32,7 +41,12 @@ export function BookingSheet({
   useEffect(() => {
     if (!open) {
       setTimeout(() => {
-        setStep(1); setSubmitting(false); setDone(false); setJob(""); setBudget(""); setBookingId(null);
+        setStep(1);
+        setSubmitting(false);
+        setDone(false);
+        setJob("");
+        setBudget("");
+        setBookingId(null);
       }, 200);
     }
   }, [open]);
@@ -49,7 +63,12 @@ export function BookingSheet({
     try {
       // First create a job post, then submit a bid from the artisan side isn't applicable here
       // For direct booking: post a job → immediately create a booking with this artisan
-      const dateMap: Record<string, number> = { Today: 0, Tomorrow: 1, "This week": 3, "Next week": 7 };
+      const dateMap: Record<string, number> = {
+        Today: 0,
+        Tomorrow: 1,
+        "This week": 3,
+        "Next week": 7,
+      };
       const daysOffset = dateMap[when] ?? 1;
       const scheduledDate = new Date();
       scheduledDate.setDate(scheduledDate.getDate() + daysOffset);
@@ -70,11 +89,13 @@ export function BookingSheet({
       });
 
       // Submit bid on behalf of artisan (direct booking flow)
-      await api.post(`/bids/jobs/${jobRes.data.id}`, {
-        proposed_price: budget ? parseInt(budget) : (a.startingPrice ?? 5000),
-        message: `Direct booking request from ${user?.fullName ?? "client"}`,
-        proposed_start_time: scheduledDate.toISOString(),
-      }).catch(() => null); // artisan must bid — skip silently for now
+      await api
+        .post(`/bids/jobs/${jobRes.data.id}`, {
+          proposed_price: budget ? parseInt(budget) : (a.startingPrice ?? 5000),
+          message: `Direct booking request from ${user?.fullName ?? "client"}`,
+          proposed_start_time: scheduledDate.toISOString(),
+        })
+        .catch(() => null); // artisan must bid — skip silently for now
 
       setBookingId(jobRes.data.id);
       setStep(3);
@@ -100,7 +121,11 @@ export function BookingSheet({
   const momoNumber = a.momoPhone ?? "+250780000000";
 
   return (
-    <div className="fixed inset-0 z-50 flex items-end justify-center sm:items-center" role="dialog" aria-modal="true">
+    <div
+      className="fixed inset-0 z-50 flex items-end justify-center sm:items-center"
+      role="dialog"
+      aria-modal="true"
+    >
       <button className="absolute inset-0 bg-black/50" onClick={onClose} aria-label="Close" />
       <div className="relative z-10 w-full max-w-md overflow-hidden rounded-t-[32px] bg-card sm:rounded-[32px] shadow-xl">
         {/* Handle */}
@@ -109,7 +134,11 @@ export function BookingSheet({
         </div>
 
         {/* Close */}
-        <button onClick={onClose} className="absolute right-4 top-4 z-10 p-2 rounded-full bg-muted hover:bg-muted/80 transition-colors" aria-label="Close">
+        <button
+          onClick={onClose}
+          className="absolute right-4 top-4 z-10 p-2 rounded-full bg-muted hover:bg-muted/80 transition-colors"
+          aria-label="Close"
+        >
           <X className="h-4 w-4" />
         </button>
 
@@ -117,7 +146,10 @@ export function BookingSheet({
           {/* Progress */}
           <div className="flex gap-1.5 mb-6">
             {[1, 2, 3].map((s) => (
-              <div key={s} className={`h-1.5 flex-1 rounded-full transition-all ${s <= step ? "bg-primary" : "bg-muted"}`} />
+              <div
+                key={s}
+                className={`h-1.5 flex-1 rounded-full transition-all ${s <= step ? "bg-primary" : "bg-muted"}`}
+              />
             ))}
           </div>
 
@@ -128,22 +160,38 @@ export function BookingSheet({
               </div>
               <h2 className="text-2xl font-extrabold">Booking sent! 🎉</h2>
               <p className="mt-2 text-muted-foreground">
-                Your booking request has been sent to {a.name.split(" ")[0]}. They'll confirm within 2 hours.
+                Your booking request has been sent to {a.name.split(" ")[0]}. They'll confirm within
+                2 hours.
               </p>
               <div className="mt-4 rounded-2xl border border-border bg-muted/30 p-4 text-left">
-                <p className="text-xs font-bold uppercase tracking-wider text-muted-foreground mb-2">Payment instructions</p>
-                <p className="text-sm">Send <span className="font-bold">{formatRWF(budget ? parseInt(budget) : a.startingPrice)} RWF</span> via {provider} MoMo to:</p>
+                <p className="text-xs font-bold uppercase tracking-wider text-muted-foreground mb-2">
+                  Payment instructions
+                </p>
+                <p className="text-sm">
+                  Send{" "}
+                  <span className="font-bold">
+                    {formatRWF(budget ? parseInt(budget) : a.startingPrice)} RWF
+                  </span>{" "}
+                  via {provider} MoMo to:
+                </p>
                 <p className="mt-1 text-xl font-black text-primary tracking-wider">{momoNumber}</p>
-                <p className="mt-1 text-xs text-muted-foreground">Reference: HandyRwanda — {a.name.split(" ")[0]}</p>
+                <p className="mt-1 text-xs text-muted-foreground">
+                  Reference: HandyRwanda — {a.name.split(" ")[0]}
+                </p>
               </div>
-              <button onClick={onClose} className="mt-6 w-full rounded-2xl bg-primary py-3.5 font-bold text-primary-foreground">
+              <button
+                onClick={onClose}
+                className="mt-6 w-full rounded-2xl bg-primary py-3.5 font-bold text-primary-foreground"
+              >
                 Done
               </button>
             </div>
           ) : step === 1 ? (
             <div>
               <h2 className="text-2xl font-extrabold">What do you need?</h2>
-              <p className="mt-1 text-sm text-muted-foreground">Describe the job for {a.name.split(" ")[0]}</p>
+              <p className="mt-1 text-sm text-muted-foreground">
+                Describe the job for {a.name.split(" ")[0]}
+              </p>
 
               <textarea
                 value={job}
@@ -154,22 +202,32 @@ export function BookingSheet({
 
               <div className="mt-4 grid grid-cols-2 gap-3">
                 <div>
-                  <p className="mb-2 text-xs font-bold uppercase tracking-wide text-muted-foreground">When</p>
+                  <p className="mb-2 text-xs font-bold uppercase tracking-wide text-muted-foreground">
+                    When
+                  </p>
                   <div className="grid grid-cols-2 gap-1.5">
                     {["Today", "Tomorrow", "This week", "Next week"].map((w) => (
-                      <button key={w} onClick={() => setWhen(w)}
-                        className={`rounded-xl border-2 px-2 py-2 text-xs font-semibold transition ${when === w ? "border-primary bg-primary/10 text-primary" : "border-border bg-muted/30 hover:bg-muted"}`}>
+                      <button
+                        key={w}
+                        onClick={() => setWhen(w)}
+                        className={`rounded-xl border-2 px-2 py-2 text-xs font-semibold transition ${when === w ? "border-primary bg-primary/10 text-primary" : "border-border bg-muted/30 hover:bg-muted"}`}
+                      >
                         {w}
                       </button>
                     ))}
                   </div>
                 </div>
                 <div>
-                  <p className="mb-2 text-xs font-bold uppercase tracking-wide text-muted-foreground">Time</p>
+                  <p className="mb-2 text-xs font-bold uppercase tracking-wide text-muted-foreground">
+                    Time
+                  </p>
                   <div className="grid grid-cols-1 gap-1.5">
                     {["Morning", "Afternoon", "Evening"].map((t) => (
-                      <button key={t} onClick={() => setTime(t)}
-                        className={`rounded-xl border-2 px-2 py-2 text-xs font-semibold transition ${time === t ? "border-primary bg-primary/10 text-primary" : "border-border bg-muted/30 hover:bg-muted"}`}>
+                      <button
+                        key={t}
+                        onClick={() => setTime(t)}
+                        className={`rounded-xl border-2 px-2 py-2 text-xs font-semibold transition ${time === t ? "border-primary bg-primary/10 text-primary" : "border-border bg-muted/30 hover:bg-muted"}`}
+                      >
                         {t}
                       </button>
                     ))}
@@ -178,7 +236,9 @@ export function BookingSheet({
               </div>
 
               <div className="mt-4">
-                <p className="mb-1.5 text-xs font-bold uppercase tracking-wide text-muted-foreground">Budget (RWF) — optional</p>
+                <p className="mb-1.5 text-xs font-bold uppercase tracking-wide text-muted-foreground">
+                  Budget (RWF) — optional
+                </p>
                 <input
                   type="number"
                   value={budget}
@@ -199,21 +259,35 @@ export function BookingSheet({
           ) : step === 2 ? (
             <div>
               <h2 className="text-2xl font-extrabold">Review & Confirm</h2>
-              <p className="mt-1 text-sm text-muted-foreground">Double-check before sending to {a.name.split(" ")[0]}</p>
+              <p className="mt-1 text-sm text-muted-foreground">
+                Double-check before sending to {a.name.split(" ")[0]}
+              </p>
 
               <div className="mt-4 space-y-3">
                 <SummaryRow label="Artisan" value={a.name} />
                 <SummaryRow label="Job" value={job.length > 80 ? job.slice(0, 80) + "…" : job} />
                 <SummaryRow label="When" value={`${when} — ${time}`} />
-                <SummaryRow label="Budget" value={budget ? `${formatRWF(parseInt(budget))} RWF` : `~${formatRWF(a.startingPrice ?? 5000)} RWF`} />
+                <SummaryRow
+                  label="Budget"
+                  value={
+                    budget
+                      ? `${formatRWF(parseInt(budget))} RWF`
+                      : `~${formatRWF(a.startingPrice ?? 5000)} RWF`
+                  }
+                />
               </div>
 
               <div className="mt-4 rounded-2xl border border-primary/20 bg-primary/5 p-4">
-                <p className="text-xs font-bold uppercase tracking-wider text-primary mb-1">Payment method</p>
+                <p className="text-xs font-bold uppercase tracking-wider text-primary mb-1">
+                  Payment method
+                </p>
                 <div className="flex gap-2 mt-2">
                   {(["MTN", "Airtel"] as const).map((p) => (
-                    <button key={p} onClick={() => setProvider(p)}
-                      className={`flex-1 rounded-xl border-2 py-2 text-sm font-bold transition ${provider === p ? "border-primary bg-primary/10 text-primary" : "border-border bg-muted/30"}`}>
+                    <button
+                      key={p}
+                      onClick={() => setProvider(p)}
+                      className={`flex-1 rounded-xl border-2 py-2 text-sm font-bold transition ${provider === p ? "border-primary bg-primary/10 text-primary" : "border-border bg-muted/30"}`}
+                    >
                       {p === "MTN" ? "📱 MTN MoMo" : "📲 Airtel Money"}
                     </button>
                   ))}
@@ -225,7 +299,10 @@ export function BookingSheet({
               </div>
 
               <div className="mt-6 flex gap-3">
-                <button onClick={() => setStep(1)} className="flex-1 rounded-2xl border border-border bg-muted/30 py-3.5 font-bold transition hover:bg-muted">
+                <button
+                  onClick={() => setStep(1)}
+                  className="flex-1 rounded-2xl border border-border bg-muted/30 py-3.5 font-bold transition hover:bg-muted"
+                >
                   Back
                 </button>
                 <button
@@ -242,22 +319,31 @@ export function BookingSheet({
             /* Step 3 — Payment */
             <div>
               <h2 className="text-2xl font-extrabold">Send Payment</h2>
-              <p className="mt-1 text-sm text-muted-foreground">Transfer via MoMo, then confirm below.</p>
+              <p className="mt-1 text-sm text-muted-foreground">
+                Transfer via MoMo, then confirm below.
+              </p>
 
               <div className="mt-4 rounded-2xl border border-border bg-muted/30 p-5 text-center">
-                <p className="text-sm text-muted-foreground">Send to {a.name.split(" ")[0]}'s {provider} number</p>
+                <p className="text-sm text-muted-foreground">
+                  Send to {a.name.split(" ")[0]}'s {provider} number
+                </p>
                 <div className="mt-2 flex items-center justify-center gap-2">
                   <Phone className="h-5 w-5 text-primary" />
-                  <span className="text-3xl font-black tracking-wider text-primary">{momoNumber}</span>
+                  <span className="text-3xl font-black tracking-wider text-primary">
+                    {momoNumber}
+                  </span>
                 </div>
-                <div className="mt-3 text-2xl font-extrabold">{formatRWF(budget ? parseInt(budget) : (a.startingPrice ?? 5000))} RWF</div>
+                <div className="mt-3 text-2xl font-extrabold">
+                  {formatRWF(budget ? parseInt(budget) : (a.startingPrice ?? 5000))} RWF
+                </div>
                 <p className="text-xs text-muted-foreground mt-1">Reference: HandyRwanda</p>
               </div>
 
               <div className="mt-3 flex items-start gap-2 rounded-xl bg-amber-50 border border-amber-200 p-3">
                 <AlertCircle className="h-4 w-4 text-amber-600 mt-0.5 shrink-0" />
                 <p className="text-xs text-amber-800">
-                  Only tap "I've sent payment" after the transfer is complete. This notifies the artisan.
+                  Only tap "I've sent payment" after the transfer is complete. This notifies the
+                  artisan.
                 </p>
               </div>
 
@@ -266,10 +352,17 @@ export function BookingSheet({
                 disabled={submitting || !armed}
                 className="mt-6 flex w-full items-center justify-center gap-2 rounded-2xl bg-success py-3.5 font-bold text-white disabled:opacity-40 transition"
               >
-                {submitting ? <Loader2 className="h-4 w-4 animate-spin" /> : <Check className="h-4 w-4" />}
+                {submitting ? (
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                ) : (
+                  <Check className="h-4 w-4" />
+                )}
                 {!armed ? "Please wait…" : "I've sent payment ✓"}
               </button>
-              <button onClick={onClose} className="mt-2 w-full rounded-2xl py-2 text-sm text-muted-foreground hover:underline">
+              <button
+                onClick={onClose}
+                className="mt-2 w-full rounded-2xl py-2 text-sm text-muted-foreground hover:underline"
+              >
                 Cancel
               </button>
             </div>
@@ -283,7 +376,9 @@ export function BookingSheet({
 function SummaryRow({ label, value }: { label: string; value: string }) {
   return (
     <div className="flex items-start justify-between rounded-xl bg-muted/30 px-4 py-3">
-      <span className="text-xs font-bold uppercase tracking-wide text-muted-foreground">{label}</span>
+      <span className="text-xs font-bold uppercase tracking-wide text-muted-foreground">
+        {label}
+      </span>
       <span className="ml-4 text-sm font-semibold text-foreground text-right">{value}</span>
     </div>
   );

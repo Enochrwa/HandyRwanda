@@ -19,7 +19,7 @@ from uuid import UUID
 
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
-from sqlalchemy import func, or_, select, update
+from sqlalchemy import or_, select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.database import get_db
@@ -35,8 +35,17 @@ router = APIRouter(prefix="/bookings", tags=["bookings"])
 # ── Helpers ──────────────────────────────────────────────────────────────────
 
 
-async def _notify(db: AsyncSession, user_id: UUID, event_type: str, title: str, body: str, payload: dict | None = None) -> None:
-    n = Notification(user_id=user_id, event_type=event_type, title=title, body=body, payload=payload)
+async def _notify(
+    db: AsyncSession,
+    user_id: UUID,
+    event_type: str,
+    title: str,
+    body: str,
+    payload: dict[str, object] | None = None,
+) -> None:
+    n = Notification(
+        user_id=user_id, event_type=event_type, title=title, body=body, payload=payload
+    )
     db.add(n)
 
 
@@ -51,12 +60,23 @@ async def get_upcoming_bookings(
     user_id = UUID(current_user["sub"])
 
     query = (
-        select(Booking, Job, User.full_name.label("artisan_name"), User.avatar_url.label("artisan_avatar"))
+        select(
+            Booking,
+            Job,
+            User.full_name.label("artisan_name"),
+            User.avatar_url.label("artisan_avatar"),
+        )
         .join(Job, Booking.job_id == Job.id)
         .join(User, Booking.artisan_id == User.id)
         .where(
             or_(Booking.client_id == user_id, Booking.artisan_id == user_id),
-            Booking.status.in_([BookingStatus.confirmed, BookingStatus.pending_payment, BookingStatus.in_progress]),
+            Booking.status.in_(
+                [
+                    BookingStatus.confirmed,
+                    BookingStatus.pending_payment,
+                    BookingStatus.in_progress,
+                ]
+            ),
         )
         .order_by(Job.scheduled_time.asc().nullslast(), Booking.created_at.asc())
         .limit(5)
@@ -65,17 +85,21 @@ async def get_upcoming_bookings(
     result = await db.execute(query)
     bookings = []
     for booking, job, artisan_name, artisan_avatar in result:
-        bookings.append({
-            "id": str(booking.id),
-            "title": job.title,
-            "category": None,
-            "artisan_name": artisan_name,
-            "artisan_avatar": artisan_avatar,
-            "scheduled_at": job.scheduled_time.isoformat() if job.scheduled_time else None,
-            "status": booking.status,
-            "agreed_price": booking.agreed_price,
-            "location_label": job.location_label,
-        })
+        bookings.append(
+            {
+                "id": str(booking.id),
+                "title": job.title,
+                "category": None,
+                "artisan_name": artisan_name,
+                "artisan_avatar": artisan_avatar,
+                "scheduled_at": job.scheduled_time.isoformat()
+                if job.scheduled_time
+                else None,
+                "status": booking.status,
+                "agreed_price": booking.agreed_price,
+                "location_label": job.location_label,
+            }
+        )
 
     return bookings
 
@@ -87,12 +111,20 @@ async def list_bookings(
 ) -> Any:
     user_id = UUID(current_user["sub"])
     query = (
-        select(Booking, Job, User.full_name.label("other_name"), User.avatar_url.label("other_avatar"))
+        select(
+            Booking,
+            Job,
+            User.full_name.label("other_name"),
+            User.avatar_url.label("other_avatar"),
+        )
         .join(Job, Booking.job_id == Job.id)
-        .outerjoin(User, or_(
-            (Booking.client_id == user_id) & (Booking.artisan_id == User.id),
-            (Booking.artisan_id == user_id) & (Booking.client_id == User.id),
-        ))
+        .outerjoin(
+            User,
+            or_(
+                (Booking.client_id == user_id) & (Booking.artisan_id == User.id),
+                (Booking.artisan_id == user_id) & (Booking.client_id == User.id),
+            ),
+        )
         .where(or_(Booking.client_id == user_id, Booking.artisan_id == user_id))
         .order_by(Booking.created_at.desc())
         .limit(50)
@@ -100,18 +132,24 @@ async def list_bookings(
     result = await db.execute(query)
     bookings = []
     for booking, job, other_name, other_avatar in result:
-        bookings.append({
-            "id": str(booking.id),
-            "job_id": str(booking.job_id),
-            "title": job.title,
-            "location_label": job.location_label,
-            "scheduled_at": job.scheduled_time.isoformat() if job.scheduled_time else None,
-            "status": booking.status,
-            "agreed_price": booking.agreed_price,
-            "other_name": other_name,
-            "other_avatar": other_avatar,
-            "created_at": booking.created_at.isoformat() if booking.created_at else None,
-        })
+        bookings.append(
+            {
+                "id": str(booking.id),
+                "job_id": str(booking.job_id),
+                "title": job.title,
+                "location_label": job.location_label,
+                "scheduled_at": job.scheduled_time.isoformat()
+                if job.scheduled_time
+                else None,
+                "status": booking.status,
+                "agreed_price": booking.agreed_price,
+                "other_name": other_name,
+                "other_avatar": other_avatar,
+                "created_at": booking.created_at.isoformat()
+                if booking.created_at
+                else None,
+            }
+        )
     return bookings
 
 
@@ -152,7 +190,9 @@ async def get_booking(
             "title": job.title,
             "description": job.description,
             "location_label": job.location_label,
-            "scheduled_at": job.scheduled_time.isoformat() if job.scheduled_time else None,
+            "scheduled_at": job.scheduled_time.isoformat()
+            if job.scheduled_time
+            else None,
             "budget": job.budget,
         },
         "artisan": {
@@ -186,7 +226,9 @@ async def client_confirm_payment(
         )
     )
     if not booking:
-        raise HTTPException(status_code=404, detail="Booking not found or wrong status.")
+        raise HTTPException(
+            status_code=404, detail="Booking not found or wrong status."
+        )
 
     await db.execute(
         update(Booking)
@@ -196,7 +238,8 @@ async def client_confirm_payment(
 
     # Notify artisan
     await _notify(
-        db, booking.artisan_id,
+        db,
+        booking.artisan_id,
         "payment_sent",
         "Payment sent! 💰",
         "Your client has sent the MoMo payment. Please confirm receipt to begin the job.",
@@ -204,7 +247,10 @@ async def client_confirm_payment(
     )
 
     await db.commit()
-    return {"message": "Payment confirmed. Artisan has been notified.", "status": BookingStatus.confirmed}
+    return {
+        "message": "Payment confirmed. Artisan has been notified.",
+        "status": BookingStatus.confirmed,
+    }
 
 
 @router.post("/{booking_id}/confirm-receipt")
@@ -223,7 +269,9 @@ async def artisan_confirm_receipt(
         )
     )
     if not booking:
-        raise HTTPException(status_code=404, detail="Booking not found or wrong status.")
+        raise HTTPException(
+            status_code=404, detail="Booking not found or wrong status."
+        )
 
     await db.execute(
         update(Booking)
@@ -234,12 +282,15 @@ async def artisan_confirm_receipt(
     # Set auto-confirm 48h from now
     auto_confirm = datetime.now(timezone.utc) + timedelta(hours=48)
     await db.execute(
-        update(Booking).where(Booking.id == booking_id).values(auto_confirm_at=auto_confirm)
+        update(Booking)
+        .where(Booking.id == booking_id)
+        .values(auto_confirm_at=auto_confirm)
     )
 
     # Notify client
     await _notify(
-        db, booking.client_id,
+        db,
+        booking.client_id,
         "job_started",
         "Job started! 🔨",
         "Your artisan has confirmed payment and is now on the way.",
@@ -247,7 +298,10 @@ async def artisan_confirm_receipt(
     )
 
     await db.commit()
-    return {"message": "Receipt confirmed. Job is now in progress.", "status": BookingStatus.in_progress}
+    return {
+        "message": "Receipt confirmed. Job is now in progress.",
+        "status": BookingStatus.in_progress,
+    }
 
 
 @router.post("/{booking_id}/complete")
@@ -266,7 +320,9 @@ async def client_mark_complete(
         )
     )
     if not booking:
-        raise HTTPException(status_code=404, detail="Booking not found or wrong status.")
+        raise HTTPException(
+            status_code=404, detail="Booking not found or wrong status."
+        )
 
     await db.execute(
         update(Booking)
@@ -276,7 +332,8 @@ async def client_mark_complete(
 
     # Notify artisan
     await _notify(
-        db, booking.artisan_id,
+        db,
+        booking.artisan_id,
         "job_completed",
         "Job completed! ⭐",
         "The client has confirmed the job is complete. A review may follow.",
@@ -284,7 +341,8 @@ async def client_mark_complete(
     )
     # Notify client to review
     await _notify(
-        db, booking.client_id,
+        db,
+        booking.client_id,
         "review_prompt",
         "How did it go?",
         "Leave a review to help other clients find great artisans.",
@@ -311,24 +369,46 @@ async def raise_dispute(
         select(Booking).where(
             Booking.id == booking_id,
             or_(Booking.client_id == user_id, Booking.artisan_id == user_id),
-            Booking.status.in_([BookingStatus.confirmed, BookingStatus.in_progress, BookingStatus.pending_payment]),
+            Booking.status.in_(
+                [
+                    BookingStatus.confirmed,
+                    BookingStatus.in_progress,
+                    BookingStatus.pending_payment,
+                ]
+            ),
         )
     )
     if not booking:
-        raise HTTPException(status_code=404, detail="Booking not found or not eligible for dispute.")
+        raise HTTPException(
+            status_code=404, detail="Booking not found or not eligible for dispute."
+        )
 
     await db.execute(
-        update(Booking).where(Booking.id == booking_id).values(status=BookingStatus.disputed)
+        update(Booking)
+        .where(Booking.id == booking_id)
+        .values(status=BookingStatus.disputed)
     )
 
     # Notify both parties
-    other_id = booking.artisan_id if str(booking.client_id) == str(user_id) else booking.client_id
-    await _notify(db, other_id, "dispute_opened", "Dispute raised ⚠️",
-                  f"A dispute has been raised for your booking. Reason: {payload.reason}",
-                  {"booking_id": str(booking_id)})
+    other_id = (
+        booking.artisan_id
+        if str(booking.client_id) == str(user_id)
+        else booking.client_id
+    )
+    await _notify(
+        db,
+        other_id,
+        "dispute_opened",
+        "Dispute raised ⚠️",
+        f"A dispute has been raised for your booking. Reason: {payload.reason}",
+        {"booking_id": str(booking_id)},
+    )
 
     await db.commit()
-    return {"message": "Dispute raised. Our team will review within 24 hours.", "status": BookingStatus.disputed}
+    return {
+        "message": "Dispute raised. Our team will review within 24 hours.",
+        "status": BookingStatus.disputed,
+    }
 
 
 @router.post("/{booking_id}/cancel")
@@ -342,19 +422,36 @@ async def cancel_booking(
         select(Booking).where(
             Booking.id == booking_id,
             or_(Booking.client_id == user_id, Booking.artisan_id == user_id),
-            Booking.status.in_([BookingStatus.pending_payment, BookingStatus.confirmed]),
+            Booking.status.in_(
+                [BookingStatus.pending_payment, BookingStatus.confirmed]
+            ),
         )
     )
     if not booking:
-        raise HTTPException(status_code=404, detail="Booking not found or cannot be cancelled at this stage.")
+        raise HTTPException(
+            status_code=404,
+            detail="Booking not found or cannot be cancelled at this stage.",
+        )
 
     await db.execute(
-        update(Booking).where(Booking.id == booking_id).values(status=BookingStatus.cancelled)
+        update(Booking)
+        .where(Booking.id == booking_id)
+        .values(status=BookingStatus.cancelled)
     )
 
-    other_id = booking.artisan_id if str(booking.client_id) == str(user_id) else booking.client_id
-    await _notify(db, other_id, "booking_cancelled", "Booking cancelled",
-                  "A booking has been cancelled.", {"booking_id": str(booking_id)})
+    other_id = (
+        booking.artisan_id
+        if str(booking.client_id) == str(user_id)
+        else booking.client_id
+    )
+    await _notify(
+        db,
+        other_id,
+        "booking_cancelled",
+        "Booking cancelled",
+        "A booking has been cancelled.",
+        {"booking_id": str(booking_id)},
+    )
 
     await db.commit()
     return {"message": "Booking cancelled.", "status": BookingStatus.cancelled}

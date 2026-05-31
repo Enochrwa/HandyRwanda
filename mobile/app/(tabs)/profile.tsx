@@ -1,11 +1,27 @@
 // File: mobile/app/(tabs)/profile.tsx
-import { Settings, LogOut, ChevronRight, User, Shield, HelpCircle, Bell, Edit2, Briefcase, Star, MessageCircle } from '@icons';
+import {
+  Settings,
+  LogOut,
+  ChevronRight,
+  Shield,
+  HelpCircle,
+  Bell,
+  Edit2,
+  Briefcase,
+  MessageCircle,
+} from '@icons';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useRouter } from 'expo-router';
 import React, { useState } from 'react';
 import {
-  View, Text, TouchableOpacity, Image, ScrollView, Alert, Modal,
-  TextInput, Switch, ActivityIndicator,
+  View,
+  Text,
+  TouchableOpacity,
+  Image,
+  ScrollView,
+  Modal,
+  TextInput,
+  ActivityIndicator,
 } from 'react-native';
 import Toast from 'react-native-toast-message';
 
@@ -18,10 +34,16 @@ const MenuItem = ({ icon: Icon, title, value, onPress, destructive, rightElement
     className="flex-row items-center p-4 bg-card rounded-2xl mb-2 border border-border"
     accessibilityLabel={title}
   >
-    <View className={`w-10 h-10 rounded-full items-center justify-center ${destructive ? 'bg-destructive/10' : 'bg-primary/10'}`}>
+    <View
+      className={`w-10 h-10 rounded-full items-center justify-center ${destructive ? 'bg-destructive/10' : 'bg-primary/10'}`}
+    >
       <Icon size={20} color={destructive ? '#C0392B' : '#1B5E3B'} />
     </View>
-    <Text className={`ml-4 flex-1 font-semibold ${destructive ? 'text-destructive' : 'text-foreground'}`}>{title}</Text>
+    <Text
+      className={`ml-4 flex-1 font-semibold ${destructive ? 'text-destructive' : 'text-foreground'}`}
+    >
+      {title}
+    </Text>
     {value && <Text className="text-muted-foreground text-sm mr-2">{value}</Text>}
     {rightElement ?? (!destructive && <ChevronRight size={18} color="#6B6B6B" />)}
   </TouchableOpacity>
@@ -49,11 +71,12 @@ export default function ProfileScreen() {
   });
 
   const updateProfile = useMutation({
-    mutationFn: () => api.patch(`/auth/users/${user?.id}/profile`, {
-      full_name: editName,
-      district: editDistrict,
-      preferred_lang: lang,
-    }),
+    mutationFn: () =>
+      api.patch(`/auth/users/${user?.id}/profile`, {
+        full_name: editName,
+        district: editDistrict,
+        preferred_lang: lang,
+      }),
     onSuccess: () => {
       updateUser({ fullName: editName, district: editDistrict, preferredLang: lang });
       setEditOpen(false);
@@ -66,12 +89,21 @@ export default function ProfileScreen() {
   const handleLogout = () => {
     Alert.alert('Log out', 'Are you sure?', [
       { text: 'Cancel', style: 'cancel' },
-      { text: 'Log out', style: 'destructive', onPress: () => { logout(); router.replace('/(tabs)'); } },
+      {
+        text: 'Log out',
+        style: 'destructive',
+        onPress: () => {
+          logout();
+          router.replace('/(tabs)');
+        },
+      },
     ]);
   };
 
   const completedJobs = bookings.filter((b: any) => b.status === 'completed').length;
-  const activeJobs = bookings.filter((b: any) => ['confirmed', 'in_progress', 'pending_payment'].includes(b.status)).length;
+  const activeJobs = bookings.filter((b: any) =>
+    ['confirmed', 'in_progress', 'pending_payment'].includes(b.status),
+  ).length;
   const unreadNotifs = notifications.filter((n: any) => !n.is_read).length;
 
   return (
@@ -114,62 +146,126 @@ export default function ProfileScreen() {
 
       <View className="px-5 py-6">
         {/* Account section */}
-        <Text className="text-sm font-bold text-muted-foreground uppercase tracking-wider mb-3">Account</Text>
+        <Text className="text-sm font-bold text-muted-foreground uppercase tracking-wider mb-3">
+          Account
+        </Text>
         <MenuItem icon={Edit2} title="Edit Profile" onPress={() => setEditOpen(true)} />
-        <MenuItem icon={Bell} title="Notifications" value={unreadNotifs > 0 ? `${unreadNotifs} unread` : 'All read'}
-          onPress={() => router.push('/(tabs)/messages')} />
-        <MenuItem icon={MessageCircle} title="Messages" onPress={() => router.push('/(tabs)/messages')} />
+        <MenuItem
+          icon={Bell}
+          title="Notifications"
+          value={unreadNotifs > 0 ? `${unreadNotifs} unread` : 'All read'}
+          onPress={() => router.push('/(tabs)/messages')}
+        />
+        <MenuItem
+          icon={MessageCircle}
+          title="Messages"
+          onPress={() => router.push('/(tabs)/messages')}
+        />
         {user?.role === 'artisan' && (
-          <MenuItem icon={Briefcase} title="Artisan Dashboard" onPress={() => router.push('/(tabs)/pro')} />
+          <MenuItem
+            icon={Briefcase}
+            title="Artisan Dashboard"
+            onPress={() => router.push('/(tabs)/pro')}
+          />
         )}
         {user?.role === 'client' && (
-          <MenuItem icon={Briefcase} title="My Bookings" value={`${bookings.length} total`}
-            onPress={() => Toast.show({ type: 'info', text1: 'View your bookings in Messages' })} />
+          <MenuItem
+            icon={Briefcase}
+            title="My Bookings"
+            value={`${bookings.length} total`}
+            onPress={() => Toast.show({ type: 'info', text1: 'View your bookings in Messages' })}
+          />
         )}
 
         {/* Security */}
-        <Text className="text-sm font-bold text-muted-foreground uppercase tracking-wider mt-5 mb-3">Security & Privacy</Text>
-        <MenuItem icon={Shield} title="Verification Status"
+        <Text className="text-sm font-bold text-muted-foreground uppercase tracking-wider mt-5 mb-3">
+          Security & Privacy
+        </Text>
+        <MenuItem
+          icon={Shield}
+          title="Verification Status"
           value={user?.accountStatus === 'active' ? '✅ Active' : '⏳ Pending'}
-          onPress={() => {}} />
+          onPress={() => {}}
+        />
 
         {/* Language */}
-        <Text className="text-sm font-bold text-muted-foreground uppercase tracking-wider mt-5 mb-3">Language</Text>
+        <Text className="text-sm font-bold text-muted-foreground uppercase tracking-wider mt-5 mb-3">
+          Language
+        </Text>
         <View className="flex-row gap-2 mb-4">
-          {([['rw', '🇷🇼 Kinyarwanda'], ['en', '🇬🇧 English'], ['fr', '🇫🇷 Français']] as const).map(([code, label]) => (
-            <TouchableOpacity key={code} onPress={() => { setLang(code); updateProfile.mutate(); }}
-              className={`flex-1 py-3 rounded-xl border-2 items-center ${lang === code ? 'border-primary bg-primary/10' : 'border-border bg-card'}`}>
-              <Text className={`text-xs font-semibold ${lang === code ? 'text-primary' : 'text-foreground'}`}>{label}</Text>
+          {(
+            [
+              ['rw', '🇷🇼 Kinyarwanda'],
+              ['en', '🇬🇧 English'],
+              ['fr', '🇫🇷 Français'],
+            ] as const
+          ).map(([code, label]) => (
+            <TouchableOpacity
+              key={code}
+              onPress={() => {
+                setLang(code);
+                updateProfile.mutate();
+              }}
+              className={`flex-1 py-3 rounded-xl border-2 items-center ${lang === code ? 'border-primary bg-primary/10' : 'border-border bg-card'}`}
+            >
+              <Text
+                className={`text-xs font-semibold ${lang === code ? 'text-primary' : 'text-foreground'}`}
+              >
+                {label}
+              </Text>
             </TouchableOpacity>
           ))}
         </View>
 
         {/* Support */}
-        <Text className="text-sm font-bold text-muted-foreground uppercase tracking-wider mt-5 mb-3">Support</Text>
-        <MenuItem icon={HelpCircle} title="Help Center"
-          onPress={() => Toast.show({ type: 'info', text1: 'Help Center', text2: 'Contact: support@handyrwanda.rw' })} />
+        <Text className="text-sm font-bold text-muted-foreground uppercase tracking-wider mt-5 mb-3">
+          Support
+        </Text>
+        <MenuItem
+          icon={HelpCircle}
+          title="Help Center"
+          onPress={() =>
+            Toast.show({
+              type: 'info',
+              text1: 'Help Center',
+              text2: 'Contact: support@handyrwanda.rw',
+            })
+          }
+        />
         <MenuItem icon={Settings} title="Settings" onPress={() => {}} />
 
         <View className="mt-4">
           <MenuItem icon={LogOut} title="Log Out" onPress={handleLogout} destructive />
         </View>
 
-        <Text className="text-center text-muted-foreground text-xs mt-8 mb-4">HandyRwanda v2.0.0 · Made with ❤️ in Rwanda</Text>
+        <Text className="text-center text-muted-foreground text-xs mt-8 mb-4">
+          HandyRwanda v2.0.0 · Made with ❤️ in Rwanda
+        </Text>
       </View>
 
       {/* Edit Profile Modal */}
-      <Modal visible={editOpen} animationType="slide" presentationStyle="pageSheet" onRequestClose={() => setEditOpen(false)}>
+      <Modal
+        visible={editOpen}
+        animationType="slide"
+        presentationStyle="pageSheet"
+        onRequestClose={() => setEditOpen(false)}
+      >
         <View className="flex-1 bg-background p-5">
           <View className="flex-row items-center justify-between mb-6">
             <Text className="text-xl font-extrabold">Edit Profile</Text>
-            <TouchableOpacity onPress={() => setEditOpen(false)} className="p-2 bg-muted rounded-full">
+            <TouchableOpacity
+              onPress={() => setEditOpen(false)}
+              className="p-2 bg-muted rounded-full"
+            >
               <Text className="font-bold">✕</Text>
             </TouchableOpacity>
           </View>
 
           <View className="space-y-4">
             <View>
-              <Text className="text-xs font-bold uppercase tracking-wide text-muted-foreground mb-1">Full Name</Text>
+              <Text className="text-xs font-bold uppercase tracking-wide text-muted-foreground mb-1">
+                Full Name
+              </Text>
               <TextInput
                 value={editName}
                 onChangeText={setEditName}
@@ -179,7 +275,9 @@ export default function ProfileScreen() {
               />
             </View>
             <View className="mt-3">
-              <Text className="text-xs font-bold uppercase tracking-wide text-muted-foreground mb-1">District</Text>
+              <Text className="text-xs font-bold uppercase tracking-wide text-muted-foreground mb-1">
+                District
+              </Text>
               <TextInput
                 value={editDistrict}
                 onChangeText={setEditDistrict}
@@ -195,9 +293,11 @@ export default function ProfileScreen() {
             disabled={updateProfile.isPending || !editName.trim()}
             className="mt-8 bg-primary rounded-2xl py-4 items-center"
           >
-            {updateProfile.isPending
-              ? <ActivityIndicator color="white" />
-              : <Text className="text-white font-bold text-base">Save Changes</Text>}
+            {updateProfile.isPending ? (
+              <ActivityIndicator color="white" />
+            ) : (
+              <Text className="text-white font-bold text-base">Save Changes</Text>
+            )}
           </TouchableOpacity>
         </View>
       </Modal>

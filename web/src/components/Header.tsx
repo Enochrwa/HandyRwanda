@@ -1,16 +1,28 @@
 // File: web/src/components/Header.tsx
 import { Link, useNavigate } from "@tanstack/react-router";
 import {
-  Search, Bell, LogOut, LayoutDashboard, User as UserIcon, MessageSquare,
-  ShieldCheck, Settings, BookOpen, Plus,
+  Search,
+  Bell,
+  LogOut,
+  LayoutDashboard,
+  User as UserIcon,
+  MessageSquare,
+  ShieldCheck,
+  Settings,
+  BookOpen,
+  Plus,
 } from "lucide-react";
 import { useState, useMemo, useRef, useEffect } from "react";
 import { toast } from "sonner";
 import { useAuthStore } from "@/store/authStore";
 import { AuthModal } from "./AuthModal";
 import {
-  DropdownMenu, DropdownMenuContent, DropdownMenuItem,
-  DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger,
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
@@ -47,7 +59,11 @@ export function Header() {
   });
 
   const unreadMessages = useMemo(
-    () => conversations?.reduce((acc: number, c: { unread_count?: number }) => acc + (c.unread_count ?? 0), 0) ?? 0,
+    () =>
+      conversations?.reduce(
+        (acc: number, c: { unread_count?: number }) => acc + (c.unread_count ?? 0),
+        0,
+      ) ?? 0,
     [conversations],
   );
 
@@ -66,9 +82,14 @@ export function Header() {
   }, []);
 
   const eventIcons: Record<string, string> = {
-    payment_sent: "💰", job_started: "🔨", job_completed: "✅",
-    review_prompt: "⭐", dispute_opened: "⚠️", booking_cancelled: "❌",
-    new_bid: "📋", booking_confirmed: "📅",
+    payment_sent: "💰",
+    job_started: "🔨",
+    job_completed: "✅",
+    review_prompt: "⭐",
+    dispute_opened: "⚠️",
+    booking_cancelled: "❌",
+    new_bid: "📋",
+    booking_confirmed: "📅",
   };
 
   return (
@@ -90,22 +111,38 @@ export function Header() {
           {[
             { to: "/", label: "Home", exact: true },
             { to: "/search", label: "Browse" },
-            { to: "/messages", label: "Messages", badge: unreadMessages > 0 ? unreadMessages : undefined },
+            {
+              to: "/messages",
+              label: "Messages",
+              badge: unreadMessages > 0 ? unreadMessages : undefined,
+            },
             { to: "/pro", label: "For Artisans" },
           ].map(({ to, label, exact, badge }) => (
-            <Link key={to} to={to} activeOptions={exact ? { exact: true } : undefined}
+            <Link
+              key={to}
+              to={to}
+              activeOptions={exact ? { exact: true } : undefined}
               className="rounded-lg px-3 py-2 text-sm font-semibold text-muted-foreground hover:bg-muted hover:text-foreground transition-colors"
-              activeProps={{ className: "rounded-lg px-3 py-2 text-sm font-semibold text-foreground bg-muted" }}>
+              activeProps={{
+                className: "rounded-lg px-3 py-2 text-sm font-semibold text-foreground bg-muted",
+              }}
+            >
               {label}
               {badge ? (
-                <span className="ml-1.5 rounded-full bg-accent px-1.5 py-0.5 text-[10px] font-bold text-accent-foreground">{badge}</span>
+                <span className="ml-1.5 rounded-full bg-accent px-1.5 py-0.5 text-[10px] font-bold text-accent-foreground">
+                  {badge}
+                </span>
               ) : null}
             </Link>
           ))}
         </nav>
 
         <div className="flex items-center gap-2">
-          <Link to="/search" aria-label="Search" className="grid h-10 w-10 place-items-center rounded-full text-foreground hover:bg-muted md:hidden transition-colors">
+          <Link
+            to="/search"
+            aria-label="Search"
+            className="grid h-10 w-10 place-items-center rounded-full text-foreground hover:bg-muted md:hidden transition-colors"
+          >
             <Search className="h-5 w-5" />
           </Link>
 
@@ -132,7 +169,12 @@ export function Header() {
                 <div className="absolute right-0 top-12 z-50 w-80 rounded-2xl border border-border bg-card shadow-xl overflow-hidden">
                   <div className="flex items-center justify-between px-4 py-3 border-b border-border">
                     <span className="font-bold">Notifications</span>
-                    <button onClick={() => markAllRead.mutate()} className="text-xs text-primary hover:underline">Mark all read</button>
+                    <button
+                      onClick={() => markAllRead.mutate()}
+                      className="text-xs text-primary hover:underline"
+                    >
+                      Mark all read
+                    </button>
                   </div>
                   <div className="max-h-80 overflow-y-auto">
                     {notifications.length === 0 ? (
@@ -141,31 +183,54 @@ export function Header() {
                         No notifications yet
                       </div>
                     ) : (
-                      notifications.slice(0, 15).map((n: {
-                        id: string; event_type: string; title: string; body: string;
-                        is_read: boolean; created_at: string; payload?: { booking_id?: string };
-                      }) => (
-                        <button
-                          key={n.id}
-                          onClick={() => {
-                            setNotifOpen(false);
-                            if (n.payload?.booking_id) navigate({ to: "/messages", search: { booking: n.payload.booking_id } });
-                          }}
-                          className={`w-full text-left px-4 py-3 border-b border-border/50 hover:bg-muted/50 transition-colors ${!n.is_read ? "bg-primary/5" : ""}`}
-                        >
-                          <div className="flex items-start gap-2.5">
-                            <span className="text-lg shrink-0 mt-0.5">{eventIcons[n.event_type] ?? "🔔"}</span>
-                            <div className="flex-1 min-w-0">
-                              <p className="text-sm font-semibold truncate">{n.title}</p>
-                              <p className="text-xs text-muted-foreground mt-0.5 line-clamp-2">{n.body}</p>
-                              <p className="text-[10px] text-muted-foreground mt-1">
-                                {n.created_at ? formatDistanceToNow(new Date(n.created_at), { addSuffix: true }) : ""}
-                              </p>
-                            </div>
-                            {!n.is_read && <span className="h-2 w-2 rounded-full bg-primary shrink-0 mt-1" />}
-                          </div>
-                        </button>
-                      ))
+                      notifications
+                        .slice(0, 15)
+                        .map(
+                          (n: {
+                            id: string;
+                            event_type: string;
+                            title: string;
+                            body: string;
+                            is_read: boolean;
+                            created_at: string;
+                            payload?: { booking_id?: string };
+                          }) => (
+                            <button
+                              key={n.id}
+                              onClick={() => {
+                                setNotifOpen(false);
+                                if (n.payload?.booking_id)
+                                  navigate({
+                                    to: "/messages",
+                                    search: { booking: n.payload.booking_id },
+                                  });
+                              }}
+                              className={`w-full text-left px-4 py-3 border-b border-border/50 hover:bg-muted/50 transition-colors ${!n.is_read ? "bg-primary/5" : ""}`}
+                            >
+                              <div className="flex items-start gap-2.5">
+                                <span className="text-lg shrink-0 mt-0.5">
+                                  {eventIcons[n.event_type] ?? "🔔"}
+                                </span>
+                                <div className="flex-1 min-w-0">
+                                  <p className="text-sm font-semibold truncate">{n.title}</p>
+                                  <p className="text-xs text-muted-foreground mt-0.5 line-clamp-2">
+                                    {n.body}
+                                  </p>
+                                  <p className="text-[10px] text-muted-foreground mt-1">
+                                    {n.created_at
+                                      ? formatDistanceToNow(new Date(n.created_at), {
+                                          addSuffix: true,
+                                        })
+                                      : ""}
+                                  </p>
+                                </div>
+                                {!n.is_read && (
+                                  <span className="h-2 w-2 rounded-full bg-primary shrink-0 mt-1" />
+                                )}
+                              </div>
+                            </button>
+                          ),
+                        )
                     )}
                   </div>
                 </div>
@@ -176,7 +241,10 @@ export function Header() {
           {isAuthenticated ? (
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
-                <button aria-label="Account" className="flex h-10 w-10 items-center justify-center rounded-full bg-primary/10 transition-transform active:scale-95 overflow-hidden">
+                <button
+                  aria-label="Account"
+                  className="flex h-10 w-10 items-center justify-center rounded-full bg-primary/10 transition-transform active:scale-95 overflow-hidden"
+                >
                   <Avatar className="h-full w-full">
                     <AvatarImage src={user?.avatarUrl} alt={user?.fullName} />
                     <AvatarFallback className="bg-primary text-primary-foreground font-bold">
@@ -190,7 +258,9 @@ export function Header() {
                   <div className="flex flex-col">
                     <span className="text-sm font-bold">{user?.fullName}</span>
                     <span className="text-xs text-muted-foreground truncate">{user?.email}</span>
-                    <span className={`mt-1 w-fit rounded-full px-2 py-0.5 text-[10px] font-bold ${user?.role === "artisan" ? "bg-blue-100 text-blue-700" : user?.role === "admin" ? "bg-purple-100 text-purple-700" : "bg-green-100 text-green-700"}`}>
+                    <span
+                      className={`mt-1 w-fit rounded-full px-2 py-0.5 text-[10px] font-bold ${user?.role === "artisan" ? "bg-blue-100 text-blue-700" : user?.role === "admin" ? "bg-purple-100 text-purple-700" : "bg-green-100 text-green-700"}`}
+                    >
                       {user?.role}
                     </span>
                   </div>
@@ -204,12 +274,18 @@ export function Header() {
                       </Link>
                     </DropdownMenuItem>
                     <DropdownMenuItem asChild>
-                      <Link to="/profile/portfolio" className="flex items-center gap-2 cursor-pointer w-full">
+                      <Link
+                        to="/profile/portfolio"
+                        className="flex items-center gap-2 cursor-pointer w-full"
+                      >
                         <UserIcon className="h-4 w-4" /> My Portfolio
                       </Link>
                     </DropdownMenuItem>
                     <DropdownMenuItem asChild>
-                      <Link to="/onboarding/artisan" className="flex items-center gap-2 cursor-pointer w-full">
+                      <Link
+                        to="/onboarding/artisan"
+                        className="flex items-center gap-2 cursor-pointer w-full"
+                      >
                         <Settings className="h-4 w-4" /> Profile Settings
                       </Link>
                     </DropdownMenuItem>
@@ -218,7 +294,10 @@ export function Header() {
                 {user?.role === "client" && (
                   <>
                     <DropdownMenuItem asChild>
-                      <Link to="/jobs/post" className="flex items-center gap-2 cursor-pointer w-full">
+                      <Link
+                        to="/jobs/post"
+                        className="flex items-center gap-2 cursor-pointer w-full"
+                      >
                         <Plus className="h-4 w-4" /> Post a Job
                       </Link>
                     </DropdownMenuItem>
@@ -231,7 +310,10 @@ export function Header() {
                 )}
                 {user?.role === "admin" && (
                   <DropdownMenuItem asChild>
-                    <Link to="/admin/verification" className="flex items-center gap-2 cursor-pointer w-full">
+                    <Link
+                      to="/admin/verification"
+                      className="flex items-center gap-2 cursor-pointer w-full"
+                    >
                       <ShieldCheck className="h-4 w-4" /> Admin Dashboard
                     </Link>
                   </DropdownMenuItem>
@@ -240,14 +322,20 @@ export function Header() {
                   <Link to="/messages" className="flex items-center gap-2 cursor-pointer w-full">
                     <MessageSquare className="h-4 w-4" /> Messages
                     {unreadMessages > 0 && (
-                      <span className="ml-auto rounded-full bg-accent px-1.5 py-0.5 text-[10px] font-bold text-accent-foreground">{unreadMessages}</span>
+                      <span className="ml-auto rounded-full bg-accent px-1.5 py-0.5 text-[10px] font-bold text-accent-foreground">
+                        {unreadMessages}
+                      </span>
                     )}
                   </Link>
                 </DropdownMenuItem>
                 <DropdownMenuSeparator />
                 <DropdownMenuItem
                   className="flex items-center gap-2 text-destructive focus:text-destructive cursor-pointer"
-                  onClick={() => { logout(); toast.success("Logged out successfully"); navigate({ to: "/" }); }}
+                  onClick={() => {
+                    logout();
+                    toast.success("Logged out successfully");
+                    navigate({ to: "/" });
+                  }}
                 >
                   <LogOut className="h-4 w-4" /> Log out
                 </DropdownMenuItem>
@@ -255,14 +343,35 @@ export function Header() {
             </DropdownMenu>
           ) : (
             <div className="flex items-center gap-2">
-              <Button variant="ghost" size="sm" onClick={() => { setAuthModalTab("login"); setIsAuthModalOpen(true); }}>Log in</Button>
-              <Button size="sm" onClick={() => { setAuthModalTab("register"); setIsAuthModalOpen(true); }}>Sign up</Button>
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => {
+                  setAuthModalTab("login");
+                  setIsAuthModalOpen(true);
+                }}
+              >
+                Log in
+              </Button>
+              <Button
+                size="sm"
+                onClick={() => {
+                  setAuthModalTab("register");
+                  setIsAuthModalOpen(true);
+                }}
+              >
+                Sign up
+              </Button>
             </div>
           )}
         </div>
       </div>
 
-      <AuthModal isOpen={isAuthModalOpen} onClose={() => setIsAuthModalOpen(false)} defaultTab={authModalTab} />
+      <AuthModal
+        isOpen={isAuthModalOpen}
+        onClose={() => setIsAuthModalOpen(false)}
+        defaultTab={authModalTab}
+      />
     </header>
   );
 }

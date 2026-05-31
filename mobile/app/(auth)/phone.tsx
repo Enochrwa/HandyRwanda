@@ -4,8 +4,14 @@
 import { useRouter } from 'expo-router';
 import React, { useState } from 'react';
 import {
-  View, Text, TextInput, TouchableOpacity, ActivityIndicator,
-  KeyboardAvoidingView, Platform, ScrollView,
+  View,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  ActivityIndicator,
+  KeyboardAvoidingView,
+  Platform,
+  ScrollView,
 } from 'react-native';
 import Toast from 'react-native-toast-message';
 
@@ -72,7 +78,9 @@ export default function PhoneScreen() {
           </Text>
           <TextInput
             value={phone}
-            onChangeText={(v) => setPhone(v.startsWith('+250') ? v : '+250' + v.replace(/^\+250/, ''))}
+            onChangeText={(v) =>
+              setPhone(v.startsWith('+250') ? v : '+250' + v.replace(/^\+250/, ''))
+            }
             placeholder="+2507XXXXXXXX"
             keyboardType="phone-pad"
             accessibilityLabel="Phone number"
@@ -103,15 +111,16 @@ export default function PhoneScreen() {
           accessibilityLabel="Continue"
           className={`bg-primary rounded-2xl py-4 items-center ${loading ? 'opacity-60' : ''}`}
         >
-          {loading
-            ? <ActivityIndicator color="white" />
-            : <Text className="text-white font-extrabold text-base">Continue →</Text>}
+          {loading ? (
+            <ActivityIndicator color="white" />
+          ) : (
+            <Text className="text-white font-extrabold text-base">Continue →</Text>
+          )}
         </TouchableOpacity>
 
         <Text className="text-center text-xs text-muted-foreground mt-6 leading-5">
           By continuing you agree to our{' '}
-          <Text className="text-primary font-semibold">Terms of Service</Text>
-          {' '}and{' '}
+          <Text className="text-primary font-semibold">Terms of Service</Text> and{' '}
           <Text className="text-primary font-semibold">Privacy Policy</Text>
         </Text>
       </ScrollView>

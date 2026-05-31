@@ -38,7 +38,10 @@ function PostJob() {
   const set = (k: string, v: string) => setFormData((p) => ({ ...p, [k]: v }));
 
   const handleSubmit = async () => {
-    if (!isAuthenticated) { setAuthOpen(true); return; }
+    if (!isAuthenticated) {
+      setAuthOpen(true);
+      return;
+    }
     if (!formData.title.trim() || formData.title.length < 5) {
       toast.error("Add a job title (at least 5 characters)");
       return;
@@ -54,7 +57,12 @@ function PostJob() {
 
     setLoading(true);
     try {
-      const dateOffset: Record<string, number> = { Today: 0, Tomorrow: 1, "This week": 4, Flexible: 7 };
+      const dateOffset: Record<string, number> = {
+        Today: 0,
+        Tomorrow: 1,
+        "This week": 4,
+        Flexible: 7,
+      };
       const scheduledDate = new Date();
       scheduledDate.setDate(scheduledDate.getDate() + (dateOffset[when] ?? 1));
       scheduledDate.setHours(9, 0, 0, 0);
@@ -88,15 +96,20 @@ function PostJob() {
           </div>
           <h1 className="text-3xl font-extrabold">Job posted! 🎉</h1>
           <p className="mt-3 text-muted-foreground">
-            Verified artisans nearby will see your job and submit bids. You'll get a notification when you receive a bid.
+            Verified artisans nearby will see your job and submit bids. You'll get a notification
+            when you receive a bid.
           </p>
           <div className="mt-8 flex flex-col gap-3">
-            <button onClick={() => navigate({ to: "/search" })}
-              className="w-full rounded-2xl bg-primary py-4 font-bold text-primary-foreground hover:brightness-95 transition">
+            <button
+              onClick={() => navigate({ to: "/search" })}
+              className="w-full rounded-2xl bg-primary py-4 font-bold text-primary-foreground hover:brightness-95 transition"
+            >
               Browse Artisans Now <ArrowRight className="inline h-4 w-4 ml-1" />
             </button>
-            <button onClick={() => navigate({ to: "/messages" })}
-              className="w-full rounded-2xl border border-border bg-card py-4 font-bold hover:bg-muted transition">
+            <button
+              onClick={() => navigate({ to: "/messages" })}
+              className="w-full rounded-2xl border border-border bg-card py-4 font-bold hover:bg-muted transition"
+            >
               View My Messages
             </button>
           </div>
@@ -123,10 +136,17 @@ function PostJob() {
               </label>
               <div className="grid grid-cols-3 gap-2 sm:grid-cols-4">
                 {categories.map((cat: { id: string; name_en: string; icon_emoji?: string }) => (
-                  <button key={cat.id} onClick={() => set("category_id", cat.id)}
-                    className={`flex flex-col items-center rounded-2xl border-2 p-3 text-center transition ${formData.category_id === cat.id ? "border-primary bg-primary/10" : "border-border bg-muted/30 hover:bg-muted"}`}>
+                  <button
+                    key={cat.id}
+                    onClick={() => set("category_id", cat.id)}
+                    className={`flex flex-col items-center rounded-2xl border-2 p-3 text-center transition ${formData.category_id === cat.id ? "border-primary bg-primary/10" : "border-border bg-muted/30 hover:bg-muted"}`}
+                  >
                     <span className="text-xl mb-1">{cat.icon_emoji ?? "🛠️"}</span>
-                    <span className={`text-[11px] font-semibold ${formData.category_id === cat.id ? "text-primary" : "text-foreground"}`}>{cat.name_en}</span>
+                    <span
+                      className={`text-[11px] font-semibold ${formData.category_id === cat.id ? "text-primary" : "text-foreground"}`}
+                    >
+                      {cat.name_en}
+                    </span>
                   </button>
                 ))}
               </div>
@@ -144,7 +164,9 @@ function PostJob() {
                 maxLength={100}
                 className="w-full rounded-2xl border border-border bg-muted/30 px-4 py-3 text-sm outline-none focus:ring-2 focus:ring-primary/40"
               />
-              <div className="text-right text-[10px] text-muted-foreground mt-1">{formData.title.length}/100</div>
+              <div className="text-right text-[10px] text-muted-foreground mt-1">
+                {formData.title.length}/100
+              </div>
             </div>
 
             {/* Description */}
@@ -160,7 +182,9 @@ function PostJob() {
                 maxLength={500}
                 className="w-full rounded-2xl border border-border bg-muted/30 px-4 py-3 text-sm outline-none focus:ring-2 focus:ring-primary/40 resize-none"
               />
-              <div className="text-right text-[10px] text-muted-foreground mt-1">{formData.description.length}/500</div>
+              <div className="text-right text-[10px] text-muted-foreground mt-1">
+                {formData.description.length}/500
+              </div>
             </div>
 
             {/* When */}
@@ -170,8 +194,11 @@ function PostJob() {
               </label>
               <div className="grid grid-cols-4 gap-2">
                 {["Today", "Tomorrow", "This week", "Flexible"].map((w) => (
-                  <button key={w} onClick={() => setWhen(w)}
-                    className={`rounded-xl border-2 py-2.5 text-xs font-bold transition ${when === w ? "border-primary bg-primary/10 text-primary" : "border-border bg-muted/30 hover:bg-muted"}`}>
+                  <button
+                    key={w}
+                    onClick={() => setWhen(w)}
+                    className={`rounded-xl border-2 py-2.5 text-xs font-bold transition ${when === w ? "border-primary bg-primary/10 text-primary" : "border-border bg-muted/30 hover:bg-muted"}`}
+                  >
                     {w}
                   </button>
                 ))}

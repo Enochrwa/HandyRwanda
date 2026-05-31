@@ -31,7 +31,9 @@ export default function JobLocation() {
           setGettingLocation(false);
           return;
         }
-        const loc = await Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.Balanced });
+        const loc = await Location.getCurrentPositionAsync({
+          accuracy: Location.Accuracy.Balanced,
+        });
         const coords = { latitude: loc.coords.latitude, longitude: loc.coords.longitude };
         setMarker(coords);
         const newRegion = { ...KIGALI, ...coords };
@@ -41,9 +43,7 @@ export default function JobLocation() {
         // Reverse geocode for label
         const [address] = await Location.reverseGeocodeAsync(coords);
         if (address) {
-          const label = [address.street, address.district, address.city]
-            .filter(Boolean)
-            .join(', ');
+          const label = [address.street, address.district, address.city].filter(Boolean).join(', ');
           setLocationLabel(label || 'My location');
         }
       } catch {
@@ -54,7 +54,9 @@ export default function JobLocation() {
     })();
   }, []);
 
-  const handleMapPress = async (e: { nativeEvent: { coordinate: { latitude: number; longitude: number } } }) => {
+  const handleMapPress = async (e: {
+    nativeEvent: { coordinate: { latitude: number; longitude: number } };
+  }) => {
     const coords = e.nativeEvent.coordinate;
     setMarker(coords);
     // Reverse geocode the pin
@@ -64,7 +66,9 @@ export default function JobLocation() {
         const label = [address.street, address.district, address.city].filter(Boolean).join(', ');
         setLocationLabel(label || '');
       }
-    } catch { /* ignore */ }
+    } catch {
+      /* ignore */
+    }
   };
 
   const handleConfirm = () => {
@@ -86,7 +90,10 @@ export default function JobLocation() {
         <Text className="text-xl font-extrabold">Where is the job?</Text>
         <View className="flex-row mt-2">
           {[1, 2, 3].map((s) => (
-            <View key={s} className={`h-1 flex-1 rounded-full mr-1 ${s <= 2 ? 'bg-primary' : 'bg-muted'}`} />
+            <View
+              key={s}
+              className={`h-1 flex-1 rounded-full mr-1 ${s <= 2 ? 'bg-primary' : 'bg-muted'}`}
+            />
           ))}
         </View>
       </View>
@@ -113,11 +120,7 @@ export default function JobLocation() {
             maximumZ={19}
             flipY={false}
           />
-          <Marker
-            coordinate={marker}
-            title="Job location"
-            pinColor="#1B5E3B"
-          />
+          <Marker coordinate={marker} title="Job location" pinColor="#1B5E3B" />
         </MapView>
 
         {/* Instruction badge */}

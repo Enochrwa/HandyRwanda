@@ -76,14 +76,14 @@ async def get_conversations(
                     "full_name": other_user.full_name,
                     "avatar_url": other_user.avatar_url,
                 },
-                "last_message": {
-                    "content": latest_msg.content if latest_msg else None,
-                    "created_at": latest_msg.created_at.isoformat()
-                    if latest_msg
-                    else None,
-                }
-                if latest_msg
-                else None,
+                "last_message": (
+                    {
+                        "content": latest_msg.content,
+                        "created_at": latest_msg.created_at.isoformat(),
+                    }
+                    if latest_msg is not None
+                    else None
+                ),
                 "unread_count": unread_count,
                 "booking_status": booking.status,
             }

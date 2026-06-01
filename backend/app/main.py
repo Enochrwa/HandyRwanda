@@ -97,9 +97,9 @@ async def get_artisan_public(
 ) -> Any:
     user = await db.scalar(
         select(User).where(
-            User.id == artisan_id, User.role == UserRole.artisan, User.is_active
+            User.id == artisan_id, User.role == UserRole.artisan, User.is_active.is_(True)
         )
-    )  # noqa
+    )
     if not user:
         raise HTTPException(status_code=404, detail="Artisan not found.")
 

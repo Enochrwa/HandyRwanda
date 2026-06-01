@@ -161,12 +161,12 @@ async def get_analytics(
     current_user: dict[str, Any] = Depends(require_role(UserRole.admin)),
 ) -> Any:
     # Total users
-    total_users = await db.scalar(select(func.count(User.id)).where(User.is_active))  # noqa: E712
+    total_users = await db.scalar(select(func.count(User.id)).where(User.is_active.is_(True)))
     total_artisans = await db.scalar(
-        select(func.count(User.id)).where(User.role == UserRole.artisan, User.is_active)  # noqa: E712
+        select(func.count(User.id)).where(User.role == UserRole.artisan, User.is_active.is_(True))
     )
     total_clients = await db.scalar(
-        select(func.count(User.id)).where(User.role == UserRole.client, User.is_active)  # noqa: E712
+        select(func.count(User.id)).where(User.role == UserRole.client, User.is_active.is_(True))
     )
 
     # Bookings

@@ -59,8 +59,9 @@ function Pro() {
 
   const { data: myBids = [] } = useQuery({
     queryKey: ["my-bids"],
-    queryFn: () => api.get("/artisans/dashboard").then((r) => r.data?.active_bids ?? []),
+    queryFn: () => api.get("/bids/mine").then((r) => r.data),
     enabled: isAuthenticated && user?.role === "artisan",
+    refetchInterval: 30000,
   });
 
   const { data: bookings = [] } = useQuery({
@@ -318,6 +319,8 @@ function NearbyJobCard({ job }: { job: any }) {
   const [expanded, setExpanded] = useState(false);
   const [price, setPrice] = useState(job.budget?.toString() || "");
   const [note, setNote] = useState("");
+  const [estHours, setEstHours] = useState("");
+  const [startTime, setStartTime] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
   const queryClient = useQueryClient();
 
@@ -328,7 +331,13 @@ function NearbyJobCard({ job }: { job: any }) {
     }
     setIsSubmitting(true);
     try {
-      await proService.submitBid(job.id, parseInt(price), note);
+      await proService.submitBid(
+        job.id,
+        parseInt(price),
+        note,
+        estHours ? parseFloat(estHours) : undefined,
+        startTime || undefined,
+      );
       toast.success("Bid submitted!");
       setExpanded(false);
       queryClient.invalidateQueries({ queryKey: ["artisan-dashboard"] });
@@ -384,7 +393,30 @@ function NearbyJobCard({ job }: { job: any }) {
               onChange={(e) => setNote(e.target.value)}
               placeholder="Tell the client why you're a good fit..."
               className="resize-none h-20"
+              maxLength={500}
             />
+          </div>
+          <div className="grid grid-cols-2 gap-2">
+            <div className="space-y-1">
+              <label className="text-xs font-bold uppercase text-muted-foreground">Est. Hours</label>
+              <Input
+                type="number"
+                value={estHours}
+                onChange={(e) => setEstHours(e.target.value)}
+                placeholder="e.g. 3"
+                step="0.5"
+                min="0.5"
+              />
+            </div>
+            <div className="space-y-1">
+              <label className="text-xs font-bold uppercase text-muted-foreground">Start Time</label>
+              <Input
+                type="datetime-local"
+                value={startTime}
+                onChange={(e) => setStartTime(e.target.value)}
+                min={new Date().toISOString().slice(0, 16)}
+              />
+            </div>
           </div>
           <div className="flex gap-2">
             <Button variant="outline" className="flex-1" onClick={() => setExpanded(false)}>

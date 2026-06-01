@@ -65,6 +65,13 @@ export default function ProDashboard() {
     onError: () => Toast.show({ type: 'error', text1: 'Failed to update status' }),
   });
 
+  const { data: availableJobs = [] } = useQuery({
+    queryKey: ['available-jobs-pro'],
+    queryFn: () => proService.getAvailableJobs(),
+    enabled: isAuthenticated && user?.role === 'artisan',
+    refetchInterval: 60_000,
+  });
+
   const { data: activeBookings = [] } = useQuery({
     queryKey: ['artisan-bookings'],
     queryFn: () =>
@@ -247,22 +254,30 @@ export default function ProDashboard() {
         {/* Nearby Jobs */}
         <View className="mb-10">
           <Text className="text-lg font-bold mb-3">Nearby Jobs for You</Text>
-          {dashboard?.nearby_jobs?.length > 0 ? (
-            dashboard.nearby_jobs.map((job: any) => (
+          {availableJobs.length > 0 ? (
+            availableJobs.slice(0, 5).map((job: any) => (
               <View key={job.id} className="bg-card p-4 rounded-2xl border border-border mb-4">
-                <View className="flex-row justify-between mb-2">
-                  <Text className="font-bold text-lg flex-1">{job.title}</Text>
-                  <Text className="text-primary font-bold">
-                    {job.budget?.toLocaleString() ?? 'Negotiable'} RWF
+                <View className="flex-row items-start justify-between gap-2 mb-1.5">
+                  <Text className="font-bold text-base flex-1 leading-tight">{job.title}</Text>
+                  {job.urgency && job.urgency !== 'flexible' && (
+                    <Text className={`text-xs font-bold px-2 py-0.5 rounded-full ${job.urgency === 'urgent' || job.urgency === 'today' ? 'bg-red-100 text-red-600' : 'bg-blue-100 text-blue-700'}`}>
+                      {job.urgency === 'urgent' ? '🚨' : job.urgency === 'today' ? '🔥' : '⏰'}
+                    </Text>
+                  )}
+                </View>
+                <Text className="text-primary font-bold text-sm mb-1.5">
+                  {job.budget ? `${job.budget.toLocaleString()} RWF` : 'Open budget'}{job.budget_max ? ` – ${job.budget_max.toLocaleString()}` : ''}
+                </Text>
+                <View className="flex-row items-center mb-2">
+                  <MapPin size={12} color="#6B6B6B" />
+                  <Text className="text-xs text-muted-foreground ml-1" numberOfLines={1}>
+                    {job.location_label || 'Rwanda'}
+                  </Text>
+                  <Text className="text-xs text-muted-foreground ml-2">
+                    · {job.bid_count ?? 0} bid{(job.bid_count ?? 0) !== 1 ? 's' : ''}
                   </Text>
                 </View>
-                <View className="flex-row items-center mb-3">
-                  <MapPin size={14} color="#6B6B6B" />
-                  <Text className="text-xs text-muted-foreground ml-1">
-                    {job.location_label} • {job.distance} km away
-                  </Text>
-                </View>
-                <Text className="text-sm text-foreground mb-4" numberOfLines={2}>
+                <Text className="text-sm text-muted-foreground mb-3" numberOfLines={2}>
                   {job.description}
                 </Text>
 

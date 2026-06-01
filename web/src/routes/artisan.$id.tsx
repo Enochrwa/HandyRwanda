@@ -50,6 +50,12 @@ function Profile() {
     queryFn: () => api.get(`/artisans/${id}/public`).then((r) => r.data),
   });
 
+  const { data: skills = [] } = useQuery({
+    queryKey: ["artisan-skills", id],
+    queryFn: () => api.get(`/artisans/${id}/skills`).then((r) => r.data),
+    enabled: !!id,
+  });
+
   const { data: conversations } = useQuery({
     queryKey: ["conversations"],
     queryFn: () => api.get("/messages/conversations").then((res) => res.data),
@@ -171,13 +177,13 @@ function Profile() {
               </button>
             </div>
             <div className="mt-1 flex flex-wrap items-center gap-2">
-              {artisan.categories?.map(
+              {(skills.length > 0 ? skills : artisan.categories ?? []).map(
                 (c: { id: string; name_en: string; icon_emoji?: string }) => (
                   <span
                     key={c.id}
                     className="rounded-full bg-primary/10 px-2.5 py-0.5 text-xs font-semibold text-primary"
                   >
-                    {c.icon_emoji} {c.name_en}
+                    {c.icon_emoji ?? "🛠️"} {c.name_en}
                   </span>
                 ),
               )}

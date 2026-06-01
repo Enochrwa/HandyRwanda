@@ -49,6 +49,7 @@ export function Header() {
   const { data: notifications = [] } = useQuery({
     queryKey: ["notifications"],
     queryFn: () => api.get("/notifications").then((r) => r.data),
+    refetchInterval: 30000,
     enabled: isAuthenticated,
     refetchInterval: 30000,
   });

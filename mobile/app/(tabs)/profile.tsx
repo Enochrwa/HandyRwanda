@@ -59,6 +59,13 @@ export default function ProfileScreen() {
   const [editDistrict, setEditDistrict] = useState(user?.district ?? '');
   const [lang, setLang] = useState(user?.preferredLang ?? 'rw');
 
+  const { data: freshProfile } = useQuery({
+    queryKey: ['my-profile'],
+    queryFn: () => api.get('/auth/users/me').then((r) => r.data),
+    enabled: isAuthenticated,
+    staleTime: 60_000,
+  });
+
   const { data: bookings = [] } = useQuery({
     queryKey: ['my-bookings'],
     queryFn: () => api.get('/bookings').then((r) => r.data),

@@ -71,8 +71,8 @@ function Home() {
           params: { latitude: -1.9441, longitude: 30.0619, radius_km: 30, page: 1 },
         })
         .then((r) => {
-            const items: unknown[] = Array.isArray(r.data) ? r.data : (r.data?.items ?? []);
-            return items.slice(0, 6).map((a: unknown) => {
+          const items: unknown[] = Array.isArray(r.data) ? r.data : (r.data?.items ?? []);
+          return items.slice(0, 6).map((a: unknown) => {
             const art = a as Record<string, unknown>;
             return {
               id: (art.id ?? "") as string,

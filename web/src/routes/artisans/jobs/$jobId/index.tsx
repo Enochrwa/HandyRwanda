@@ -310,7 +310,9 @@ function JobDetail() {
               </div>
             )}
 
-            {!alreadyBid && <BidForm jobId={jobId} onSuccess={() => navigate({ to: "/artisans/jobs" })} />}
+            {!alreadyBid && (
+              <BidForm jobId={jobId} onSuccess={() => navigate({ to: "/artisans/jobs" })} />
+            )}
           </div>
         </div>
       </main>

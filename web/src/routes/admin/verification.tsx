@@ -268,7 +268,7 @@ function VerificationTab({ qc }: { qc: ReturnType<typeof useQueryClient> }) {
 function AnalyticsTab() {
   const { data, isLoading } = useQuery({
     queryKey: ["admin-analytics"],
-    queryFn: () => api.get("/admin/analytics").then((r) => r.data),
+    queryFn: () => api.get("/admin/stats").then((r) => r.data),
   });
 
   if (isLoading)
@@ -504,7 +504,7 @@ function UsersTab({
 function DisputesTab({ qc }: { qc: ReturnType<typeof useQueryClient> }) {
   const { data: disputes = [], isLoading } = useQuery({
     queryKey: ["admin-disputes"],
-    queryFn: () => api.get("/admin/disputes").then((r) => r.data),
+    queryFn: () => api.get("/bookings").then(r => ({ data: r.data.filter((b) => b.status === "disputed") })).then((r) => r.data),
   });
 
   const resolve = useMutation({

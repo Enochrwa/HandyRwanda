@@ -39,6 +39,8 @@ export default function ProDashboard() {
   const [biddingJobId, setBiddingJobId] = useState<string | null>(null);
   const [bidAmount, setBidAmount] = useState('');
   const [bidNote, setBidNote] = useState('');
+  const [bidCoverLetter, setBidCoverLetter] = useState('');
+  const [bidHours, setBidHours] = useState('');
 
   useEffect(() => {
     if (!isAuthenticated) {
@@ -101,6 +103,8 @@ export default function ProDashboard() {
       setBiddingJobId(null);
       setBidAmount('');
       setBidNote('');
+      setBidCoverLetter('');
+      setBidHours('');
       Toast.show({ type: 'success', text1: 'Bid submitted!' });
     },
     onError: (err: any) =>
@@ -277,11 +281,24 @@ export default function ProDashboard() {
                       onChangeText={setBidAmount}
                     />
                     <TextInput
-                      className="bg-card p-3 rounded-lg border border-border mb-4 h-20 text-start"
-                      placeholder="Add a note (experience, tools, etc.)"
+                      className="bg-card p-3 rounded-lg border border-border mb-2 h-20 text-start"
+                      placeholder="Your approach: method, tools, timeline..."
                       multiline
                       value={bidNote}
                       onChangeText={setBidNote}
+                    />
+                    <TextInput
+                      className="bg-card p-3 rounded-lg border border-border mb-2"
+                      placeholder="Why you? (experience, certs...) — optional"
+                      value={bidCoverLetter}
+                      onChangeText={setBidCoverLetter}
+                    />
+                    <TextInput
+                      className="bg-card p-3 rounded-lg border border-border mb-4"
+                      placeholder="Estimated hours (e.g. 3) — optional"
+                      keyboardType="numeric"
+                      value={bidHours}
+                      onChangeText={setBidHours}
                     />
                     <View className="flex-row gap-2">
                       <TouchableOpacity
@@ -298,6 +315,8 @@ export default function ProDashboard() {
                             jobId: job.id,
                             price: parseInt(bidAmount, 10),
                             note: bidNote,
+                            coverLetter: bidCoverLetter,
+                            hours: bidHours ? parseInt(bidHours, 10) : undefined,
                           })
                         }
                         disabled={submitBid.isPending}

@@ -2,9 +2,12 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { Stack } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
+import { useEffect } from 'react';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import Toast from 'react-native-toast-message';
 import '../src/global.css';
+import { useAuthStore } from '../src/store/authStore';
+import { proService } from '../src/services/proService';
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -15,10 +18,36 @@ const queryClient = new QueryClient({
   },
 });
 
+// Register push token when artisan logs in
+function PushTokenRegistrar() {
+  const { isAuthenticated, user } = useAuthStore();
+
+  useEffect(() => {
+    if (!isAuthenticated || user?.role !== 'artisan') return;
+
+    (async () => {
+      try {
+        const { default: Notifications } = await import('expo-notifications');
+        const { status } = await Notifications.requestPermissionsAsync();
+        if (status !== 'granted') return;
+        const tokenData = await Notifications.getExpoPushTokenAsync();
+        if (tokenData?.data) {
+          await proService.registerPushToken(tokenData.data);
+        }
+      } catch {
+        // Silently ignore — push token registration is non-critical
+      }
+    })();
+  }, [isAuthenticated, user?.role]);
+
+  return null;
+}
+
 export default function RootLayout() {
   return (
     <GestureHandlerRootView style={{ flex: 1 }}>
       <QueryClientProvider client={queryClient}>
+        <PushTokenRegistrar />
         <Stack screenOptions={{ headerShown: false }}>
           <Stack.Screen
             name="auth"

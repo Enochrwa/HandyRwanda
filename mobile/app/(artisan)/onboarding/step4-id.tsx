@@ -74,9 +74,9 @@ export default function IDStep() {
     setLoading(true);
     try {
       await api.post('/artisans/profile/me/id-verification', {
-        id_document_base64: idPhoto,
+        national_id_doc_base64: idPhoto,
         selfie_base64: selfie,
-        ...(nationalId && { national_id: nationalId.replace(/\D/g, '') }),
+        ...(nationalId && { national_id_number: nationalId.replace(/\D/g, '') }),
       });
       Toast.show({
         type: 'success',

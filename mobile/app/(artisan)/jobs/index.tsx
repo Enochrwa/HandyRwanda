@@ -40,8 +40,10 @@ export default function ArtisanJobFeed() {
     isLoading,
     refetch,
   } = useQuery({
-    queryKey: ['open-jobs'],
-    queryFn: () => api.get('/jobs').then((r) => r.data),
+    queryKey: ['available-jobs'],
+    // /jobs/available filters by the artisan's registered skill categories.
+    // /jobs (public) would show all open jobs regardless of skills.
+    queryFn: () => api.get('/jobs/available').then((r) => r.data),
     refetchInterval: 60000,
   });
 

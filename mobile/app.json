@@ -19,7 +19,7 @@
       }
     },
     "web": {},
-    "plugins": ["expo-secure-store", "expo-localization", "expo-font", "expo-router"],
+    "plugins": ["expo-secure-store", "expo-localization", "expo-font", "expo-router", "expo-notifications"],
     "scheme": "handyrwanda",
     "entryPoint": "node_modules/expo-router/entry.js"
   }

@@ -93,6 +93,13 @@ export default function ArtisanProfile() {
         location_label: user?.district ?? 'Kigali',
         scheduled_time: scheduledDate.toISOString(),
         budget: budget ? parseInt(budget, 10) : undefined,
+      }).then(async (jobRes) => {
+        // Create a direct booking with this specific artisan
+        await api.post('/bookings', {
+          job_id: jobRes.data.id,
+          artisan_id: artisan?.id,
+          agreed_price: budget ? parseInt(budget, 10) : (artisan?.profile?.hourly_rate ?? artisan?.profile?.fixed_rate ?? 5000),
+        });
       });
       setStep(3);
       setDone(true);

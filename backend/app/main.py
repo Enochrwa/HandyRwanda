@@ -63,7 +63,14 @@ app = FastAPI(title="HandyRwanda API", version="2.0.0", lifespan=lifespan)
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:5173", "http://localhost:8081", "*"],
+    allow_origins=[
+        "http://localhost:5173",   # Vite web dev
+        "http://localhost:8081",   # Expo web / Metro
+        "http://localhost:19006",  # Expo web (older)
+        "http://10.0.2.2:5173",   # Android emulator → host Vite
+        "http://10.0.2.2:8081",   # Android emulator → host Metro
+        "*",                       # Allow all in dev; tighten via ENV in production
+    ],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],

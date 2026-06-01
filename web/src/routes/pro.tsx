@@ -59,8 +59,11 @@ function Pro() {
 
   const { data: myBids = [] } = useQuery({
     queryKey: ["my-bids"],
+    // Re-use the already-fetched dashboard data — no separate request needed
     queryFn: () => api.get("/artisans/dashboard").then((r) => r.data?.active_bids ?? []),
     enabled: isAuthenticated && user?.role === "artisan",
+    // Stale-time matches dashboard so they refresh together
+    staleTime: 30_000,
   });
 
   const { data: bookings = [] } = useQuery({

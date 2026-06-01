@@ -2,6 +2,7 @@
 """
 Bookings router — full lifecycle management.
 
+POST   /bookings                        — create direct booking (client selects artisan)
 GET    /bookings/upcoming           — upcoming bookings for current user
 GET    /bookings                    — all bookings for current user
 GET    /bookings/{id}               — single booking detail
@@ -32,6 +33,17 @@ from app.models.user import User, UserRole
 router = APIRouter(prefix="/bookings", tags=["bookings"])
 
 
+# ── Schemas ────────────────────────────────────────────────────────────────────
+
+
+class DirectBookingCreate(BaseModel):
+    """Create a booking directly with a specific artisan (no bid flow).
+    Used by web BookingSheet and mobile Quick-Book when client picks an artisan."""
+    job_id: UUID
+    artisan_id: UUID
+    agreed_price: int
+
+
 # ── Helpers ──────────────────────────────────────────────────────────────────
 
 
@@ -50,6 +62,57 @@ async def _notify(
 
 
 # ── Endpoints ─────────────────────────────────────────────────────────────────
+
+
+# ── Endpoints ─────────────────────────────────────────────────────────────────
+
+
+@router.post("", status_code=201)
+async def create_direct_booking(
+    payload: DirectBookingCreate,
+    db: AsyncSession = Depends(get_db),
+    current_user: dict[str, Any] = Depends(require_role(UserRole.client)),
+) -> Any:
+    """Direct booking: client selects a specific artisan without the bid flow.
+    Creates the booking in `pending_payment` status immediately."""
+    client_id = UUID(current_user["sub"])
+
+    # Verify the job belongs to this client and is still open
+    job = await db.scalar(select(Job).where(Job.id == payload.job_id))
+    if not job:
+        raise HTTPException(status_code=404, detail="Job not found.")
+    if str(job.client_id) != str(client_id):
+        raise HTTPException(status_code=403, detail="You do not own this job.")
+
+    # Verify the artisan exists
+    artisan = await db.scalar(
+        select(User).where(User.id == payload.artisan_id, User.role == UserRole.artisan)
+    )
+    if not artisan:
+        raise HTTPException(status_code=404, detail="Artisan not found.")
+
+    booking = Booking(
+        job_id=payload.job_id,
+        client_id=client_id,
+        artisan_id=payload.artisan_id,
+        agreed_price=payload.agreed_price,
+        status=BookingStatus.pending_payment,
+        auto_confirm_at=datetime.now(timezone.utc) + timedelta(hours=72),
+    )
+    db.add(booking)
+    await db.flush()
+
+    await _notify(
+        db,
+        payload.artisan_id,
+        "new_booking",
+        "New Booking Request",
+        f"You have a new booking for: {job.title}",
+        {"booking_id": str(booking.id), "job_id": str(payload.job_id)},
+    )
+
+    await db.commit()
+    return {"id": str(booking.id), "status": booking.status}
 
 
 @router.get("/upcoming")

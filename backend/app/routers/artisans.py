@@ -38,7 +38,7 @@ class ArtisanProfileUpdate(BaseModel):
 
 
 class IDVerificationRequest(BaseModel):
-    national_id_number: str
+    national_id_number: str | None = None
     national_id_doc_base64: str
     selfie_base64: str
 

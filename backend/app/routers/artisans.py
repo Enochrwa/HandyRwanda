@@ -445,3 +445,51 @@ async def search_artisans(
         },
     )
     return [dict(row._mapping) for row in result]
+
+
+# ── Push Token Registration ────────────────────────────────────────────────────
+
+
+class PushTokenUpdate(BaseModel):
+    expo_push_token: str
+
+
+@router.post("/push-token")
+async def register_push_token(
+    payload: PushTokenUpdate,
+    db: AsyncSession = Depends(get_db),
+    current_user: dict[str, Any] = Depends(require_role(UserRole.artisan)),
+) -> Any:
+    """Register or update Expo push notification token for the artisan."""
+    user_id = UUID(current_user["sub"])
+    await db.execute(
+        update(User)
+        .where(User.id == user_id)
+        .values(expo_push_token=payload.expo_push_token)
+    )
+    await db.commit()
+    return {"message": "Push token registered."}
+
+
+@router.get("/{artisan_id}/skills")
+async def get_artisan_skills(
+    artisan_id: UUID,
+    db: AsyncSession = Depends(get_db),
+) -> Any:
+    """Public: list skill categories for a given artisan."""
+
+    cats_result = await db.execute(
+        select(Category)
+        .join(artisan_skills, artisan_skills.c.category_id == Category.id)
+        .where(artisan_skills.c.artisan_id == artisan_id)
+    )
+    return [
+        {
+            "id": str(c.id),
+            "name_en": c.name_en,
+            "name_rw": c.name_rw,
+            "name_fr": c.name_fr,
+            "icon_emoji": c.icon_emoji,
+        }
+        for c in cats_result.scalars().all()
+    ]

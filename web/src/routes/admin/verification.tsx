@@ -25,6 +25,7 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import api from "@/services/api";
 import { useAuthStore } from "@/store/authStore";
 import { toast } from "sonner";
+import type { Dispute } from "@/types/dispute";
 import { formatRWF } from "@/services/artisanService";
 import {
   LineChart,
@@ -268,7 +269,7 @@ function VerificationTab({ qc }: { qc: ReturnType<typeof useQueryClient> }) {
 function AnalyticsTab() {
   const { data, isLoading } = useQuery({
     queryKey: ["admin-analytics"],
-    queryFn: () => api.get("/admin/analytics").then((r) => r.data),
+    queryFn: () => api.get("/admin/stats").then((r) => r.data),
   });
 
   if (isLoading)
@@ -502,9 +503,9 @@ function UsersTab({
 // ── Disputes Tab ──────────────────────────────────────────────────────────────
 
 function DisputesTab({ qc }: { qc: ReturnType<typeof useQueryClient> }) {
-  const { data: disputes = [], isLoading } = useQuery({
+  const { data: disputes = [], isLoading } = useQuery<Dispute[]>({
     queryKey: ["admin-disputes"],
-    queryFn: () => api.get("/admin/disputes").then((r) => r.data),
+    queryFn: () => api.get<Dispute[]>("/admin/disputes").then((r) => r.data),
   });
 
   const resolve = useMutation({
@@ -530,48 +531,37 @@ function DisputesTab({ qc }: { qc: ReturnType<typeof useQueryClient> }) {
         </div>
       ) : (
         <div className="space-y-3">
-          {disputes.map(
-            (d: {
-              booking_id: string;
-              client_name: string;
-              agreed_price: number;
-              created_at?: string;
-            }) => (
-              <div
-                key={d.booking_id}
-                className="rounded-2xl border border-amber-200 bg-amber-50 p-4"
-              >
-                <div className="flex items-start justify-between gap-4">
-                  <div>
-                    <p className="font-semibold">
-                      Booking:{" "}
-                      <span className="font-mono text-xs">{d.booking_id.slice(0, 8)}…</span>
-                    </p>
-                    <p className="text-sm text-muted-foreground mt-1">
-                      Client: {d.client_name} — {formatRWF(d.agreed_price)} RWF
-                    </p>
-                    <p className="text-xs text-muted-foreground">
-                      {d.created_at ? new Date(d.created_at).toLocaleDateString() : ""}
-                    </p>
-                  </div>
-                  <div className="flex gap-2 shrink-0">
-                    <button
-                      onClick={() => resolve.mutate({ id: d.booking_id, winner: "artisan" })}
-                      className="rounded-xl bg-blue-100 px-3 py-1.5 text-xs font-bold text-blue-700 hover:bg-blue-200 transition"
-                    >
-                      Favour Artisan
-                    </button>
-                    <button
-                      onClick={() => resolve.mutate({ id: d.booking_id, winner: "client" })}
-                      className="rounded-xl bg-green-100 px-3 py-1.5 text-xs font-bold text-green-700 hover:bg-green-200 transition"
-                    >
-                      Favour Client
-                    </button>
-                  </div>
+          {disputes.map((d) => (
+            <div key={d.booking_id} className="rounded-2xl border border-amber-200 bg-amber-50 p-4">
+              <div className="flex items-start justify-between gap-4">
+                <div>
+                  <p className="font-semibold">
+                    Booking: <span className="font-mono text-xs">{d.booking_id.slice(0, 8)}…</span>
+                  </p>
+                  <p className="text-sm text-muted-foreground mt-1">
+                    Client: {d.client_name} — {formatRWF(d.agreed_price)} RWF
+                  </p>
+                  <p className="text-xs text-muted-foreground">
+                    {d.created_at ? new Date(d.created_at).toLocaleDateString() : ""}
+                  </p>
+                </div>
+                <div className="flex gap-2 shrink-0">
+                  <button
+                    onClick={() => resolve.mutate({ id: d.booking_id, winner: "artisan" })}
+                    className="rounded-xl bg-blue-100 px-3 py-1.5 text-xs font-bold text-blue-700 hover:bg-blue-200 transition"
+                  >
+                    Favour Artisan
+                  </button>
+                  <button
+                    onClick={() => resolve.mutate({ id: d.booking_id, winner: "client" })}
+                    className="rounded-xl bg-green-100 px-3 py-1.5 text-xs font-bold text-green-700 hover:bg-green-200 transition"
+                  >
+                    Favour Client
+                  </button>
                 </div>
               </div>
-            ),
-          )}
+            </div>
+          ))}
         </div>
       )}
     </div>

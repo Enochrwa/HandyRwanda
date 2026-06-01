@@ -27,6 +27,8 @@ export default function BioStep() {
   const [bio, setBio] = useState('');
   const [experience, setExperience] = useState('');
   const [hourlyRate, setHourlyRate] = useState('');
+  const [fixedRate, setFixedRate] = useState('');
+  const [serviceRadius, setServiceRadius] = useState('10');
   const [languages, setLanguages] = useState<string[]>(['rw']);
   const [loading, setLoading] = useState(false);
 
@@ -55,7 +57,9 @@ export default function BioStep() {
         bio: bio.trim(),
         years_experience: parseInt(experience, 10) || 0,
         spoken_languages: languages.join(','),
+        service_radius_km: parseInt(serviceRadius, 10) || 10,
         ...(hourlyRate && { hourly_rate: parseInt(hourlyRate, 10) }),
+        ...(fixedRate && { fixed_rate: parseInt(fixedRate, 10) }),
       });
       router.push('/(artisan)/onboarding/step2-skills');
     } catch (error: any) {
@@ -103,7 +107,7 @@ export default function BioStep() {
             onChangeText={setBio}
             placeholder="Describe your skills, experience, and what makes you stand out…"
             multiline
-            maxLength={250}
+            maxLength={500}
             className="bg-card p-4 rounded-2xl border border-border text-foreground text-sm"
             style={{ textAlignVertical: 'top', minHeight: 110 }}
             autoCapitalize="sentences"
@@ -139,6 +143,41 @@ export default function BioStep() {
           />
           <Text className="text-[10px] text-muted-foreground mt-1">
             Set a starting rate. You can always negotiate per job.
+          </Text>
+        </View>
+
+        {/* Fixed Rate */}
+        <View className="mb-5">
+          <Text className="text-xs font-bold uppercase tracking-wide text-muted-foreground mb-1.5">
+            Fixed Rate per Job (RWF) — optional
+          </Text>
+          <TextInput
+            value={fixedRate}
+            onChangeText={setFixedRate}
+            placeholder="e.g. 20000 per job"
+            keyboardType="number-pad"
+            className="bg-card p-4 rounded-2xl border border-border text-foreground text-sm"
+          />
+          <Text className="text-[10px] text-muted-foreground mt-1">
+            For jobs you charge per project, not per hour.
+          </Text>
+        </View>
+
+        {/* Service Radius */}
+        <View className="mb-5">
+          <Text className="text-xs font-bold uppercase tracking-wide text-muted-foreground mb-1.5">
+            Service Radius (km)
+          </Text>
+          <TextInput
+            value={serviceRadius}
+            onChangeText={setServiceRadius}
+            placeholder="e.g. 10"
+            keyboardType="number-pad"
+            maxLength={3}
+            className="bg-card p-4 rounded-2xl border border-border text-foreground text-sm"
+          />
+          <Text className="text-[10px] text-muted-foreground mt-1">
+            How far are you willing to travel to a job? (1-50 km)
           </Text>
         </View>
 

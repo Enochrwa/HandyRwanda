@@ -1,38 +1,44 @@
-import { getDefaultConfig } from 'expo/metro-config';
-import { withNativeWind } from 'nativewind/metro';
 import path from 'path';
 import { fileURLToPath } from 'url';
+import { createRequire } from 'module';
+
+const require = createRequire(import.meta.url);
+const { Module } = require('module');
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
-// Ensure forked processes (NativeWind Tailwind CLI) resolve Tailwind v3, not v4 from the monorepo root.
-import('./tailwind-resolver-hook.mjs');
-
-const hookPath = path.resolve(__dirname, 'tailwind-resolver-hook.mjs');
-if (!process.env.NODE_OPTIONS?.includes('tailwind-resolver-hook')) {
-  process.env.NODE_OPTIONS = [process.env.NODE_OPTIONS, `--require ${hookPath}`]
-    .filter(Boolean)
-    .join(' ');
-}
-
-const projectRoot = __dirname;
-const monorepoRoot = path.resolve(projectRoot, '..');
-
-const config = getDefaultConfig(projectRoot);
-
-config.resolver.nodeModulesPaths = [
-  path.resolve(projectRoot, 'node_modules'),
-  path.resolve(monorepoRoot, 'node_modules'),
-];
-
-// Single React instance — root hoists web's 19.2.x otherwise, breaking RN's renderer (19.1.0).
-config.resolver.extraNodeModules = {
-  react: path.resolve(projectRoot, 'node_modules/react'),
-  'react-dom': path.resolve(projectRoot, 'node_modules/react-dom'),
+const mobileNodeModules = path.resolve(__dirname, 'node_modules');
+const originalResolveFilename = Module._resolveFilename;
+Module._resolveFilename = function (request, parent, isMain, options) {
+  if (
+    request === 'tailwindcss' ||
+    request === 'tailwindcss/package.json' ||
+    request.startsWith('tailwindcss/')
+  ) {
+    return originalResolveFilename.call(
+      this,
+      request,
+      { paths: [mobileNodeModules] },
+      isMain,
+      options,
+    );
+  }
+  return originalResolveFilename.call(this, request, parent, isMain, options);
 };
 
-// Hoisted packages expose broken "exports" entries in npm workspaces.
+const { getDefaultConfig } = await import('@expo/metro-config');
+
+// const monorepoRoot = path.resolve(__dirname, '..');
+const config = getDefaultConfig(__dirname);
+
+config.resolver.nodeModulesPaths = [path.resolve(__dirname, 'node_modules')];
+
+config.resolver.extraNodeModules = {
+  react: path.resolve(__dirname, 'node_modules/react'),
+  'react-dom': path.resolve(__dirname, 'node_modules/react-dom'),
+};
+
 config.resolver.unstable_enablePackageExports = false;
 
-export default withNativeWind(config, { input: './src/global.css' });
+export default config;

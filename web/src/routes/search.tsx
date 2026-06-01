@@ -140,7 +140,9 @@ function SearchPage() {
   const results = useMemo(() => {
     // Backend returns either an array (legacy) or { items: [...], total: N }
     const raw = data ?? [];
-    const apiResults: unknown[] = Array.isArray(raw) ? raw : ((raw as { items?: unknown[] })?.items ?? []);
+    const apiResults: unknown[] = Array.isArray(raw)
+      ? raw
+      : ((raw as { items?: unknown[] })?.items ?? []);
     if (apiResults.length === 0 && !isLoading && !q && filterState === initialFilters) {
       return fallbackArtisans;
     }

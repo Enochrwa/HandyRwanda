@@ -121,8 +121,18 @@ export function BookingSheet({
         ...(budget ? { budget: parseInt(budget) } : {}),
       });
 
-      setBookingId(jobRes.data.id);
-      setStep(2);
+      const jobId = jobRes.data.id;
+
+      // Create a direct booking (not through bids) with this artisan
+      const bookingRes = await api.post("/bookings", {
+        job_id: jobId,
+        artisan_id: a.id,
+        agreed_price: budget ? parseInt(budget) : (a.startingPrice ?? 5000),
+      });
+
+      setBookingId(bookingRes.data.id);
+      setDone(true);
+      toast.success("Booking request sent! The artisan will confirm soon.");
     } catch (err: unknown) {
       const msg = (err as { response?: { data?: { detail?: string } } })?.response?.data?.detail;
       toast.error(typeof msg === "string" ? msg : "Failed to create booking. Please try again.");
@@ -132,18 +142,12 @@ export function BookingSheet({
   };
 
   const confirmPayment = async () => {
-    if (!bookingId) return;
     setSubmitting(true);
     try {
-      // In the job/bid flow, payment confirmation is on the booking object
-      // Since this is a direct booking (not bid-based), we just notify and done
-      await api.post(`/bookings/${bookingId}/confirm-payment`).catch(() => {});
-      setDone(true);
-      toast.success("Booking request sent! The artisan will confirm soon.");
+      // Create job and booking on final payment confirmation
+      await submitBookingRequest();
     } catch {
-      // Even if confirm fails (e.g. booking not yet in pending_payment), still show done
-      setDone(true);
-      toast.success("Booking request sent!");
+      // Error handled in submitBookingRequest
     } finally {
       setSubmitting(false);
     }
@@ -349,7 +353,7 @@ export function BookingSheet({
               </div>
 
               <button
-                onClick={submitBookingRequest}
+                onClick={() => setStep(2)}
                 disabled={job.trim().length < 10 || submitting}
                 className="mt-2 flex w-full items-center justify-center gap-2 rounded-2xl bg-primary py-3.5 font-bold text-primary-foreground disabled:opacity-40 transition"
               >

@@ -1,5 +1,5 @@
 // File: mobile/app/(artisan)/jobs/[jobId]/index.tsx
-import { ArrowRight, AlertCircle } from '@icons';
+import { ArrowRight } from '@icons';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import React, { useState } from 'react';
@@ -86,7 +86,10 @@ export default function JobDetailBid() {
       });
       return;
     }
-    if (estimatedHours && (parseInt(estimatedHours, 10) < 1 || parseInt(estimatedHours, 10) > 720)) {
+    if (
+      estimatedHours &&
+      (parseInt(estimatedHours, 10) < 1 || parseInt(estimatedHours, 10) > 720)
+    ) {
       Toast.show({ type: 'error', text1: 'Invalid duration', text2: '1 to 720 hours only' });
       return;
     }
@@ -105,7 +108,10 @@ export default function JobDetailBid() {
     return (
       <View className="flex-1 bg-background items-center justify-center p-6">
         <Text className="text-xl font-bold text-center">Job not found</Text>
-        <TouchableOpacity onPress={() => router.back()} className="mt-4 bg-primary px-6 py-3 rounded-2xl">
+        <TouchableOpacity
+          onPress={() => router.back()}
+          className="mt-4 bg-primary px-6 py-3 rounded-2xl"
+        >
           <Text className="text-white font-bold">Go Back</Text>
         </TouchableOpacity>
       </View>
@@ -119,7 +125,11 @@ export default function JobDetailBid() {
     >
       {/* Header */}
       <View className="pt-14 pb-4 px-5 bg-card border-b border-border">
-        <TouchableOpacity onPress={() => router.back()} accessibilityLabel="Go back" className="mb-3">
+        <TouchableOpacity
+          onPress={() => router.back()}
+          accessibilityLabel="Go back"
+          className="mb-3"
+        >
           <Text className="text-primary font-semibold">← Back to Jobs</Text>
         </TouchableOpacity>
         <View className="flex-row flex-wrap gap-2 mb-1">
@@ -172,7 +182,9 @@ export default function JobDetailBid() {
           <View className="flex-row flex-wrap gap-4 mt-4 pt-4 border-t border-border">
             {job.budget ? (
               <View>
-                <Text className="text-[10px] font-bold uppercase text-muted-foreground">Budget</Text>
+                <Text className="text-[10px] font-bold uppercase text-muted-foreground">
+                  Budget
+                </Text>
                 <Text className="font-bold text-foreground">
                   {formatRWF(job.budget)} RWF
                   {job.budget_negotiable && (
@@ -182,19 +194,25 @@ export default function JobDetailBid() {
               </View>
             ) : (
               <View>
-                <Text className="text-[10px] font-bold uppercase text-muted-foreground">Budget</Text>
+                <Text className="text-[10px] font-bold uppercase text-muted-foreground">
+                  Budget
+                </Text>
                 <Text className="font-semibold text-muted-foreground">Open to bids</Text>
               </View>
             )}
             {job.location_label && (
               <View>
-                <Text className="text-[10px] font-bold uppercase text-muted-foreground">Location</Text>
+                <Text className="text-[10px] font-bold uppercase text-muted-foreground">
+                  Location
+                </Text>
                 <Text className="font-bold text-foreground">{job.location_label}</Text>
               </View>
             )}
             {job.scheduled_time && (
               <View>
-                <Text className="text-[10px] font-bold uppercase text-muted-foreground">Scheduled</Text>
+                <Text className="text-[10px] font-bold uppercase text-muted-foreground">
+                  Scheduled
+                </Text>
                 <Text className="font-bold text-foreground">
                   {new Date(job.scheduled_time).toLocaleDateString('en-RW', {
                     weekday: 'short',
@@ -208,7 +226,9 @@ export default function JobDetailBid() {
             )}
             {job.bid_count !== undefined && (
               <View>
-                <Text className="text-[10px] font-bold uppercase text-muted-foreground">Bids so far</Text>
+                <Text className="text-[10px] font-bold uppercase text-muted-foreground">
+                  Bids so far
+                </Text>
                 <Text className="font-bold text-foreground">{job.bid_count}</Text>
               </View>
             )}
@@ -228,7 +248,9 @@ export default function JobDetailBid() {
               </View>
               <View className="items-center border-x border-primary/20 px-4">
                 <Text className="text-[10px] text-muted-foreground">Typical</Text>
-                <Text className="font-bold text-sm text-primary">{formatRWF(priceGuidance.median)} RWF</Text>
+                <Text className="font-bold text-sm text-primary">
+                  {formatRWF(priceGuidance.median)} RWF
+                </Text>
               </View>
               <View className="items-center">
                 <Text className="text-[10px] text-muted-foreground">Maximum</Text>
@@ -244,7 +266,9 @@ export default function JobDetailBid() {
         {/* Job photos */}
         {((job.images ?? job.photos_urls) as string[] | undefined)?.length ? (
           <View className="mb-5">
-            <Text className="font-bold mb-2">Client Photos ({(job.images ?? job.photos_urls as string[]).length})</Text>
+            <Text className="font-bold mb-2">
+              Client Photos ({(job.images ?? (job.photos_urls as string[])).length})
+            </Text>
             <ScrollView horizontal showsHorizontalScrollIndicator={false}>
               {((job.images ?? job.photos_urls) as string[]).map((url: string, i: number) => (
                 <Image
@@ -263,7 +287,8 @@ export default function JobDetailBid() {
           <View className="bg-card rounded-3xl border border-border p-5 mb-8">
             <Text className="text-base font-extrabold mb-1">Submit Your Bid</Text>
             <Text className="text-xs text-muted-foreground mb-4">
-              Detailed bids get accepted more often. Explain your approach and why you're the right person.
+              Detailed bids get accepted more often. Explain your approach and why you're the right
+              person.
             </Text>
 
             {/* Price */}
@@ -274,7 +299,11 @@ export default function JobDetailBid() {
               <TextInput
                 value={bidPrice}
                 onChangeText={setBidPrice}
-                placeholder={job.budget ? `Client budget: ${formatRWF(job.budget)} RWF` : 'Enter your price in RWF'}
+                placeholder={
+                  job.budget
+                    ? `Client budget: ${formatRWF(job.budget)} RWF`
+                    : 'Enter your price in RWF'
+                }
                 keyboardType="number-pad"
                 className="bg-muted/40 p-4 rounded-2xl border border-border text-foreground text-sm"
               />
@@ -319,8 +348,7 @@ export default function JobDetailBid() {
             {/* Cover Letter */}
             <View className="mb-2">
               <Text className="text-xs font-bold uppercase tracking-wide text-muted-foreground mb-1.5">
-                Why You?{' '}
-                <Text className="text-[10px] font-normal">(optional)</Text>
+                Why You? <Text className="text-[10px] font-normal">(optional)</Text>
               </Text>
               <TextInput
                 value={coverLetter}

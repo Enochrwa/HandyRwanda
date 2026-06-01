@@ -1,5 +1,5 @@
 // File: web/src/routes/artisans/jobs.tsx
-import { createFileRoute, Link } from "@tanstack/react-router";
+import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { Header } from "@/components/Header";
 import {
   MapPin,
@@ -69,6 +69,7 @@ function ArtisanJobFeed() {
   const [bidHours, setBidHours] = useState<Record<string, string>>({});
   const [searchQ, setSearchQ] = useState("");
   const [filterUrgency, setFilterUrgency] = useState<string>("all");
+  const navigate = useNavigate();
 
   const { data: jobs = [], isLoading } = useQuery<JobItem[]>({
     queryKey: ["open-jobs"],
@@ -300,7 +301,7 @@ function ArtisanJobFeed() {
                       Submit Bid <ArrowRight className="h-3.5 w-3.5" />
                     </Button>
                     <Button size="sm" variant="outline" asChild className="gap-1.5">
-                      <Link to="/artisans/jobs/$jobId" params={{ jobId: j.id }}>
+                      <Link to={`/artisans/jobs/$jobId`} params={{ jobId: j.id }}>
                         View Details <ChevronRight className="h-3.5 w-3.5" />
                       </Link>
                     </Button>

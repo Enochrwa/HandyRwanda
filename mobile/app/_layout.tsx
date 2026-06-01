@@ -1,14 +1,15 @@
 // File: mobile/app/_layout.tsx
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import type { PermissionResponse } from 'expo-modules-core';
 import { Stack } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { useEffect } from 'react';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import Toast from 'react-native-toast-message';
+
 import '../src/global.css';
-import { useAuthStore } from '../src/store/authStore';
 import { proService } from '../src/services/proService';
-import type { PermissionResponse } from 'expo-modules-core';
+import { useAuthStore } from '../src/store/authStore';
 
 const queryClient = new QueryClient({
   defaultOptions: {

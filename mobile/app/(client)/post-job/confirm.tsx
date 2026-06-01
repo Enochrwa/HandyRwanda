@@ -1,17 +1,11 @@
 // File: mobile/app/(client)/post-job/confirm.tsx
+import { useQueryClient } from '@tanstack/react-query';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import React, { useState } from 'react';
-import {
-  View,
-  Text,
-  TouchableOpacity,
-  ScrollView,
-  ActivityIndicator,
-} from 'react-native';
+import { View, Text, TouchableOpacity, ScrollView, ActivityIndicator } from 'react-native';
 import Toast from 'react-native-toast-message';
 
 import api from '../../../src/services/api';
-import { useQueryClient } from '@tanstack/react-query';
 
 function formatRWF(n: number) {
   return new Intl.NumberFormat('rw-RW').format(n);
@@ -75,22 +69,48 @@ export default function ConfirmJob() {
   const summaryRows = [
     { label: 'Title', value: params.title },
     { label: 'Urgency', value: URGENCY_LABELS[params.urgency ?? 'flexible'] },
-    { label: 'Budget', value: budget ? `${formatRWF(budget)} RWF${params.budgetNegotiable === '1' ? ' (negotiable)' : ''}` : 'Open to bids' },
+    {
+      label: 'Budget',
+      value: budget
+        ? `${formatRWF(budget)} RWF${params.budgetNegotiable === '1' ? ' (negotiable)' : ''}`
+        : 'Open to bids',
+    },
     {
       label: 'Location',
-      value: params.locationLabel ?? `${parseFloat(params.latitude ?? '0').toFixed(4)}, ${parseFloat(params.longitude ?? '0').toFixed(4)}`,
+      value:
+        params.locationLabel ??
+        `${parseFloat(params.latitude ?? '0').toFixed(4)}, ${parseFloat(params.longitude ?? '0').toFixed(4)}`,
     },
     ...(params.scheduledTime
-      ? [{ label: 'Scheduled', value: new Date(params.scheduledTime).toLocaleString('en-RW', { weekday: 'short', month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' }) }]
+      ? [
+          {
+            label: 'Scheduled',
+            value: new Date(params.scheduledTime).toLocaleString('en-RW', {
+              weekday: 'short',
+              month: 'short',
+              day: 'numeric',
+              hour: '2-digit',
+              minute: '2-digit',
+            }),
+          },
+        ]
       : []),
-    { label: 'Photos', value: photos.length > 0 ? `${photos.length} photo${photos.length > 1 ? 's' : ''} attached` : 'None' },
+    {
+      label: 'Photos',
+      value:
+        photos.length > 0
+          ? `${photos.length} photo${photos.length > 1 ? 's' : ''} attached`
+          : 'None',
+    },
   ];
 
   return (
     <View className="flex-1 bg-background">
       <View className="pt-14 pb-4 px-5 bg-card border-b border-border">
         <Text className="text-xl font-extrabold">Review & Post</Text>
-        <Text className="text-xs text-muted-foreground mt-0.5">Step 3 of 3 — Confirm your job details</Text>
+        <Text className="text-xs text-muted-foreground mt-0.5">
+          Step 3 of 3 — Confirm your job details
+        </Text>
         <View className="flex-row mt-2">
           {[1, 2, 3].map((s) => (
             <View key={s} className="h-1 flex-1 rounded-full mr-1 bg-primary" />
@@ -130,15 +150,18 @@ export default function ConfirmJob() {
             <Text className="text-xs font-bold uppercase tracking-wide text-muted-foreground mb-2">
               Additional Notes
             </Text>
-            <Text className="text-muted-foreground text-sm leading-5">{params.additionalNotes}</Text>
+            <Text className="text-muted-foreground text-sm leading-5">
+              {params.additionalNotes}
+            </Text>
           </View>
         ) : null}
 
         <View className="bg-primary/5 border border-primary/20 rounded-2xl p-4 mb-8">
           <Text className="text-xs font-bold text-primary mb-1">📋 What happens next?</Text>
           <Text className="text-xs text-muted-foreground leading-5">
-            Verified artisans matching your job category will see this posting and submit competitive bids.
-            You can compare their profiles, ratings, and prices before accepting any bid.
+            Verified artisans matching your job category will see this posting and submit
+            competitive bids. You can compare their profiles, ratings, and prices before accepting
+            any bid.
           </Text>
         </View>
       </ScrollView>

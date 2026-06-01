@@ -29,7 +29,6 @@ export default function BioStep() {
   const [hourlyRate, setHourlyRate] = useState('');
   const [fixedRate, setFixedRate] = useState('');
   const [serviceRadius, setServiceRadius] = useState('10');
-  const [availability, setAvailability] = useState(true);
   const [languages, setLanguages] = useState<string[]>(['rw']);
   const [loading, setLoading] = useState(false);
 

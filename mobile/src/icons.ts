@@ -33,7 +33,7 @@ export { default as Zap } from 'lucide-react-native/dist/esm/icons/zap';
 export { default as Edit2 } from 'lucide-react-native/dist/esm/icons/pencil';
 export { default as Phone } from 'lucide-react-native/dist/esm/icons/phone';
 export { default as AlertTriangle } from 'lucide-react-native/dist/esm/icons/triangle-alert';
-export { default as AlertCircle } from 'lucide-react-native/dist/esm/icons/alert-circle';
+export { default as AlertCircle } from 'lucide-react-native/dist/esm/icons/circle-alert';
 export { default as Award } from 'lucide-react-native/dist/esm/icons/award';
 export { default as CheckCircle2 } from 'lucide-react-native/dist/esm/icons/circle-check-big';
 export { default as TrendingUp } from 'lucide-react-native/dist/esm/icons/trending-up';

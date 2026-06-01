@@ -400,6 +400,7 @@ async def get_platform_stats(
         await db.scalar(select(func.count(Job.id)).where(Job.status == JobStatus.open))
         or 0
     )
+    total_bookings = await db.scalar(select(func.count(Booking.id))) or 0
     completed_jobs = (
         await db.scalar(
             select(func.count(Booking.id)).where(
@@ -437,18 +438,18 @@ async def get_platform_stats(
         await db.scalar(select(func.count(Review.id)).where(Review.is_flagged)) or 0
     )
 
-    # Monthly job trend (last 6 months)
+    # Monthly booking trend (last 6 months)
     monthly_res = await db.execute(
         text("""
-        SELECT date_trunc('month', created_at) as month, COUNT(*) as count
-        FROM jobs
+        SELECT date_trunc('month', created_at) as month, COUNT(*) as bookings
+        FROM bookings
         WHERE created_at >= NOW() - INTERVAL '6 months'
         GROUP BY month
         ORDER BY month ASC
     """)
     )
     monthly_jobs = [
-        {"month": str(row.month)[:7], "count": row.count} for row in monthly_res
+        {"month": str(row.month)[:7], "bookings": row.bookings} for row in monthly_res
     ]
 
     return {
@@ -465,7 +466,7 @@ async def get_platform_stats(
         },
         # Alias fields to match frontend shape
         "bookings": {
-            "total": total_jobs,
+            "total": total_bookings,
             "completed": completed_jobs,
             "disputed": disputed_jobs,
         },

@@ -28,8 +28,8 @@ Module._resolveFilename = function (request, parent, isMain, options) {
 };
 
 const { getDefaultConfig } = await import('@expo/metro-config');
+const { withNativeWind } = await import('nativewind/metro');
 
-// const monorepoRoot = path.resolve(__dirname, '..');
 const config = getDefaultConfig(__dirname);
 
 config.resolver.nodeModulesPaths = [path.resolve(__dirname, 'node_modules')];
@@ -41,4 +41,4 @@ config.resolver.extraNodeModules = {
 
 config.resolver.unstable_enablePackageExports = false;
 
-export default config;
+export default withNativeWind(config, { input: './src/global.css' });

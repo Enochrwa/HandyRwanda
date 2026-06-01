@@ -8,7 +8,7 @@ from sqlalchemy import delete, func, select, text, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.database import get_db
-from app.dependencies.jwt_auth import require_role
+from app.dependencies.jwt_auth import get_current_user, require_role
 from app.integrations.supabase_storage import upload_image
 from app.models.artisan import (
     ArtisanProfile,
@@ -104,8 +104,20 @@ async def get_my_portfolio(
     user_id = UUID(current_user["sub"])
     result = await db.execute(
         select(PortfolioPhoto).where(PortfolioPhoto.artisan_id == user_id)
+        .order_by(PortfolioPhoto.created_at.desc())
     )
-    return result.scalars().all()
+    photos = result.scalars().all()
+    return [
+        {
+            "id": str(p.id),
+            "artisan_id": str(p.artisan_id),
+            "image_url": p.image_url,
+            "job_type": p.job_type,
+            "description": p.description,
+            "created_at": p.created_at.isoformat() if p.created_at else None,
+        }
+        for p in photos
+    ]
 
 
 @router.get("/profile/me")
@@ -214,7 +226,15 @@ async def add_portfolio_photo(
     )
     db.add(photo)
     await db.commit()
-    return photo
+    await db.refresh(photo)
+    return {
+        "id": str(photo.id),
+        "artisan_id": str(photo.artisan_id),
+        "image_url": photo.image_url,
+        "job_type": photo.job_type,
+        "description": photo.description,
+        "created_at": photo.created_at.isoformat() if photo.created_at else None,
+    }
 
 
 class AvailabilityUpdate(BaseModel):
@@ -445,3 +465,52 @@ async def search_artisans(
         },
     )
     return [dict(row._mapping) for row in result]
+
+
+@router.get("/{artisan_id}/skills")
+async def get_artisan_skills(
+    artisan_id: UUID,
+    db: AsyncSession = Depends(get_db),
+) -> Any:
+    """Public: get the skill categories for a specific artisan."""
+    result = await db.execute(
+        select(Category)
+        .join(artisan_skills, artisan_skills.c.category_id == Category.id)
+        .where(artisan_skills.c.artisan_id == artisan_id)
+    )
+    cats = result.scalars().all()
+    return [
+        {
+            "id": str(c.id),
+            "name_en": c.name_en,
+            "name_rw": c.name_rw,
+            "name_fr": c.name_fr,
+            "icon_emoji": c.icon_emoji,
+        }
+        for c in cats
+    ]
+
+
+@router.get("/skills/mine")
+async def get_my_skills(
+    db: AsyncSession = Depends(get_db),
+    current_user: dict[str, Any] = Depends(require_role(UserRole.artisan)),
+) -> Any:
+    """Get the current artisan's own skill categories."""
+    user_id = UUID(current_user["sub"])
+    result = await db.execute(
+        select(Category)
+        .join(artisan_skills, artisan_skills.c.category_id == Category.id)
+        .where(artisan_skills.c.artisan_id == user_id)
+    )
+    cats = result.scalars().all()
+    return [
+        {
+            "id": str(c.id),
+            "name_en": c.name_en,
+            "name_rw": c.name_rw,
+            "name_fr": c.name_fr,
+            "icon_emoji": c.icon_emoji,
+        }
+        for c in cats
+    ]

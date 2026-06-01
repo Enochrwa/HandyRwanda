@@ -374,3 +374,102 @@ async def delete_review(
     await db.execute(delete(Review).where(Review.id == review_id))
     await db.commit()
     return {"message": "Review deleted."}
+
+
+# ── Extended dispute resolution ───────────────────────────────────────────────
+
+
+@router.get("/disputes/{booking_id}")
+async def get_dispute_detail(
+    booking_id: UUID,
+    db: AsyncSession = Depends(get_db),
+    current_user: dict[str, Any] = Depends(require_role(UserRole.admin)),
+) -> Any:
+    """Get full context for a disputed booking: job details, both parties, chat history."""
+    from app.models.job import Job
+    from app.models.message import Message
+
+    result = await db.execute(
+        select(Booking, User.full_name.label("client_name"), User.phone_number.label("client_phone"))
+        .join(User, Booking.client_id == User.id)
+        .where(Booking.id == booking_id, Booking.status == BookingStatus.disputed)
+    )
+    row = result.first()
+    if not row:
+        from fastapi import HTTPException
+        raise HTTPException(status_code=404, detail="Disputed booking not found")
+    booking, client_name, client_phone = row
+
+    artisan = await db.scalar(select(User).where(User.id == booking.artisan_id))
+    job = await db.scalar(select(Job).where(Job.id == booking.job_id))
+
+    # Fetch chat messages
+    msgs_res = await db.execute(
+        select(Message)
+        .where(
+            (Message.sender_id == booking.client_id) | (Message.sender_id == booking.artisan_id),
+            (Message.receiver_id == booking.client_id) | (Message.receiver_id == booking.artisan_id),
+        )
+        .order_by(Message.created_at.asc())
+        .limit(50)
+    )
+    messages = [
+        {
+            "sender_id": str(m.sender_id),
+            "content": m.content,
+            "created_at": m.created_at.isoformat() if m.created_at else None,
+        }
+        for m in msgs_res.scalars().all()
+    ]
+
+    return {
+        "booking_id": str(booking.id),
+        "status": booking.status,
+        "agreed_price": booking.agreed_price,
+        "created_at": booking.created_at.isoformat() if booking.created_at else None,
+        "job": {
+            "id": str(job.id) if job else None,
+            "title": job.title if job else None,
+            "description": job.description if job else None,
+        },
+        "client": {"id": str(booking.client_id), "name": client_name, "phone": client_phone},
+        "artisan": {
+            "id": str(booking.artisan_id),
+            "name": artisan.full_name if artisan else None,
+            "phone": artisan.phone_number if artisan else None,
+        },
+        "messages": messages,
+    }
+
+
+@router.get("/stats")
+async def get_quick_stats(
+    db: AsyncSession = Depends(get_db),
+    current_user: dict[str, Any] = Depends(require_role(UserRole.admin)),
+) -> Any:
+    """Quick stats for admin home dashboard card."""
+    from app.models.job import Job, JobStatus
+
+    total_users = await db.scalar(select(func.count(User.id)))
+    pending_verif = await db.scalar(
+        select(func.count(ArtisanProfile.user_id)).where(
+            ArtisanProfile.verification_status == VerificationStatus.pending
+        )
+    )
+    open_jobs = await db.scalar(select(func.count(Job.id)).where(Job.status == JobStatus.open))
+    active_disputes = await db.scalar(
+        select(func.count(Booking.id)).where(Booking.status == BookingStatus.disputed)
+    )
+    revenue_today = await db.scalar(
+        select(func.coalesce(func.sum(Booking.agreed_price), 0)).where(
+            Booking.status == BookingStatus.completed,
+            func.date(Booking.created_at) == func.current_date(),
+        )
+    )
+    return {
+        "total_users": total_users or 0,
+        "pending_verifications": pending_verif or 0,
+        "open_jobs": open_jobs or 0,
+        "active_disputes": active_disputes or 0,
+        "revenue_today_rwf": revenue_today or 0,
+    }

@@ -26,6 +26,7 @@ from typing import Any
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, HTTPException, Request
+from pydantic import BaseModel
 from jose import JWTError, jwt
 from sqlalchemy import select, update
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -340,4 +341,79 @@ async def update_profile(
     return {
         "message": "Profile updated successfully.",
         "updated_fields": list(update_data.keys()),
+    }
+
+
+# ── Expo Push Token ───────────────────────────────────────────────────────────
+
+class PushTokenUpdate(BaseModel):
+    expo_push_token: str
+
+
+@router.patch("/users/me/push-token")
+async def update_push_token(
+    payload: PushTokenUpdate,
+    db: AsyncSession = Depends(get_db),
+    current_user: dict[str, Any] = Depends(get_current_user),
+) -> dict[str, str]:
+    """Register or update the Expo push notification token for the current user."""
+    user_id = UUID(current_user["sub"])
+    await db.execute(
+        update(User).where(User.id == user_id).values(expo_push_token=payload.expo_push_token)
+    )
+    await db.commit()
+    return {"message": "Push token updated."}
+
+
+@router.get("/users/me")
+async def get_current_user_profile(
+    db: AsyncSession = Depends(get_db),
+    current_user: dict[str, Any] = Depends(get_current_user),
+) -> Any:
+    """Get the currently authenticated user's profile."""
+    user_id = UUID(current_user["sub"])
+    user = await db.scalar(select(User).where(User.id == user_id))
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found.")
+
+    profile: ArtisanProfile | None = None
+    portfolio: list[PortfolioPhoto] = []
+    if user.role == UserRole.artisan:
+        profile = await db.scalar(
+            select(ArtisanProfile).where(ArtisanProfile.user_id == user_id)
+        )
+        portfolio_result = await db.execute(
+            select(PortfolioPhoto).where(PortfolioPhoto.artisan_id == user_id)
+        )
+        portfolio = list(portfolio_result.scalars().all())
+
+    return {
+        "id": str(user.id),
+        "full_name": user.full_name,
+        "email": user.email,
+        "phone_number": user.phone_number,
+        "avatar_url": user.avatar_url,
+        "role": user.role,
+        "gender": user.gender,
+        "district": user.district,
+        "sector": user.sector,
+        "preferred_lang": user.preferred_lang,
+        "account_status": user.account_status,
+        "email_verified": user.email_verified,
+        "expo_push_token": user.expo_push_token,
+        "created_at": user.created_at.isoformat() if user.created_at else None,
+        "profile": {
+            "bio": profile.bio if profile else None,
+            "years_experience": profile.years_experience if profile else 0,
+            "hourly_rate": profile.hourly_rate if profile else None,
+            "fixed_rate": profile.fixed_rate if profile else None,
+            "verification_status": str(profile.verification_status) if profile else "unverified",
+            "is_available": profile.is_available if profile else False,
+            "average_rating": profile.average_rating if profile else 0.0,
+            "total_reviews": profile.total_reviews if profile else 0,
+        } if user.role == UserRole.artisan else None,
+        "portfolio": [
+            {"id": str(p.id), "image_url": p.image_url, "job_type": p.job_type, "description": p.description}
+            for p in portfolio
+        ],
     }

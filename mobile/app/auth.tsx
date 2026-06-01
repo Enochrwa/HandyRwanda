@@ -17,7 +17,24 @@ import {
 import Toast from 'react-native-toast-message';
 import * as z from 'zod';
 
+import * as Notifications from 'expo-notifications';
 import api from '../src/services/api';
+
+async function registerPushToken(): Promise<void> {
+  try {
+    const { status: existingStatus } = await Notifications.getPermissionsAsync();
+    let finalStatus = existingStatus;
+    if (existingStatus !== 'granted') {
+      const { status } = await Notifications.requestPermissionsAsync();
+      finalStatus = status;
+    }
+    if (finalStatus !== 'granted') return;
+    const tokenData = await Notifications.getExpoPushTokenAsync();
+    await api.patch('/auth/users/me/push-token', { expo_push_token: tokenData.data });
+  } catch {
+    // non-critical
+  }
+}
 import { useAuthStore } from '../src/store/authStore';
 
 // ── Schemas ────────────────────────────────────────────────────────────────
@@ -281,7 +298,12 @@ export default function AuthScreen() {
         refresh_token,
       );
       Toast.show({ type: 'success', text1: `Welcome, ${user.full_name.split(' ')[0]}!` });
-      router.replace('/(tabs)');
+      registerPushToken();
+      if (user.role === 'artisan') {
+        router.replace('/(tabs)/pro');
+      } else {
+        router.replace('/(tabs)');
+      }
     } catch (err: any) {
       const detail = err.response?.data?.detail;
       const msg = typeof detail === 'string' ? detail : detail?.message;

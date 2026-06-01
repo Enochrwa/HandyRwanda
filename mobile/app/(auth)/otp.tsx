@@ -1,4 +1,5 @@
 // File: mobile/app/(auth)/otp.tsx
+import * as Notifications from 'expo-notifications';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import React, { useState, useRef, useEffect } from 'react';
 import {
@@ -15,6 +16,25 @@ import Toast from 'react-native-toast-message';
 import api from '../../src/services/api';
 import { useAuthStore } from '../../src/store/authStore';
 
+async function registerPushToken(): Promise<void> {
+  try {
+    const { status: existingStatus } = await Notifications.getPermissionsAsync();
+    let finalStatus = existingStatus;
+    if (existingStatus !== 'granted') {
+      const { status } = await Notifications.requestPermissionsAsync();
+      finalStatus = status;
+    }
+    if (finalStatus !== 'granted') return;
+
+    const tokenData = await Notifications.getExpoPushTokenAsync();
+    const expoPushToken = tokenData.data;
+
+    await api.patch('/auth/users/me/push-token', { expo_push_token: expoPushToken });
+  } catch {
+    // Non-critical — don't fail login if push token registration fails
+  }
+}
+
 export default function OTPScreen() {
   const router = useRouter();
   const { email } = useLocalSearchParams<{ email: string }>();
@@ -25,7 +45,6 @@ export default function OTPScreen() {
   const setAuth = useAuthStore((state) => state.setAuth);
 
   useEffect(() => {
-    // Auto-focus input
     setTimeout(() => inputRef.current?.focus(), 300);
   }, []);
 
@@ -44,6 +63,7 @@ export default function OTPScreen() {
     try {
       const { data } = await api.post('/auth/otp/verify', { email, otp_code: otp });
       const { access_token, refresh_token, user } = data;
+
       setAuth(
         {
           id: user.id,
@@ -59,16 +79,20 @@ export default function OTPScreen() {
         access_token,
         refresh_token,
       );
+
+      // Register Expo push token in background
+      registerPushToken();
+
       Toast.show({ type: 'success', text1: `Welcome, ${user.full_name.split(' ')[0]}! 👋` });
-      // Redirect based on role
+
       if (user.role === 'artisan') {
         router.replace('/(tabs)/pro');
       } else {
         router.replace('/(tabs)');
       }
-    } catch (err: any) {
-      const detail = err?.response?.data?.detail;
-      const msg = typeof detail === 'string' ? detail : detail?.message;
+    } catch (err: unknown) {
+      const detail = (err as { response?: { data?: { detail?: unknown } } })?.response?.data?.detail;
+      const msg = typeof detail === 'string' ? detail : (detail as { message?: string })?.message;
       Toast.show({
         type: 'error',
         text1: 'Invalid code',
@@ -96,7 +120,6 @@ export default function OTPScreen() {
       className="flex-1 bg-background"
     >
       <View className="flex-1 px-6 justify-center">
-        {/* Icon */}
         <View className="w-20 h-20 rounded-3xl bg-primary/10 items-center justify-center mx-auto mb-6">
           <Text style={{ fontSize: 36 }}>✉️</Text>
         </View>
@@ -109,13 +132,10 @@ export default function OTPScreen() {
           <Text className="font-bold text-foreground">{email}</Text>
         </Text>
 
-        {/* OTP input */}
         <TextInput
           ref={inputRef}
           value={otp}
-          onChangeText={(v) => {
-            setOtp(v.replace(/\D/g, '').slice(0, 6));
-          }}
+          onChangeText={(v) => setOtp(v.replace(/\D/g, '').slice(0, 6))}
           onSubmitEditing={handleVerify}
           placeholder="000000"
           keyboardType="number-pad"
@@ -125,7 +145,6 @@ export default function OTPScreen() {
           autoFocus
         />
 
-        {/* Verify button */}
         <TouchableOpacity
           onPress={handleVerify}
           disabled={loading || otp.length < 6}
@@ -139,7 +158,6 @@ export default function OTPScreen() {
           )}
         </TouchableOpacity>
 
-        {/* Resend */}
         <TouchableOpacity
           onPress={handleResend}
           disabled={cooldown > 0}
@@ -153,7 +171,6 @@ export default function OTPScreen() {
           </Text>
         </TouchableOpacity>
 
-        {/* Back */}
         <TouchableOpacity
           onPress={() => router.back()}
           accessibilityLabel="Go back"

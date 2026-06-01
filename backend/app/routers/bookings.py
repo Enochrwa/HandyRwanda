@@ -26,7 +26,7 @@ from app.database import get_db
 from app.dependencies.jwt_auth import get_current_user, require_role
 from app.models.booking import Booking, BookingStatus
 from app.models.job import Job
-from app.models.notification import Notification
+from app.routers.notifications import notify_and_push
 from app.models.user import User, UserRole
 
 router = APIRouter(prefix="/bookings", tags=["bookings"])
@@ -35,18 +35,6 @@ router = APIRouter(prefix="/bookings", tags=["bookings"])
 # ── Helpers ──────────────────────────────────────────────────────────────────
 
 
-async def _notify(
-    db: AsyncSession,
-    user_id: UUID,
-    event_type: str,
-    title: str,
-    body: str,
-    payload: dict[str, object] | None = None,
-) -> None:
-    n = Notification(
-        user_id=user_id, event_type=event_type, title=title, body=body, payload=payload
-    )
-    db.add(n)
 
 
 # ── Endpoints ─────────────────────────────────────────────────────────────────
@@ -237,7 +225,7 @@ async def client_confirm_payment(
     )
 
     # Notify artisan
-    await _notify(
+    await notify_and_push(
         db,
         booking.artisan_id,
         "payment_sent",
@@ -288,7 +276,7 @@ async def artisan_confirm_receipt(
     )
 
     # Notify client
-    await _notify(
+    await notify_and_push(
         db,
         booking.client_id,
         "job_started",
@@ -331,7 +319,7 @@ async def client_mark_complete(
     )
 
     # Notify artisan
-    await _notify(
+    await notify_and_push(
         db,
         booking.artisan_id,
         "job_completed",
@@ -340,7 +328,7 @@ async def client_mark_complete(
         {"booking_id": str(booking_id)},
     )
     # Notify client to review
-    await _notify(
+    await notify_and_push(
         db,
         booking.client_id,
         "review_prompt",
@@ -395,7 +383,7 @@ async def raise_dispute(
         if str(booking.client_id) == str(user_id)
         else booking.client_id
     )
-    await _notify(
+    await notify_and_push(
         db,
         other_id,
         "dispute_opened",
@@ -444,7 +432,7 @@ async def cancel_booking(
         if str(booking.client_id) == str(user_id)
         else booking.client_id
     )
-    await _notify(
+    await notify_and_push(
         db,
         other_id,
         "booking_cancelled",

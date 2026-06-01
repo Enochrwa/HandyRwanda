@@ -38,7 +38,7 @@ export default function PostJobCategory() {
               onPress={() =>
                 router.push({
                   pathname: '/(client)/post-job/details',
-                  params: { categoryId: cat.id },
+                  params: { categoryId: cat.id, categoryName: cat.name_en },
                 })
               }
               className="w-[47%] aspect-square bg-card rounded-3xl border border-border items-center justify-center p-4"

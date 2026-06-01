@@ -24,16 +24,23 @@ function ArtisanJobFeed() {
   const [expandedId, setExpandedId] = useState<string | null>(null);
   const [bidPrices, setBidPrices] = useState<Record<string, string>>({});
   const [bidNotes, setBidNotes] = useState<Record<string, string>>({});
+  const [bidHours, setBidHours] = useState<Record<string, string>>({});
+  const [bidStartTimes, setBidStartTimes] = useState<Record<string, string>>({});
 
   const { data: jobs = [], isLoading } = useQuery({
     queryKey: ["open-jobs"],
-    queryFn: () => api.get("/jobs").then((r) => r.data),
+    queryFn: () => api.get("/jobs/available").then((r) => r.data),
     refetchInterval: 60000,
   });
 
   const submitBid = useMutation({
-    mutationFn: ({ jobId, price, note }: { jobId: string; price: number; note: string }) =>
-      api.post(`/bids/jobs/${jobId}`, { proposed_price: price, message: note }),
+    mutationFn: ({ jobId, price, note, hours, startTime }: { jobId: string; price: number; note: string; hours?: number; startTime?: string }) =>
+      api.post(`/bids/jobs/${jobId}`, {
+        proposed_price: price,
+        message: note || undefined,
+        estimated_duration_hours: hours || undefined,
+        proposed_start_time: startTime || undefined,
+      }),
     onSuccess: (_, { jobId }) => {
       toast.success("Bid submitted! The client will be notified.");
       setExpandedId(null);
@@ -93,8 +100,14 @@ function ArtisanJobFeed() {
                 title: string;
                 description: string;
                 budget?: number;
+                budget_max?: number;
                 location_label?: string;
                 created_at?: string;
+                urgency?: string;
+                job_type?: string;
+                already_bid?: boolean;
+                special_requirements?: string;
+                is_remote_possible?: boolean;
                 category?: { name_en: string; icon_emoji?: string };
                 bid_count?: number;
               }) => (
@@ -131,6 +144,26 @@ function ArtisanJobFeed() {
                           <span className="text-xs">
                             {j.bid_count} bid{j.bid_count !== 1 ? "s" : ""}
                           </span>
+                        )}
+                        {j.urgency && j.urgency !== "flexible" && (
+                          <Badge variant="outline" className={`text-xs ${j.urgency === "urgent" ? "border-red-400 text-red-600 bg-red-50" : j.urgency === "today" ? "border-amber-400 text-amber-700 bg-amber-50" : "border-blue-300 text-blue-700 bg-blue-50"}`}>
+                            {j.urgency === "urgent" ? "🚨 Urgent" : j.urgency === "today" ? "🔥 Today" : j.urgency === "tomorrow" ? "⏰ Tomorrow" : j.urgency === "this_week" ? "🗓️ This Week" : j.urgency}
+                          </Badge>
+                        )}
+                        {j.job_type && j.job_type !== "one_time" && (
+                          <Badge variant="secondary" className="text-xs">
+                            {j.job_type === "recurring" ? "🔁 Recurring" : "🆘 Emergency"}
+                          </Badge>
+                        )}
+                        {j.is_remote_possible && (
+                          <Badge variant="outline" className="text-xs border-blue-300 text-blue-700">
+                            📞 Remote OK
+                          </Badge>
+                        )}
+                        {j.already_bid && (
+                          <Badge className="text-xs bg-green-100 text-green-700 border-green-300">
+                            ✓ Bid sent
+                          </Badge>
                         )}
                       </div>
                       <p className="mt-2 text-sm text-muted-foreground line-clamp-2">
@@ -188,7 +221,36 @@ function ArtisanJobFeed() {
                           onChange={(e) => setBidNotes((p) => ({ ...p, [j.id]: e.target.value }))}
                           placeholder="Tell the client why you're the right person for this job…"
                           className="mt-1 resize-none h-20"
+                          maxLength={500}
                         />
+                      </div>
+                      <div className="grid grid-cols-2 gap-3">
+                        <div>
+                          <label className="text-xs font-bold uppercase tracking-wide text-muted-foreground">
+                            Est. Hours
+                          </label>
+                          <Input
+                            type="number"
+                            value={bidHours[j.id] ?? ""}
+                            onChange={(e) => setBidHours((p) => ({ ...p, [j.id]: e.target.value }))}
+                            placeholder="e.g. 3"
+                            step="0.5"
+                            min="0.5"
+                            className="mt-1"
+                          />
+                        </div>
+                        <div>
+                          <label className="text-xs font-bold uppercase tracking-wide text-muted-foreground">
+                            Proposed Start
+                          </label>
+                          <Input
+                            type="datetime-local"
+                            value={bidStartTimes[j.id] ?? ""}
+                            onChange={(e) => setBidStartTimes((p) => ({ ...p, [j.id]: e.target.value }))}
+                            className="mt-1"
+                            min={new Date().toISOString().slice(0, 16)}
+                          />
+                        </div>
                       </div>
                       <div className="flex gap-2">
                         <Button

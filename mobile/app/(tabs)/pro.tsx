@@ -23,7 +23,10 @@ import { useAuthStore } from '../../src/store/authStore';
 
 const StatCard = ({ title, value, icon: Icon, color }: any) => (
   <View className="bg-card p-4 rounded-3xl border border-border flex-1 mx-1 shadow-sm">
-    <View className={`w-10 h-10 rounded-full items-center justify-center mb-2 bg-${color}/10`}>
+    <View
+      className="w-10 h-10 rounded-full items-center justify-center mb-2"
+      style={{ backgroundColor: `${color}1A` }}
+    >
       <Icon size={20} color={color} />
     </View>
     <Text className="text-muted-foreground text-xs">{title}</Text>

@@ -99,16 +99,6 @@ export default function ConversationsScreen() {
 
   return (
     <View className="flex-1 bg-background">
-      {/* Header */}
-      <View className="pt-14 pb-3 px-5 bg-card border-b border-border">
-        <Text className="text-2xl font-extrabold">Messages</Text>
-        {conversations?.length > 0 && (
-          <Text className="text-sm text-muted-foreground mt-0.5">
-            {conversations.length} conversation{conversations.length !== 1 ? 's' : ''}
-          </Text>
-        )}
-      </View>
-
       <FlatList
         data={conversations ?? []}
         keyExtractor={(item) => item.booking_id}

@@ -64,6 +64,9 @@ const ALL_DISTRICTS = [
   'Kamonyi',
   'Muhanga',
   'Nyamagabe',
+  'Nyanza',
+  'Nyaruguru',
+  'Ruhango',
   'Karongi',
   'Ngororero',
   'Nyabihu',
@@ -71,9 +74,6 @@ const ALL_DISTRICTS = [
   'Rubavu',
   'Rusizi',
   'Rutsiro',
-  'Bugesera',
-  'Rulindo',
-  'Rubavu',
 ];
 
 const STAR_RATINGS = [3, 4, 5] as const;
@@ -208,7 +208,11 @@ export default function SearchScreen() {
             min_rating: filters.minRating || undefined,
           },
         })
-        .then((r) => r.data?.items ?? r.data ?? []),
+        .then((r) => {
+            // Backend /artisans/search returns a plain array
+            const items = Array.isArray(r.data) ? r.data : (r.data?.items ?? []);
+            return items;
+          }),
     placeholderData: keepPreviousData,
   });
 

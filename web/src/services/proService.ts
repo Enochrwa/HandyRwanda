@@ -36,4 +36,9 @@ export const proService = {
     });
     return res.data;
   },
+  // Web doesn't use push tokens (browser notifications handled separately),
+  // but keep the method for interface parity with mobile proService.
+  async registerPushToken(_token: string): Promise<void> {
+    // No-op on web — Expo push tokens are mobile-only.
+  },
 };

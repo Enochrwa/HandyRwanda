@@ -12,6 +12,7 @@ export interface User {
   avatarUrl?: string;
   district?: string | null;
   preferredLang?: string;
+  emailVerified?: boolean;
   accountStatus?: 'pending_verification' | 'active' | 'suspended' | 'deactivated';
 }
 

@@ -51,11 +51,11 @@ function Home() {
   const { data: upcomingBooking, isLoading: isLoadingUpcoming } = useQuery({
     queryKey: ["upcoming-booking"],
     queryFn: async () => {
-      // Assuming this endpoint exists or will be implemented.
-      // Fallback to null if not found for now.
       try {
         const res = await api.get("/bookings/upcoming");
-        return res.data;
+        // Backend returns an array; we show the most imminent one
+        const list = Array.isArray(res.data) ? res.data : [];
+        return list.length > 0 ? list[0] : null;
       } catch {
         return null;
       }
@@ -146,8 +146,10 @@ function Home() {
                 <div className="flex-1">
                   <p className="text-sm font-medium text-muted-foreground">Upcoming</p>
                   <p className="font-semibold text-foreground">
-                    Your {upcomingBooking.category} {upcomingBooking.artisan_name} is scheduled for{" "}
-                    {upcomingBooking.time_label}.
+                    {upcomingBooking.title} with {upcomingBooking.artisan_name}
+                    {upcomingBooking.scheduled_at
+                      ? ` — ${new Date(upcomingBooking.scheduled_at).toLocaleDateString("en-RW", { weekday: "short", month: "short", day: "numeric" })}`
+                      : ""}
                   </p>
                 </div>
                 <Link

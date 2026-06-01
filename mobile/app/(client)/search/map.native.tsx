@@ -51,7 +51,11 @@ export default function ArtisanMapSearch() {
       const res = await api.get('/artisans/search', {
         params: { latitude: lat, longitude: lng, radius_km: 10 },
       });
-      setArtisans(res.data);
+      // Backend returns plain array; guard against future {items} shape
+      const items: ArtisanSearchResult[] = Array.isArray(res.data)
+        ? res.data
+        : (res.data?.items ?? []);
+      setArtisans(items);
     } catch (error) {
       console.error(error);
     }

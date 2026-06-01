@@ -2,7 +2,8 @@
 import { createFileRoute, Link, useParams, useNavigate } from "@tanstack/react-router";
 import { Header } from "@/components/Header";
 import { MapPin, Briefcase, Clock, ChevronLeft, Loader2 } from "lucide-react";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useState } from "react";
 import api from "@/services/api";
 import { useAuthStore } from "@/store/authStore";
 import { formatDistanceToNow } from "date-fns";
@@ -46,14 +47,123 @@ const URGENCY_LABELS: Record<string, string> = {
   flexible: "📅 Flexible",
 };
 
+function BidForm({ jobId, onSuccess }: { jobId: string; onSuccess: () => void }) {
+  const qc = useQueryClient();
+  const [price, setPrice] = useState("");
+  const [message, setMessage] = useState("");
+  const [coverLetter, setCoverLetter] = useState("");
+  const [hours, setHours] = useState("");
+
+  const submitBid = useMutation({
+    mutationFn: () =>
+      api.post(`/bids/jobs/${jobId}`, {
+        proposed_price: parseInt(price, 10),
+        message: message.trim() || undefined,
+        cover_letter: coverLetter.trim() || undefined,
+        estimated_duration_hours: hours ? parseInt(hours, 10) : undefined,
+      }),
+    onSuccess: () => {
+      toast.success("Bid submitted! The client will be notified.");
+      qc.invalidateQueries({ queryKey: ["job-detail", jobId] });
+      qc.invalidateQueries({ queryKey: ["open-jobs"] });
+      onSuccess();
+    },
+    onError: (err: unknown) => {
+      const msg = (err as { response?: { data?: { detail?: string } } })?.response?.data?.detail;
+      toast.error(typeof msg === "string" ? msg : "Failed to submit bid.");
+    },
+  });
+
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    const p = parseInt(price, 10);
+    if (!price || isNaN(p) || p < 500) {
+      toast.error("Enter a price of at least 500 RWF");
+      return;
+    }
+    submitBid.mutate();
+  };
+
+  return (
+    <form onSubmit={handleSubmit} className="space-y-4">
+      <div>
+        <label className="text-xs font-bold uppercase tracking-wide text-muted-foreground block mb-1">
+          Your Price (RWF) <span className="text-destructive">*</span>
+        </label>
+        <input
+          type="number"
+          min={500}
+          value={price}
+          onChange={(e) => setPrice(e.target.value)}
+          placeholder="e.g. 15000"
+          className="w-full rounded-xl border border-border bg-muted/40 px-4 py-3 text-sm text-foreground outline-none focus:border-primary"
+          required
+        />
+      </div>
+      <div>
+        <label className="text-xs font-bold uppercase tracking-wide text-muted-foreground block mb-1">
+          Estimated Duration (hours) <span className="text-[10px] font-normal">(optional)</span>
+        </label>
+        <input
+          type="number"
+          min={1}
+          max={720}
+          value={hours}
+          onChange={(e) => setHours(e.target.value)}
+          placeholder="e.g. 3"
+          className="w-full rounded-xl border border-border bg-muted/40 px-4 py-3 text-sm text-foreground outline-none focus:border-primary"
+        />
+      </div>
+      <div>
+        <label className="text-xs font-bold uppercase tracking-wide text-muted-foreground block mb-1">
+          Your Approach <span className="text-[10px] font-normal">(optional but recommended)</span>
+        </label>
+        <textarea
+          value={message}
+          onChange={(e) => setMessage(e.target.value)}
+          placeholder="How would you tackle this job? What tools or materials will you bring?"
+          rows={3}
+          maxLength={500}
+          className="w-full rounded-xl border border-border bg-muted/40 px-4 py-3 text-sm text-foreground outline-none focus:border-primary resize-none"
+        />
+        <p className="text-right text-[10px] text-muted-foreground mt-1">{message.length}/500</p>
+      </div>
+      <div>
+        <label className="text-xs font-bold uppercase tracking-wide text-muted-foreground block mb-1">
+          Why You? <span className="text-[10px] font-normal">(optional)</span>
+        </label>
+        <textarea
+          value={coverLetter}
+          onChange={(e) => setCoverLetter(e.target.value)}
+          placeholder="Years of experience, similar jobs completed, certifications…"
+          rows={2}
+          maxLength={500}
+          className="w-full rounded-xl border border-border bg-muted/40 px-4 py-3 text-sm text-foreground outline-none focus:border-primary resize-none"
+        />
+      </div>
+      <button
+        type="submit"
+        disabled={submitBid.isPending || !price}
+        className="w-full rounded-xl bg-primary py-3 text-sm font-bold text-white disabled:opacity-50 flex items-center justify-center gap-2"
+      >
+        {submitBid.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : "Send Bid →"}
+      </button>
+    </form>
+  );
+}
+
 function JobDetail() {
   const { jobId } = Route.useParams();
   const navigate = useNavigate();
   const { user } = useAuthStore();
-  const { data: job, isLoading } = useQuery({
+  const { data: jobResp, isLoading } = useQuery({
     queryKey: ["job-detail", jobId],
     queryFn: () => api.get(`/jobs/${jobId}`).then((r) => r.data),
   });
+
+  const job = jobResp?.job;
+  const priceGuidance = jobResp?.price_guidance;
+  const alreadyBid = jobResp?.already_bid ?? false;
 
   if (isLoading) {
     return (
@@ -166,16 +276,41 @@ function JobDetail() {
             )}
           </div>
 
-          <div className="border rounded-2xl p-6 bg-card">
-            <h2 className="text-xl font-bold mb-4">Place a Bid</h2>
-            <p className="text-sm text-muted-foreground mb-4">
-              Submit your bid for this job. The client will be notified.
-            </p>
+          <div className="border rounded-2xl p-6 bg-card space-y-4">
+            <h2 className="text-xl font-bold">Place a Bid</h2>
 
-            {/* We would normally have a bid form here, but for now, we'll just show a message */}
-            <p className="text-muted-foreground">
-              Bid submission functionality is available on the job feed page.
-            </p>
+            {alreadyBid && (
+              <div className="flex items-center gap-3 rounded-xl border border-green-200 bg-green-50 p-4">
+                <span className="text-lg">✅</span>
+                <p className="text-sm font-semibold text-green-700">
+                  You already submitted a bid on this job.
+                </p>
+              </div>
+            )}
+
+            {priceGuidance && priceGuidance.sample_size > 0 && (
+              <div className="rounded-xl border border-primary/20 bg-primary/5 p-4">
+                <p className="text-xs font-bold text-primary mb-2">
+                  💡 Market Price in {priceGuidance.district}
+                </p>
+                <div className="flex justify-between text-sm">
+                  <div className="text-center">
+                    <p className="text-muted-foreground text-[10px]">Min</p>
+                    <p className="font-bold">{formatRWF(priceGuidance.min)} RWF</p>
+                  </div>
+                  <div className="text-center border-x border-primary/20 px-4">
+                    <p className="text-muted-foreground text-[10px]">Typical</p>
+                    <p className="font-bold text-primary">{formatRWF(priceGuidance.median)} RWF</p>
+                  </div>
+                  <div className="text-center">
+                    <p className="text-muted-foreground text-[10px]">Max</p>
+                    <p className="font-bold">{formatRWF(priceGuidance.max)} RWF</p>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {!alreadyBid && <BidForm jobId={jobId} onSuccess={() => navigate({ to: "/artisans/jobs" })} />}
           </div>
         </div>
       </main>

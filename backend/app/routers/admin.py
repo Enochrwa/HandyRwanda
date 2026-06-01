@@ -15,6 +15,7 @@ from app.database import get_db
 from app.dependencies.jwt_auth import require_role
 from app.models.artisan import ArtisanProfile, Category, VerificationStatus
 from app.models.booking import Booking, BookingStatus
+from app.models.job import Job, JobStatus
 from app.models.review import Review
 from app.models.user import AccountStatus, User, UserRole
 
@@ -378,59 +379,103 @@ async def delete_review(
 
 # ── Platform stats ─────────────────────────────────────────────────────────────
 
+
 @router.get("/stats")
 async def get_platform_stats(
     db: AsyncSession = Depends(get_db),
     current_user: dict[str, Any] = Depends(require_role(UserRole.admin)),
 ) -> Any:
     """Admin dashboard — key platform KPIs."""
-    from app.models.job import Bid, Job, JobStatus
-    from sqlalchemy import func, text
 
     total_users = await db.scalar(select(func.count(User.id))) or 0
-    total_clients = await db.scalar(select(func.count(User.id)).where(User.role == "client")) or 0
-    total_artisans = await db.scalar(select(func.count(User.id)).where(User.role == "artisan")) or 0
+    total_clients = (
+        await db.scalar(select(func.count(User.id)).where(User.role == "client")) or 0
+    )
+    total_artisans = (
+        await db.scalar(select(func.count(User.id)).where(User.role == "artisan")) or 0
+    )
 
     total_jobs = await db.scalar(select(func.count(Job.id))) or 0
-    open_jobs = await db.scalar(select(func.count(Job.id)).where(Job.status == JobStatus.open)) or 0
-    completed_jobs = await db.scalar(select(func.count(Booking.id)).where(Booking.status == BookingStatus.completed)) or 0
-    disputed_jobs = await db.scalar(select(func.count(Booking.id)).where(Booking.status == BookingStatus.disputed)) or 0
+    open_jobs = (
+        await db.scalar(select(func.count(Job.id)).where(Job.status == JobStatus.open))
+        or 0
+    )
+    completed_jobs = (
+        await db.scalar(
+            select(func.count(Booking.id)).where(
+                Booking.status == BookingStatus.completed
+            )
+        )
+        or 0
+    )
+    disputed_jobs = (
+        await db.scalar(
+            select(func.count(Booking.id)).where(
+                Booking.status == BookingStatus.disputed
+            )
+        )
+        or 0
+    )
 
     total_revenue_res = await db.execute(
-        text("SELECT COALESCE(SUM(agreed_price), 0) FROM bookings WHERE status = 'completed'")
+        text(
+            "SELECT COALESCE(SUM(agreed_price), 0) FROM bookings WHERE status = 'completed'"
+        )
     )
     total_revenue = total_revenue_res.scalar() or 0
 
-    pending_verifications = await db.scalar(
-        select(func.count(ArtisanProfile.user_id)).where(ArtisanProfile.verification_status == "pending")
-    ) or 0
+    pending_verifications = (
+        await db.scalar(
+            select(func.count(ArtisanProfile.user_id)).where(
+                ArtisanProfile.verification_status == "pending"
+            )
+        )
+        or 0
+    )
 
-    flagged_reviews = await db.scalar(
-        select(func.count(Review.id)).where(Review.is_flagged)
-    ) or 0
+    flagged_reviews = (
+        await db.scalar(select(func.count(Review.id)).where(Review.is_flagged)) or 0
+    )
 
     # Monthly job trend (last 6 months)
-    monthly_res = await db.execute(text("""
+    monthly_res = await db.execute(
+        text("""
         SELECT date_trunc('month', created_at) as month, COUNT(*) as count
         FROM jobs
         WHERE created_at >= NOW() - INTERVAL '6 months'
         GROUP BY month
         ORDER BY month ASC
-    """))
+    """)
+    )
     monthly_jobs = [
-        {"month": str(row.month)[:7], "count": row.count}
-        for row in monthly_res
+        {"month": str(row.month)[:7], "count": row.count} for row in monthly_res
     ]
 
     return {
-        "users": {"total": total_users, "clients": total_clients, "artisans": total_artisans},
-        "jobs": {"total": total_jobs, "open": open_jobs, "completed": completed_jobs, "disputed": disputed_jobs},
+        "users": {
+            "total": total_users,
+            "clients": total_clients,
+            "artisans": total_artisans,
+        },
+        "jobs": {
+            "total": total_jobs,
+            "open": open_jobs,
+            "completed": completed_jobs,
+            "disputed": disputed_jobs,
+        },
         # Alias fields to match frontend shape
-        "bookings": {"total": total_jobs, "completed": completed_jobs, "disputed": disputed_jobs},
+        "bookings": {
+            "total": total_jobs,
+            "completed": completed_jobs,
+            "disputed": disputed_jobs,
+        },
         "revenue": {"total_rwf": int(total_revenue), "currency": "RWF"},
         "total_revenue_rwf": int(total_revenue),
         "pending_verifications": pending_verifications,
-        "moderation": {"pending_verifications": pending_verifications, "flagged_reviews": flagged_reviews},
+        "moderation": {
+            "pending_verifications": pending_verifications,
+            "flagged_reviews": flagged_reviews,
+        },
         "monthly_jobs": monthly_jobs,
         "monthly_trend": monthly_jobs,
     }
@@ -438,8 +483,9 @@ async def get_platform_stats(
 
 # ── Dispute resolution ──────────────────────────────────────────────────────────
 
+
 @router.post("/bookings/{booking_id}/resolve-dispute")
-async def resolve_dispute(
+async def resolve_booking_dispute(
     booking_id: UUID,
     payload: DisputeResolution,
     db: AsyncSession = Depends(get_db),
@@ -447,7 +493,9 @@ async def resolve_dispute(
 ) -> Any:
     """Admin resolves a dispute — marks booking completed or cancelled depending on winner."""
     booking = await db.scalar(
-        select(Booking).where(Booking.id == booking_id, Booking.status == BookingStatus.disputed)
+        select(Booking).where(
+            Booking.id == booking_id, Booking.status == BookingStatus.disputed
+        )
     )
     if not booking:
         raise HTTPException(status_code=404, detail="Disputed booking not found.")

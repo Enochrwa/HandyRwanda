@@ -16,7 +16,7 @@ from uuid import UUID
 
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel, Field
-from sqlalchemy import select, update, delete
+from sqlalchemy import delete, select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.database import get_db
@@ -46,13 +46,20 @@ async def _notify(
 
 class BidCreate(BaseModel):
     proposed_price: int = Field(..., ge=500, description="Price in RWF (minimum 500)")
-    message: str | None = Field(None, max_length=500,
-        description="Short message describing your approach to the job")
-    cover_letter: str | None = Field(None, max_length=500,
-        description="Why you're the best person for this job — your experience, tools, availability")
+    message: str | None = Field(
+        None,
+        max_length=500,
+        description="Short message describing your approach to the job",
+    )
+    cover_letter: str | None = Field(
+        None,
+        max_length=500,
+        description="Why you're the best person for this job — your experience, tools, availability",
+    )
     proposed_start_time: datetime | None = None
-    estimated_duration_hours: int | None = Field(None, ge=1, le=720,
-        description="How many hours you estimate the job will take")
+    estimated_duration_hours: int | None = Field(
+        None, ge=1, le=720, description="How many hours you estimate the job will take"
+    )
 
 
 class BidUpdate(BaseModel):
@@ -63,9 +70,14 @@ class BidUpdate(BaseModel):
     estimated_duration_hours: int | None = Field(None, ge=1, le=720)
 
 
-def _serialize_bid(bid: Bid, artisan_name: str | None = None, artisan_avatar: str | None = None,
-                   artisan_rating: float | None = None, artisan_reviews: int | None = None,
-                   artisan_verified: str | None = None) -> dict[str, Any]:
+def _serialize_bid(
+    bid: Bid,
+    artisan_name: str | None = None,
+    artisan_avatar: str | None = None,
+    artisan_rating: float | None = None,
+    artisan_reviews: int | None = None,
+    artisan_verified: str | None = None,
+) -> dict[str, Any]:
     return {
         "id": str(bid.id),
         "job_id": str(bid.job_id),
@@ -73,7 +85,9 @@ def _serialize_bid(bid: Bid, artisan_name: str | None = None, artisan_avatar: st
         "proposed_price": bid.proposed_price,
         "message": bid.message,
         "cover_letter": bid.cover_letter,
-        "proposed_start_time": bid.proposed_start_time.isoformat() if bid.proposed_start_time else None,
+        "proposed_start_time": bid.proposed_start_time.isoformat()
+        if bid.proposed_start_time
+        else None,
         "estimated_duration_hours": bid.estimated_duration_hours,
         "status": bid.status,
         "created_at": bid.created_at.isoformat() if bid.created_at else None,
@@ -106,13 +120,17 @@ async def submit_bid(
         select(ArtisanProfile).where(ArtisanProfile.user_id == user_id)
     )
     if not artisan_profile:
-        raise HTTPException(status_code=400, detail="Complete your artisan profile before bidding.")
+        raise HTTPException(
+            status_code=400, detail="Complete your artisan profile before bidding."
+        )
 
     job = await db.scalar(
         select(Job).where(Job.id == job_id, Job.status == JobStatus.open)
     )
     if not job:
-        raise HTTPException(status_code=404, detail="Job not found or no longer accepting bids.")
+        raise HTTPException(
+            status_code=404, detail="Job not found or no longer accepting bids."
+        )
 
     artisan = await db.scalar(select(User).where(User.id == user_id))
     artisan_name = artisan.full_name if artisan else "An artisan"
@@ -136,15 +154,24 @@ async def submit_bid(
         "new_bid",
         f"New bid from {artisan_name} 📋",
         f"{artisan_name} bid {price_str} RWF on your job '{job.title}'."
-        + (f" Estimated {payload.estimated_duration_hours}h." if payload.estimated_duration_hours else ""),
+        + (
+            f" Estimated {payload.estimated_duration_hours}h."
+            if payload.estimated_duration_hours
+            else ""
+        ),
         {"job_id": str(job_id)},
     )
 
     await db.commit()
     await db.refresh(bid)
-    return _serialize_bid(bid, artisan_name, artisan.avatar_url if artisan else None,
-                          artisan_profile.average_rating, artisan_profile.total_reviews,
-                          artisan_profile.verification_status)
+    return _serialize_bid(
+        bid,
+        artisan_name,
+        artisan.avatar_url if artisan else None,
+        artisan_profile.average_rating,
+        artisan_profile.total_reviews,
+        artisan_profile.verification_status,
+    )
 
 
 @router.get("/jobs/{job_id}")
@@ -161,16 +188,23 @@ async def list_bids(
         raise HTTPException(status_code=404, detail="Job not found.")
 
     query = (
-        select(Bid, User.full_name, User.avatar_url,
-               ArtisanProfile.average_rating, ArtisanProfile.total_reviews,
-               ArtisanProfile.verification_status)
+        select(
+            Bid,
+            User.full_name,
+            User.avatar_url,
+            ArtisanProfile.average_rating,
+            ArtisanProfile.total_reviews,
+            ArtisanProfile.verification_status,
+        )
         .join(User, Bid.artisan_id == User.id)
         .join(ArtisanProfile, Bid.artisan_id == ArtisanProfile.user_id)
     )
 
     if user_role == UserRole.client:
         if job.client_id != user_id:
-            raise HTTPException(status_code=403, detail="Not authorized to view bids for this job.")
+            raise HTTPException(
+                status_code=403, detail="Not authorized to view bids for this job."
+            )
         query = query.where(Bid.job_id == job_id)
     else:
         # Artisan sees their own bid only
@@ -193,10 +227,14 @@ async def update_bid(
     """Artisan can update their pending bid."""
     user_id = UUID(current_user["sub"])
     bid = await db.scalar(
-        select(Bid).where(Bid.id == bid_id, Bid.artisan_id == user_id, Bid.status == BidStatus.pending)
+        select(Bid).where(
+            Bid.id == bid_id, Bid.artisan_id == user_id, Bid.status == BidStatus.pending
+        )
     )
     if not bid:
-        raise HTTPException(status_code=404, detail="Bid not found or cannot be edited.")
+        raise HTTPException(
+            status_code=404, detail="Bid not found or cannot be edited."
+        )
 
     update_data = payload.model_dump(exclude_none=True)
     if not update_data:
@@ -217,10 +255,14 @@ async def withdraw_bid(
     """Artisan withdraws their pending bid."""
     user_id = UUID(current_user["sub"])
     bid = await db.scalar(
-        select(Bid).where(Bid.id == bid_id, Bid.artisan_id == user_id, Bid.status == BidStatus.pending)
+        select(Bid).where(
+            Bid.id == bid_id, Bid.artisan_id == user_id, Bid.status == BidStatus.pending
+        )
     )
     if not bid:
-        raise HTTPException(status_code=404, detail="Bid not found or already accepted/rejected.")
+        raise HTTPException(
+            status_code=404, detail="Bid not found or already accepted/rejected."
+        )
 
     await db.execute(delete(Bid).where(Bid.id == bid_id))
     await db.commit()
@@ -244,7 +286,9 @@ async def accept_bid(
 
     bid, job = data
     if bid.status != BidStatus.pending:
-        raise HTTPException(status_code=400, detail="This bid has already been accepted or rejected.")
+        raise HTTPException(
+            status_code=400, detail="This bid has already been accepted or rejected."
+        )
     if job.status not in (JobStatus.open, JobStatus.pending_bid):
         raise HTTPException(status_code=400, detail="Job is no longer accepting bids.")
 

@@ -94,7 +94,9 @@ export default function JobDetails() {
       {/* Header */}
       <View className="pt-14 pb-4 px-5 bg-card border-b border-border">
         <Text className="text-xl font-extrabold">Job Details</Text>
-        <Text className="text-xs text-muted-foreground mt-0.5">Step 1 of 3 — Describe what you need</Text>
+        <Text className="text-xs text-muted-foreground mt-0.5">
+          Step 1 of 3 — Describe what you need
+        </Text>
         <View className="flex-row mt-2">
           {[1, 2, 3].map((s) => (
             <View
@@ -152,8 +154,7 @@ export default function JobDetails() {
         {/* Additional Notes */}
         <View className="mb-5">
           <Text className="text-xs font-bold uppercase tracking-wide text-muted-foreground mb-1.5">
-            Additional Notes{' '}
-            <Text className="text-[10px] font-normal">(optional)</Text>
+            Additional Notes <Text className="text-[10px] font-normal">(optional)</Text>
           </Text>
           <TextInput
             value={additionalNotes}
@@ -202,14 +203,15 @@ export default function JobDetails() {
         {/* Scheduled Date */}
         <View className="mb-5">
           <Text className="text-xs font-bold uppercase tracking-wide text-muted-foreground mb-1.5">
-            Preferred Date/Time{' '}
-            <Text className="text-[10px] font-normal">(optional)</Text>
+            Preferred Date/Time <Text className="text-[10px] font-normal">(optional)</Text>
           </Text>
           <TouchableOpacity
             onPress={() => setShowDatePicker(true)}
             className="bg-card p-4 rounded-2xl border border-border flex-row items-center justify-between"
           >
-            <Text className={`text-sm ${scheduledDate ? 'text-foreground' : 'text-muted-foreground'}`}>
+            <Text
+              className={`text-sm ${scheduledDate ? 'text-foreground' : 'text-muted-foreground'}`}
+            >
               {scheduledDate
                 ? scheduledDate.toLocaleString('en-RW', {
                     weekday: 'short',
@@ -235,9 +237,11 @@ export default function JobDetails() {
             mode="datetime"
             display={Platform.OS === 'ios' ? 'inline' : 'default'}
             minimumDate={new Date()}
-            onChange={(_, date) => {
+            onChange={(_: any, date: any) => {
               setShowDatePicker(Platform.OS === 'ios');
-              if (date) setScheduledDate(date);
+              if (date instanceof Date) {
+                setScheduledDate(date);
+              }
             }}
           />
         )}

@@ -96,8 +96,19 @@ export default function ProDashboard() {
   });
 
   const submitBid = useMutation({
-    mutationFn: ({ jobId, price, note }: { jobId: string; price: number; note: string }) =>
-      proService.submitBid(jobId, price, note),
+    mutationFn: ({
+      jobId,
+      price,
+      note,
+      coverLetter,
+      estimatedHours,
+    }: {
+      jobId: string;
+      price: number;
+      note: string;
+      coverLetter?: string;
+      estimatedHours?: number;
+    }) => proService.submitBid(jobId, price, note, coverLetter, estimatedHours),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['proDashboard'] });
       setBiddingJobId(null);
@@ -316,7 +327,7 @@ export default function ProDashboard() {
                             price: parseInt(bidAmount, 10),
                             note: bidNote,
                             coverLetter: bidCoverLetter,
-                            hours: bidHours ? parseInt(bidHours, 10) : undefined,
+                            estimatedHours: bidHours ? parseInt(bidHours, 10) : undefined,
                           })
                         }
                         disabled={submitBid.isPending}

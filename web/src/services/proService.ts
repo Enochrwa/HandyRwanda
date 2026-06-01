@@ -10,7 +10,13 @@ export const proService = {
     const res = await api.patch("/artisans/availability", { available_now: available });
     return res.data;
   },
-  async submitBid(jobId: string, price: number, note: string, coverLetter?: string, estimatedHours?: number) {
+  async submitBid(
+    jobId: string,
+    price: number,
+    note: string,
+    coverLetter?: string,
+    estimatedHours?: number,
+  ) {
     const res = await api.post(`/bids/jobs/${jobId}`, {
       proposed_price: price,
       message: note || undefined,

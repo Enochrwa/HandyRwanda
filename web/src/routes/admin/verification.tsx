@@ -504,7 +504,11 @@ function UsersTab({
 function DisputesTab({ qc }: { qc: ReturnType<typeof useQueryClient> }) {
   const { data: disputes = [], isLoading } = useQuery({
     queryKey: ["admin-disputes"],
-    queryFn: () => api.get("/bookings").then(r => ({ data: r.data.filter((b) => b.status === "disputed") })).then((r) => r.data),
+    queryFn: () =>
+      api
+        .get("/bookings")
+        .then((r) => ({ data: r.data.filter((b) => b.status === "disputed") }))
+        .then((r) => r.data),
   });
 
   const resolve = useMutation({

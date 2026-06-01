@@ -449,6 +449,7 @@ async def search_artisans(
 
 # ── Push Token Registration ────────────────────────────────────────────────────
 
+
 class PushTokenUpdate(BaseModel):
     expo_push_token: str
 
@@ -476,8 +477,7 @@ async def get_artisan_skills(
     db: AsyncSession = Depends(get_db),
 ) -> Any:
     """Public: list skill categories for a given artisan."""
-    from sqlalchemy import select
-    from app.models.artisan import Category, artisan_skills
+
     cats_result = await db.execute(
         select(Category)
         .join(artisan_skills, artisan_skills.c.category_id == Category.id)

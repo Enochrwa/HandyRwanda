@@ -13,14 +13,16 @@ from app.dependencies.jwt_auth import get_current_user, require_role
 from app.integrations.huggingface import get_job_category_match
 from app.integrations.supabase_storage import upload_image
 from app.models.artisan import ArtisanProfile, Category
-from app.models.job import Bid, BidStatus, Job, JobStatus, JobUrgency
+from app.models.job import Bid, Job, JobStatus, JobUrgency
 from app.models.user import UserRole
 from app.services.price_anchor_service import get_price_anchor
 
 router = APIRouter(prefix="/jobs", tags=["jobs"])
 
 
-def _serialize_job(job: Job, category: Category | None = None, bid_count: int = 0) -> dict[str, Any]:
+def _serialize_job(
+    job: Job, category: Category | None = None, bid_count: int = 0
+) -> dict[str, Any]:
     return {
         "id": str(job.id),
         "client_id": str(job.client_id),
@@ -30,13 +32,17 @@ def _serialize_job(job: Job, category: Category | None = None, bid_count: int = 
             "name_en": category.name_en,
             "name_rw": category.name_rw,
             "icon_emoji": category.icon_emoji,
-        } if category else None,
+        }
+        if category
+        else None,
         "title": job.title,
         "description": job.description,
         "additional_notes": job.additional_notes,
         "location": job.location,
         "location_label": job.location_label,
-        "scheduled_time": job.scheduled_time.isoformat() if job.scheduled_time else None,
+        "scheduled_time": job.scheduled_time.isoformat()
+        if job.scheduled_time
+        else None,
         "urgency": job.urgency,
         "budget": job.budget,
         "budget_negotiable": bool(job.budget_negotiable),
@@ -52,8 +58,11 @@ class JobCreate(BaseModel):
     category_id: UUID
     title: str = Field(..., min_length=5, max_length=200)
     description: str = Field(..., min_length=15, max_length=2000)
-    additional_notes: str | None = Field(None, max_length=1000,
-        description="Any extra info: materials available, access details, preferred artisan skills")
+    additional_notes: str | None = Field(
+        None,
+        max_length=1000,
+        description="Any extra info: materials available, access details, preferred artisan skills",
+    )
     latitude: float
     longitude: float
     location_label: str = Field(..., min_length=2, max_length=200)
@@ -100,9 +109,13 @@ async def create_job(
                         break
 
     # Verify category exists
-    cat = await db.scalar(select(Category).where(Category.id == payload.category_id, Category.is_active))
+    cat = await db.scalar(
+        select(Category).where(Category.id == payload.category_id, Category.is_active)
+    )
     if not cat:
-        raise HTTPException(status_code=400, detail="Invalid or inactive category selected.")
+        raise HTTPException(
+            status_code=400, detail="Invalid or inactive category selected."
+        )
 
     # Upload photos (max 5)
     photo_urls: list[str] = []
@@ -148,7 +161,9 @@ async def list_my_jobs(
     result = await db.execute(query.order_by(Job.created_at.desc()))
     jobs = []
     for job, cat in result:
-        bid_count = await db.scalar(select(func.count(Bid.id)).where(Bid.job_id == job.id)) or 0
+        bid_count = (
+            await db.scalar(select(func.count(Bid.id)).where(Bid.job_id == job.id)) or 0
+        )
         jobs.append(_serialize_job(job, cat, bid_count))
     return jobs
 
@@ -181,24 +196,34 @@ async def list_available_jobs(
     jobs_list = []
     for row in result:
         m = dict(row._mapping)
-        jobs_list.append({
-            "id": str(m["id"]),
-            "client_id": str(m["client_id"]),
-            "category_id": str(m["category_id"]),
-            "category": {"name_en": m["name_en"], "name_rw": m["name_rw"], "icon_emoji": m["icon_emoji"]},
-            "title": m["title"],
-            "description": m["description"],
-            "additional_notes": m.get("additional_notes"),
-            "location_label": m.get("location_label"),
-            "urgency": m.get("urgency", "flexible"),
-            "budget": m.get("budget"),
-            "budget_negotiable": bool(m.get("budget_negotiable", True)),
-            "status": m["status"],
-            "images": m.get("photos_urls") or [],
-            "bid_count": m.get("bid_count", 0),
-            "scheduled_time": m["scheduled_time"].isoformat() if m.get("scheduled_time") else None,
-            "created_at": m["created_at"].isoformat() if m.get("created_at") else None,
-        })
+        jobs_list.append(
+            {
+                "id": str(m["id"]),
+                "client_id": str(m["client_id"]),
+                "category_id": str(m["category_id"]),
+                "category": {
+                    "name_en": m["name_en"],
+                    "name_rw": m["name_rw"],
+                    "icon_emoji": m["icon_emoji"],
+                },
+                "title": m["title"],
+                "description": m["description"],
+                "additional_notes": m.get("additional_notes"),
+                "location_label": m.get("location_label"),
+                "urgency": m.get("urgency", "flexible"),
+                "budget": m.get("budget"),
+                "budget_negotiable": bool(m.get("budget_negotiable", True)),
+                "status": m["status"],
+                "images": m.get("photos_urls") or [],
+                "bid_count": m.get("bid_count", 0),
+                "scheduled_time": m["scheduled_time"].isoformat()
+                if m.get("scheduled_time")
+                else None,
+                "created_at": m["created_at"].isoformat()
+                if m.get("created_at")
+                else None,
+            }
+        )
     return jobs_list
 
 
@@ -227,7 +252,9 @@ async def list_open_jobs(
     result = await db.execute(query)
     jobs = []
     for job, cat in result:
-        bid_count = await db.scalar(select(func.count(Bid.id)).where(Bid.job_id == job.id)) or 0
+        bid_count = (
+            await db.scalar(select(func.count(Bid.id)).where(Bid.job_id == job.id)) or 0
+        )
         jobs.append(_serialize_job(job, cat, bid_count))
     return jobs
 
@@ -248,7 +275,9 @@ async def get_job_detail(
         raise HTTPException(status_code=404, detail="Job not found")
     job, cat = row
 
-    bid_count = await db.scalar(select(func.count(Bid.id)).where(Bid.job_id == job_id)) or 0
+    bid_count = (
+        await db.scalar(select(func.count(Bid.id)).where(Bid.job_id == job_id)) or 0
+    )
 
     # Price anchoring for artisans
     price_guidance: dict[str, Any] | None = None
@@ -256,7 +285,9 @@ async def get_job_detail(
         district = "Kigali"
         if job.location_label and "," in job.location_label:
             district = job.location_label.split(",")[-1].strip()
-        price_guidance = await get_price_anchor(UUID(str(job.category_id)), district, db)
+        price_guidance = await get_price_anchor(
+            UUID(str(job.category_id)), district, db
+        )
 
     # Check if current artisan already bid
     already_bid = False
@@ -290,18 +321,22 @@ async def update_job(
     if not job:
         raise HTTPException(status_code=404, detail="Job not found")
     if job.status not in (JobStatus.open, JobStatus.pending_bid):
-        raise HTTPException(status_code=400, detail="Cannot edit a job that is already booked or completed.")
+        raise HTTPException(
+            status_code=400,
+            detail="Cannot edit a job that is already booked or completed.",
+        )
 
     update_data = payload.model_dump(exclude_none=True)
     if not update_data:
         raise HTTPException(status_code=400, detail="No fields to update.")
 
-
     await db.execute(update(Job).where(Job.id == job_id).values(**update_data))
     await db.commit()
     await db.refresh(job)
     cat = await db.scalar(select(Category).where(Category.id == job.category_id))
-    bid_count = await db.scalar(select(func.count(Bid.id)).where(Bid.job_id == job_id)) or 0
+    bid_count = (
+        await db.scalar(select(func.count(Bid.id)).where(Bid.job_id == job_id)) or 0
+    )
     return _serialize_job(job, cat, bid_count)
 
 
@@ -319,8 +354,12 @@ async def cancel_job(
     if not job:
         raise HTTPException(status_code=404, detail="Job not found")
     if job.status not in (JobStatus.open, JobStatus.pending_bid):
-        raise HTTPException(status_code=400, detail="Cannot cancel job in current status")
+        raise HTTPException(
+            status_code=400, detail="Cannot cancel job in current status"
+        )
 
-    await db.execute(update(Job).where(Job.id == job_id).values(status=JobStatus.cancelled))
+    await db.execute(
+        update(Job).where(Job.id == job_id).values(status=JobStatus.cancelled)
+    )
     await db.commit()
     return {"message": "Job cancelled"}

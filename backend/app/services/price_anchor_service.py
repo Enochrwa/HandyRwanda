@@ -2,10 +2,8 @@
 from typing import Any
 from uuid import UUID
 
-from sqlalchemy import func, select, text
+from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncSession
-
-from app.models.booking import Booking, BookingStatus
 
 
 async def get_price_anchor(

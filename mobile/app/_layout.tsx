@@ -8,6 +8,7 @@ import Toast from 'react-native-toast-message';
 import '../src/global.css';
 import { useAuthStore } from '../src/store/authStore';
 import { proService } from '../src/services/proService';
+import type { PermissionResponse } from 'expo-modules-core';
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -28,7 +29,7 @@ function PushTokenRegistrar() {
     (async () => {
       try {
         const { default: Notifications } = await import('expo-notifications');
-        const { status } = await Notifications.requestPermissionsAsync();
+        const { status } = (await Notifications.requestPermissionsAsync()) as PermissionResponse;
         if (status !== 'granted') return;
         const tokenData = await Notifications.getExpoPushTokenAsync();
         if (tokenData?.data) {

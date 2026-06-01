@@ -316,12 +316,16 @@ async def get_artisan_dashboard(
     # Nearby jobs (category-matched; geo requires lat/lng on jobs — not yet stored)
     nearby_jobs = []
     nearby_query = text("""
-        SELECT j.id, j.title, j.budget, j.description, j.location_label, c.name_en as category_name
+        SELECT j.id, j.title, j.budget, j.budget_max, j.description, j.location_label,
+               j.urgency, j.job_type, c.name_en as category_name, c.icon_emoji as category_icon,
+               (SELECT COUNT(*) FROM bids b2 WHERE b2.job_id = j.id) as bid_count
         FROM jobs j
         JOIN categories c ON j.category_id = c.id
         JOIN artisan_skills ask ON j.category_id = ask.category_id AND ask.artisan_id = :artisan_id
         WHERE j.status = 'open'
-        ORDER BY j.created_at DESC
+        ORDER BY
+            CASE j.urgency WHEN 'urgent' THEN 0 WHEN 'today' THEN 1 WHEN 'tomorrow' THEN 2 ELSE 3 END,
+            j.created_at DESC
         LIMIT 5
     """)
     nearby_res = await db.execute(nearby_query, {"artisan_id": user_id})
@@ -331,9 +335,14 @@ async def get_artisan_dashboard(
                 "id": str(row.id),
                 "title": row.title,
                 "budget": row.budget,
+                "budget_max": row.budget_max,
                 "description": row.description,
                 "location_label": row.location_label,
+                "urgency": row.urgency,
+                "job_type": row.job_type,
                 "category": row.category_name,
+                "category_icon": row.category_icon,
+                "bid_count": row.bid_count,
                 "distance": None,
             }
         )
@@ -357,10 +366,14 @@ async def get_artisan_dashboard(
         for b, j in active_bids_res
     ]
 
+    # Availability status
+    avail_res = await db.scalar(select(ArtisanProfile.is_available).where(ArtisanProfile.user_id == user_id))
+
     return {
         "earnings_this_month": earnings_this_month,
         "jobs_count": jobs_count,
         "avg_rating": avg_rating,
+        "is_available": avail_res if avail_res is not None else False,
         "schedule": schedule,
         "nearby_jobs": nearby_jobs,
         "active_bids": active_bids,

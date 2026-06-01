@@ -482,35 +482,3 @@ async def get_platform_stats(
     }
 
 
-# ── Dispute resolution ──────────────────────────────────────────────────────────
-
-
-@router.post("/bookings/{booking_id}/resolve-dispute")
-async def resolve_booking_dispute(
-    booking_id: UUID,
-    payload: DisputeResolution,
-    db: AsyncSession = Depends(get_db),
-    current_user: dict[str, Any] = Depends(require_role(UserRole.admin)),
-) -> Any:
-    """Admin resolves a dispute — marks booking completed or cancelled depending on winner."""
-    booking = await db.scalar(
-        select(Booking).where(
-            Booking.id == booking_id, Booking.status == BookingStatus.disputed
-        )
-    )
-    if not booking:
-        raise HTTPException(status_code=404, detail="Disputed booking not found.")
-
-    if payload.winner == "client":
-        new_status = BookingStatus.cancelled
-    else:
-        new_status = BookingStatus.completed
-
-    await db.execute(
-        update(Booking).where(Booking.id == booking_id).values(status=new_status)
-    )
-    await db.commit()
-    return {
-        "message": f"Dispute resolved. Winner: {payload.winner}. Booking status: {new_status}",
-        "notes": payload.notes,
-    }

@@ -285,18 +285,17 @@ async def get_job_detail(
 
     # Price anchoring for artisans
     price_guidance: dict[str, Any] | None = None
+    already_bid = False
+
     if current_user["role"] == UserRole.artisan:
+        # Price anchoring
         district = "Kigali"
         if job.location_label and "," in job.location_label:
             district = job.location_label.split(",")[-1].strip()
         price_guidance = await get_price_anchor(
             UUID(str(job.category_id)), district, db
         )
-        already_bid = existing_bid is not None
-
-    # Check if current artisan already bid
-    already_bid = False
-    if current_user["role"] == UserRole.artisan:
+        # Already-bid check
         artisan_id = UUID(current_user["sub"])
         existing_bid = await db.scalar(
             select(Bid).where(Bid.job_id == job_id, Bid.artisan_id == artisan_id)

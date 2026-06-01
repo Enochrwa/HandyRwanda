@@ -180,9 +180,6 @@ export default function JobDetailBid() {
                   Client Budget
                 </Text>
                 <Text className="font-bold text-foreground">
-                  {formatRWF(job.budget)} {job.budget_max ? `– ${formatRWF(job.budget_max)}` : ''} RWF
-                </Text>
-                <Text className="font-bold text-foreground">
                   {formatRWF(job.budget)} RWF
                   {job.budget_negotiable && (
                     <Text className="text-xs text-muted-foreground font-normal"> (negotiable)</Text>

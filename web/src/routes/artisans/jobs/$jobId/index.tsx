@@ -64,8 +64,8 @@ function BidForm({ jobId, onSuccess }: { jobId: string; onSuccess: () => void })
       }),
     onSuccess: () => {
       toast.success("Bid submitted! The client will be notified.");
+      qc.invalidateQueries({ queryKey: ["available-jobs"] });
       qc.invalidateQueries({ queryKey: ["job-detail", jobId] });
-      qc.invalidateQueries({ queryKey: ["open-jobs"] });
       onSuccess();
     },
     onError: (err: unknown) => {

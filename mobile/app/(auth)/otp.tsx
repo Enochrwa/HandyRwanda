@@ -55,6 +55,7 @@ export default function OTPScreen() {
           district: user.district ?? null,
           preferredLang: user.preferred_lang ?? 'rw',
           accountStatus: user.account_status,
+          emailVerified: user.email_verified ?? true,
         },
         access_token,
         refresh_token,

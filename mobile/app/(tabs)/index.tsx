@@ -46,13 +46,7 @@ export default function HomeScreen() {
     queryFn: () => api.get('/artisans/categories').then((r) => r.data),
   });
 
-  useQuery({
-    queryKey: ['featuredArtisans'],
-    queryFn: () =>
-      api
-        .get('/artisans', { params: { limit: 4, sort: 'rating' } })
-        .then((r) => r.data?.items ?? []),
-  });
+  // Featured artisans are shown on the search tab; no separate home-screen fetch needed.
 
   if (checkingOnboard) {
     return (

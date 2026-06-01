@@ -72,8 +72,10 @@ function ArtisanJobFeed() {
   const navigate = useNavigate();
 
   const { data: jobs = [], isLoading } = useQuery<JobItem[]>({
-    queryKey: ["open-jobs"],
-    queryFn: () => api.get("/jobs").then((r) => r.data),
+    queryKey: ["available-jobs"],
+    // /jobs/available → skill-matched jobs for this artisan (requires artisan JWT)
+    // /jobs (public) → all open jobs regardless of skills
+    queryFn: () => api.get("/jobs/available").then((r) => r.data),
     refetchInterval: 60000,
   });
 

@@ -63,7 +63,7 @@ export default function JobDetailBid() {
         text1: '🎉 Bid submitted!',
         text2: "You'll be notified if the client accepts.",
       });
-      qc.invalidateQueries({ queryKey: ['open-jobs'] });
+      qc.invalidateQueries({ queryKey: ['available-jobs'] });
       router.back();
     },
     onError: (err: unknown) => {

@@ -19,6 +19,7 @@ import { Route as JobsPostRouteImport } from "./routes/jobs/post";
 import { Route as ArtisansJobsRouteImport } from "./routes/artisans/jobs";
 import { Route as ArtisanIdRouteImport } from "./routes/artisan.$id";
 import { Route as AdminVerificationRouteImport } from "./routes/admin/verification";
+import { Route as ArtisansJobsJobIdIndexRouteImport } from "./routes/artisans/jobs/$jobId/index";
 
 const SearchRoute = SearchRouteImport.update({
   id: "/search",
@@ -70,6 +71,11 @@ const AdminVerificationRoute = AdminVerificationRouteImport.update({
   path: "/admin/verification",
   getParentRoute: () => rootRouteImport,
 } as any);
+const ArtisansJobsJobIdIndexRoute = ArtisansJobsJobIdIndexRouteImport.update({
+  id: "/$jobId/",
+  path: "/$jobId/",
+  getParentRoute: () => ArtisansJobsRoute,
+} as any);
 
 export interface FileRoutesByFullPath {
   "/": typeof IndexRoute;
@@ -78,10 +84,11 @@ export interface FileRoutesByFullPath {
   "/search": typeof SearchRoute;
   "/admin/verification": typeof AdminVerificationRoute;
   "/artisan/$id": typeof ArtisanIdRoute;
-  "/artisans/jobs": typeof ArtisansJobsRoute;
+  "/artisans/jobs": typeof ArtisansJobsRouteWithChildren;
   "/jobs/post": typeof JobsPostRoute;
   "/onboarding/artisan": typeof OnboardingArtisanRoute;
   "/profile/portfolio": typeof ProfilePortfolioRoute;
+  "/artisans/jobs/$jobId/": typeof ArtisansJobsJobIdIndexRoute;
 }
 export interface FileRoutesByTo {
   "/": typeof IndexRoute;
@@ -90,10 +97,11 @@ export interface FileRoutesByTo {
   "/search": typeof SearchRoute;
   "/admin/verification": typeof AdminVerificationRoute;
   "/artisan/$id": typeof ArtisanIdRoute;
-  "/artisans/jobs": typeof ArtisansJobsRoute;
+  "/artisans/jobs": typeof ArtisansJobsRouteWithChildren;
   "/jobs/post": typeof JobsPostRoute;
   "/onboarding/artisan": typeof OnboardingArtisanRoute;
   "/profile/portfolio": typeof ProfilePortfolioRoute;
+  "/artisans/jobs/$jobId": typeof ArtisansJobsJobIdIndexRoute;
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport;
@@ -103,10 +111,11 @@ export interface FileRoutesById {
   "/search": typeof SearchRoute;
   "/admin/verification": typeof AdminVerificationRoute;
   "/artisan/$id": typeof ArtisanIdRoute;
-  "/artisans/jobs": typeof ArtisansJobsRoute;
+  "/artisans/jobs": typeof ArtisansJobsRouteWithChildren;
   "/jobs/post": typeof JobsPostRoute;
   "/onboarding/artisan": typeof OnboardingArtisanRoute;
   "/profile/portfolio": typeof ProfilePortfolioRoute;
+  "/artisans/jobs/$jobId/": typeof ArtisansJobsJobIdIndexRoute;
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath;
@@ -120,7 +129,8 @@ export interface FileRouteTypes {
     | "/artisans/jobs"
     | "/jobs/post"
     | "/onboarding/artisan"
-    | "/profile/portfolio";
+    | "/profile/portfolio"
+    | "/artisans/jobs/$jobId/";
   fileRoutesByTo: FileRoutesByTo;
   to:
     | "/"
@@ -132,7 +142,8 @@ export interface FileRouteTypes {
     | "/artisans/jobs"
     | "/jobs/post"
     | "/onboarding/artisan"
-    | "/profile/portfolio";
+    | "/profile/portfolio"
+    | "/artisans/jobs/$jobId";
   id:
     | "__root__"
     | "/"
@@ -144,7 +155,8 @@ export interface FileRouteTypes {
     | "/artisans/jobs"
     | "/jobs/post"
     | "/onboarding/artisan"
-    | "/profile/portfolio";
+    | "/profile/portfolio"
+    | "/artisans/jobs/$jobId/";
   fileRoutesById: FileRoutesById;
 }
 export interface RootRouteChildren {
@@ -154,7 +166,7 @@ export interface RootRouteChildren {
   SearchRoute: typeof SearchRoute;
   AdminVerificationRoute: typeof AdminVerificationRoute;
   ArtisanIdRoute: typeof ArtisanIdRoute;
-  ArtisansJobsRoute: typeof ArtisansJobsRoute;
+  ArtisansJobsRoute: typeof ArtisansJobsRouteWithChildren;
   JobsPostRoute: typeof JobsPostRoute;
   OnboardingArtisanRoute: typeof OnboardingArtisanRoute;
   ProfilePortfolioRoute: typeof ProfilePortfolioRoute;
@@ -232,8 +244,25 @@ declare module "@tanstack/react-router" {
       preLoaderRoute: typeof AdminVerificationRouteImport;
       parentRoute: typeof rootRouteImport;
     };
+    "/artisans/jobs/$jobId/": {
+      id: "/artisans/jobs/$jobId/";
+      path: "/$jobId";
+      fullPath: "/artisans/jobs/$jobId/";
+      preLoaderRoute: typeof ArtisansJobsJobIdIndexRouteImport;
+      parentRoute: typeof ArtisansJobsRoute;
+    };
   }
 }
+
+interface ArtisansJobsRouteChildren {
+  ArtisansJobsJobIdIndexRoute: typeof ArtisansJobsJobIdIndexRoute;
+}
+
+const ArtisansJobsRouteChildren: ArtisansJobsRouteChildren = {
+  ArtisansJobsJobIdIndexRoute: ArtisansJobsJobIdIndexRoute,
+};
+
+const ArtisansJobsRouteWithChildren = ArtisansJobsRoute._addFileChildren(ArtisansJobsRouteChildren);
 
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
@@ -242,7 +271,7 @@ const rootRouteChildren: RootRouteChildren = {
   SearchRoute: SearchRoute,
   AdminVerificationRoute: AdminVerificationRoute,
   ArtisanIdRoute: ArtisanIdRoute,
-  ArtisansJobsRoute: ArtisansJobsRoute,
+  ArtisansJobsRoute: ArtisansJobsRouteWithChildren,
   JobsPostRoute: JobsPostRoute,
   OnboardingArtisanRoute: OnboardingArtisanRoute,
   ProfilePortfolioRoute: ProfilePortfolioRoute,

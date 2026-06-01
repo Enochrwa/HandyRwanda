@@ -23,17 +23,11 @@ function formatRWF(n: number) {
 }
 
 const URGENCY_LABELS: Record<string, string> = {
-  flexible: '📅 Flexible',
-  this_week: '🗓️ This Week',
-  tomorrow: '⏰ Tomorrow',
+  urgent: '🚨 Urgent (2 hours)',
   today: '🔥 Today',
-  urgent: '🚨 Urgent!',
-};
-
-const JOB_TYPE_LABELS: Record<string, string> = {
-  one_time: 'One-time job',
-  recurring: 'Recurring',
-  emergency: 'Emergency fix',
+  tomorrow: '⏰ Tomorrow',
+  this_week: '🗓️ This Week',
+  flexible: '📅 Flexible',
 };
 
 export default function JobDetailBid() {
@@ -42,26 +36,26 @@ export default function JobDetailBid() {
   const qc = useQueryClient();
   const [bidPrice, setBidPrice] = useState('');
   const [message, setMessage] = useState('');
+  const [coverLetter, setCoverLetter] = useState('');
   const [estimatedHours, setEstimatedHours] = useState('');
-  const [proposedStartTime, setProposedStartTime] = useState('');
 
-  const { data: detail, isLoading } = useQuery({
+  const { data: jobResp, isLoading } = useQuery({
     queryKey: ['job-detail', jobId],
     queryFn: () => api.get(`/jobs/${jobId}`).then((r) => r.data),
     enabled: !!jobId,
   });
 
-  const job = detail?.job;
-  const priceGuidance = detail?.price_guidance;
-  const alreadyBid = detail?.already_bid;
+  const job = jobResp?.job;
+  const priceGuidance = jobResp?.price_guidance;
+  const alreadyBid = jobResp?.already_bid;
 
   const submitBid = useMutation({
     mutationFn: () =>
       api.post(`/bids/jobs/${jobId}`, {
         proposed_price: parseInt(bidPrice, 10),
         message: message.trim() || undefined,
-        estimated_duration_hours: estimatedHours ? parseFloat(estimatedHours) : undefined,
-        proposed_start_time: proposedStartTime || undefined,
+        cover_letter: coverLetter.trim() || undefined,
+        estimated_duration_hours: estimatedHours ? parseInt(estimatedHours, 10) : undefined,
       }),
     onSuccess: () => {
       Toast.show({
@@ -87,6 +81,13 @@ export default function JobDetailBid() {
     const price = parseInt(bidPrice, 10);
     if (!bidPrice || isNaN(price) || price < 500) {
       Toast.show({ type: 'error', text1: 'Invalid price', text2: 'Enter at least 500 RWF' });
+      return;
+    }
+    if (
+      estimatedHours &&
+      (parseInt(estimatedHours, 10) < 1 || parseInt(estimatedHours, 10) > 720)
+    ) {
+      Toast.show({ type: 'error', text1: 'Invalid duration', text2: '1 to 720 hours only' });
       return;
     }
     submitBid.mutate();
@@ -118,33 +119,30 @@ export default function JobDetailBid() {
     >
       {/* Header */}
       <View className="pt-14 pb-4 px-5 bg-card border-b border-border">
-        <TouchableOpacity onPress={() => router.back()} className="mb-3">
-          <Text className="text-primary font-semibold">← Back</Text>
+        <TouchableOpacity
+          onPress={() => router.back()}
+          accessibilityLabel="Go back"
+          className="mb-3"
+        >
+          <Text className="text-primary font-semibold">← Back to Jobs</Text>
         </TouchableOpacity>
-        <Text className="text-xl font-extrabold leading-tight">{job.title}</Text>
-        <View className="flex-row flex-wrap gap-2 mt-2">
+        <View className="flex-row flex-wrap gap-2 mb-1">
+          {job.urgency && job.urgency !== 'flexible' && (
+            <View className="bg-red-100 px-2.5 py-0.5 rounded-full self-start">
+              <Text className="text-red-700 text-[11px] font-bold">
+                {URGENCY_LABELS[job.urgency] ?? job.urgency}
+              </Text>
+            </View>
+          )}
           {job.category?.name_en && (
-            <View className="bg-primary/10 self-start px-2.5 py-1 rounded-full">
+            <View className="bg-primary/10 px-2.5 py-0.5 rounded-full self-start">
               <Text className="text-primary text-xs font-bold">
                 {job.category.icon_emoji} {job.category.name_en}
               </Text>
             </View>
           )}
-          {job.job_type && (
-            <View className="bg-muted px-2.5 py-1 rounded-full">
-              <Text className="text-muted-foreground text-xs font-semibold">
-                {JOB_TYPE_LABELS[job.job_type] ?? job.job_type}
-              </Text>
-            </View>
-          )}
-          {job.urgency && job.urgency !== 'flexible' && (
-            <View className={`px-2.5 py-1 rounded-full ${job.urgency === 'urgent' ? 'bg-destructive/10' : 'bg-accent/10'}`}>
-              <Text className={`text-xs font-bold ${job.urgency === 'urgent' ? 'text-destructive' : 'text-accent'}`}>
-                {URGENCY_LABELS[job.urgency]}
-              </Text>
-            </View>
-          )}
         </View>
+        <Text className="text-xl font-extrabold">{job.title}</Text>
       </View>
 
       <ScrollView
@@ -152,12 +150,31 @@ export default function JobDetailBid() {
         showsVerticalScrollIndicator={false}
         keyboardShouldPersistTaps="handled"
       >
-        {/* Job details card */}
-        <View className="bg-card rounded-3xl border border-border p-5 mb-4">
+        {/* Already bid banner */}
+        {alreadyBid && (
+          <View className="bg-green-50 border border-green-200 rounded-2xl p-4 mb-4 flex-row items-center gap-3">
+            <Text className="text-lg">✅</Text>
+            <Text className="text-green-700 text-sm font-semibold">
+              You have already submitted a bid on this job.
+            </Text>
+          </View>
+        )}
+
+        {/* Job info */}
+        <View className="bg-card rounded-3xl border border-border p-5 mb-5">
           <Text className="text-sm text-foreground leading-6">{job.description}</Text>
 
+          {job.additional_notes && (
+            <View className="mt-3 pt-3 border-t border-border">
+              <Text className="text-xs font-bold uppercase text-muted-foreground mb-1">
+                Additional Notes
+              </Text>
+              <Text className="text-sm text-muted-foreground italic">{job.additional_notes}</Text>
+            </View>
+          )}
+
           <View className="flex-row flex-wrap gap-4 mt-4 pt-4 border-t border-border">
-            {job.budget && (
+            {job.budget ? (
               <View>
                 <Text className="text-[10px] font-bold uppercase text-muted-foreground">
                   Client Budget
@@ -165,6 +182,19 @@ export default function JobDetailBid() {
                 <Text className="font-bold text-foreground">
                   {formatRWF(job.budget)} {job.budget_max ? `– ${formatRWF(job.budget_max)}` : ''} RWF
                 </Text>
+                <Text className="font-bold text-foreground">
+                  {formatRWF(job.budget)} RWF
+                  {job.budget_negotiable && (
+                    <Text className="text-xs text-muted-foreground font-normal"> (negotiable)</Text>
+                  )}
+                </Text>
+              </View>
+            ) : (
+              <View>
+                <Text className="text-[10px] font-bold uppercase text-muted-foreground">
+                  Budget
+                </Text>
+                <Text className="font-semibold text-muted-foreground">Open to bids</Text>
               </View>
             )}
             {job.location_label && (
@@ -178,7 +208,7 @@ export default function JobDetailBid() {
             {job.scheduled_time && (
               <View>
                 <Text className="text-[10px] font-bold uppercase text-muted-foreground">
-                  Preferred Time
+                  Scheduled
                 </Text>
                 <Text className="font-bold text-foreground">
                   {new Date(job.scheduled_time).toLocaleDateString('en-RW', {
@@ -220,43 +250,39 @@ export default function JobDetailBid() {
         </View>
 
         {/* Price guidance */}
-        {priceGuidance && (
-          <View className="bg-accent/5 border border-accent/20 rounded-2xl p-4 mb-4">
-            <Text className="text-xs font-bold text-accent mb-2">
-              💰 Market Price Guide ({priceGuidance.district})
+        {priceGuidance && priceGuidance.sample_size > 0 && (
+          <View className="bg-primary/5 border border-primary/20 rounded-2xl p-4 mb-5">
+            <Text className="text-xs font-bold text-primary mb-2">
+              💡 Market Price in {priceGuidance.district}
             </Text>
-            <View className="flex-row gap-4">
-              <View>
-                <Text className="text-[10px] text-muted-foreground">Low</Text>
+            <View className="flex-row justify-between">
+              <View className="items-center">
+                <Text className="text-[10px] text-muted-foreground">Minimum</Text>
                 <Text className="font-bold text-sm">{formatRWF(priceGuidance.min)} RWF</Text>
               </View>
-              <View>
+              <View className="items-center border-x border-primary/20 px-4">
                 <Text className="text-[10px] text-muted-foreground">Typical</Text>
-                <Text className="font-bold text-sm text-accent">
+                <Text className="font-bold text-sm text-primary">
                   {formatRWF(priceGuidance.median)} RWF
                 </Text>
               </View>
-              <View>
-                <Text className="text-[10px] text-muted-foreground">High</Text>
+              <View className="items-center">
+                <Text className="text-[10px] text-muted-foreground">Maximum</Text>
                 <Text className="font-bold text-sm">{formatRWF(priceGuidance.max)} RWF</Text>
               </View>
             </View>
-            {priceGuidance.sample_size > 0 ? (
-              <Text className="text-[10px] text-muted-foreground mt-1.5">
-                Based on {priceGuidance.sample_size} completed jobs in this area
-              </Text>
-            ) : (
-              <Text className="text-[10px] text-muted-foreground mt-1.5">
-                Estimated — not enough local data yet
-              </Text>
-            )}
+            <Text className="text-[10px] text-muted-foreground mt-2 text-center">
+              {priceGuidance.note}
+            </Text>
           </View>
         )}
 
         {/* Job photos */}
         {((job.images ?? job.photos_urls) as string[] | undefined)?.length ? (
-          <View className="mb-4">
-            <Text className="font-bold mb-2 text-sm">Client Photos</Text>
+          <View className="mb-5">
+            <Text className="font-bold mb-2">
+              Client Photos ({(job.images ?? (job.photos_urls as string[])).length})
+            </Text>
             <ScrollView horizontal showsHorizontalScrollIndicator={false}>
               {((job.images ?? job.photos_urls) as string[]).map((url: string, i: number) => (
                 <Image
@@ -285,18 +311,23 @@ export default function JobDetailBid() {
         {/* Bid form */}
         {!alreadyBid && (
           <View className="bg-card rounded-3xl border border-border p-5 mb-8">
-            <Text className="text-base font-extrabold mb-4">Submit Your Bid</Text>
+            <Text className="text-base font-extrabold mb-1">Submit Your Bid</Text>
+            <Text className="text-xs text-muted-foreground mb-4">
+              Detailed bids get accepted more often. Explain your approach and why you're the right
+              person.
+            </Text>
 
+            {/* Price */}
             <View className="mb-4">
               <Text className="text-xs font-bold uppercase tracking-wide text-muted-foreground mb-1.5">
-                Your Price (RWF) *
+                Your Price (RWF) <Text className="text-destructive">*</Text>
               </Text>
               <TextInput
                 value={bidPrice}
                 onChangeText={setBidPrice}
                 placeholder={
                   job.budget
-                    ? `Client budget: ${formatRWF(job.budget)}${job.budget_max ? ` – ${formatRWF(job.budget_max)}` : ''} RWF`
+                    ? `Client budget: ${formatRWF(job.budget)} RWF`
                     : 'Enter your price in RWF'
                 }
                 keyboardType="number-pad"
@@ -304,42 +335,60 @@ export default function JobDetailBid() {
               />
             </View>
 
+            {/* Duration */}
             <View className="mb-4">
               <Text className="text-xs font-bold uppercase tracking-wide text-muted-foreground mb-1.5">
-                Estimated Duration (hours) — optional
+                Estimated Duration (hours){' '}
+                <Text className="text-[10px] font-normal">(optional)</Text>
               </Text>
               <TextInput
                 value={estimatedHours}
                 onChangeText={setEstimatedHours}
-                placeholder="e.g. 2.5 hours"
-                keyboardType="decimal-pad"
+                placeholder="e.g. 3 (how many hours you expect to take)"
+                keyboardType="number-pad"
                 className="bg-muted/40 p-4 rounded-2xl border border-border text-foreground text-sm"
               />
             </View>
 
+            {/* Approach */}
             <View className="mb-4">
               <Text className="text-xs font-bold uppercase tracking-wide text-muted-foreground mb-1.5">
-                Message to Client (optional)
+                Your Approach{' '}
+                <Text className="text-[10px] font-normal">(optional but recommended)</Text>
               </Text>
               <TextInput
                 value={message}
                 onChangeText={setMessage}
-                placeholder="Why are you the right person? Share your experience, approach, and any questions for the client."
+                placeholder="How would you tackle this job? What tools or materials will you bring?"
                 multiline
-                numberOfLines={4}
+                numberOfLines={3}
                 className="bg-muted/40 p-4 rounded-2xl border border-border text-foreground text-sm"
-                style={{ textAlignVertical: 'top', minHeight: 100 }}
+                style={{ textAlignVertical: 'top', minHeight: 80 }}
                 maxLength={500}
               />
               <Text className="text-[10px] text-muted-foreground text-right mt-1">
                 {message.length}/500
               </Text>
             </View>
+
+            {/* Cover Letter */}
+            <View className="mb-2">
+              <Text className="text-xs font-bold uppercase tracking-wide text-muted-foreground mb-1.5">
+                Why You? <Text className="text-[10px] font-normal">(optional)</Text>
+              </Text>
+              <TextInput
+                value={coverLetter}
+                onChangeText={setCoverLetter}
+                placeholder="Years of experience with this type of work, similar completed jobs, certifications, tools you own..."
+                multiline
+                numberOfLines={2}
+                className="bg-muted/40 p-4 rounded-2xl border border-border text-foreground text-sm"
+                style={{ textAlignVertical: 'top', minHeight: 60 }}
+                maxLength={500}
+              />
+            </View>
           </View>
         )}
-
-        {/* Bottom padding */}
-        {alreadyBid && <View className="h-8" />}
       </ScrollView>
 
       {!alreadyBid && (
@@ -348,9 +397,7 @@ export default function JobDetailBid() {
             onPress={handleBid}
             disabled={submitBid.isPending || !bidPrice}
             accessibilityLabel="Submit bid"
-            className={`bg-accent rounded-2xl py-4 items-center flex-row justify-center gap-2 ${
-              !bidPrice || submitBid.isPending ? 'opacity-50' : ''
-            }`}
+            className={`bg-primary rounded-2xl py-4 items-center flex-row justify-center gap-2 ${!bidPrice || submitBid.isPending ? 'opacity-50' : ''}`}
           >
             {submitBid.isPending ? (
               <ActivityIndicator color="white" />

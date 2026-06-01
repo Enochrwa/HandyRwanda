@@ -10,22 +10,18 @@ export const proService = {
     const res = await api.patch("/artisans/availability", { available_now: available });
     return res.data;
   },
-  async getAvailableJobs() {
-    const res = await api.get("/jobs/available");
-    return res.data;
-  },
   async submitBid(
     jobId: string,
     price: number,
     note: string,
+    coverLetter?: string,
     estimatedHours?: number,
-    proposedStartTime?: string,
   ) {
     const res = await api.post(`/bids/jobs/${jobId}`, {
       proposed_price: price,
       message: note || undefined,
-      estimated_duration_hours: estimatedHours ?? undefined,
-      proposed_start_time: proposedStartTime ?? undefined,
+      cover_letter: coverLetter || undefined,
+      estimated_duration_hours: estimatedHours || undefined,
     });
     return res.data;
   },
@@ -33,12 +29,11 @@ export const proService = {
     const res = await api.delete(`/bids/${bidId}`);
     return res.data;
   },
-  async getMyBids() {
-    const res = await api.get("/bids/mine");
-    return res.data;
-  },
-  async getMySkills() {
-    const res = await api.get("/artisans/skills/mine");
+  async updateBid(bidId: string, price: number, note?: string) {
+    const res = await api.patch(`/bids/${bidId}`, {
+      proposed_price: price,
+      message: note || undefined,
+    });
     return res.data;
   },
 };

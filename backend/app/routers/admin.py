@@ -6,7 +6,7 @@ Admin router — full dashboard for admin role.
 from typing import Any
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, Query
+from fastapi import APIRouter, Depends, HTTPException, Query
 from pydantic import BaseModel
 from sqlalchemy import delete, func, select, text, update
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -15,6 +15,7 @@ from app.database import get_db
 from app.dependencies.jwt_auth import require_role
 from app.models.artisan import ArtisanProfile, Category, VerificationStatus
 from app.models.booking import Booking, BookingStatus
+from app.models.job import Job, JobStatus
 from app.models.review import Review
 from app.models.user import AccountStatus, User, UserRole
 
@@ -376,100 +377,140 @@ async def delete_review(
     return {"message": "Review deleted."}
 
 
-# ── Extended dispute resolution ───────────────────────────────────────────────
-
-
-@router.get("/disputes/{booking_id}")
-async def get_dispute_detail(
-    booking_id: UUID,
-    db: AsyncSession = Depends(get_db),
-    current_user: dict[str, Any] = Depends(require_role(UserRole.admin)),
-) -> Any:
-    """Get full context for a disputed booking: job details, both parties, chat history."""
-    from app.models.job import Job
-    from app.models.message import Message
-
-    result = await db.execute(
-        select(Booking, User.full_name.label("client_name"), User.phone_number.label("client_phone"))
-        .join(User, Booking.client_id == User.id)
-        .where(Booking.id == booking_id, Booking.status == BookingStatus.disputed)
-    )
-    row = result.first()
-    if not row:
-        from fastapi import HTTPException
-        raise HTTPException(status_code=404, detail="Disputed booking not found")
-    booking, client_name, client_phone = row
-
-    artisan = await db.scalar(select(User).where(User.id == booking.artisan_id))
-    job = await db.scalar(select(Job).where(Job.id == booking.job_id))
-
-    # Fetch chat messages
-    msgs_res = await db.execute(
-        select(Message)
-        .where(
-            (Message.sender_id == booking.client_id) | (Message.sender_id == booking.artisan_id),
-            (Message.receiver_id == booking.client_id) | (Message.receiver_id == booking.artisan_id),
-        )
-        .order_by(Message.created_at.asc())
-        .limit(50)
-    )
-    messages = [
-        {
-            "sender_id": str(m.sender_id),
-            "content": m.content,
-            "created_at": m.created_at.isoformat() if m.created_at else None,
-        }
-        for m in msgs_res.scalars().all()
-    ]
-
-    return {
-        "booking_id": str(booking.id),
-        "status": booking.status,
-        "agreed_price": booking.agreed_price,
-        "created_at": booking.created_at.isoformat() if booking.created_at else None,
-        "job": {
-            "id": str(job.id) if job else None,
-            "title": job.title if job else None,
-            "description": job.description if job else None,
-        },
-        "client": {"id": str(booking.client_id), "name": client_name, "phone": client_phone},
-        "artisan": {
-            "id": str(booking.artisan_id),
-            "name": artisan.full_name if artisan else None,
-            "phone": artisan.phone_number if artisan else None,
-        },
-        "messages": messages,
-    }
+# ── Platform stats ─────────────────────────────────────────────────────────────
 
 
 @router.get("/stats")
-async def get_quick_stats(
+async def get_platform_stats(
     db: AsyncSession = Depends(get_db),
     current_user: dict[str, Any] = Depends(require_role(UserRole.admin)),
 ) -> Any:
-    """Quick stats for admin home dashboard card."""
-    from app.models.job import Job, JobStatus
+    """Admin dashboard — key platform KPIs."""
 
-    total_users = await db.scalar(select(func.count(User.id)))
-    pending_verif = await db.scalar(
-        select(func.count(ArtisanProfile.user_id)).where(
-            ArtisanProfile.verification_status == VerificationStatus.pending
+    total_users = await db.scalar(select(func.count(User.id))) or 0
+    total_clients = (
+        await db.scalar(select(func.count(User.id)).where(User.role == "client")) or 0
+    )
+    total_artisans = (
+        await db.scalar(select(func.count(User.id)).where(User.role == "artisan")) or 0
+    )
+
+    total_jobs = await db.scalar(select(func.count(Job.id))) or 0
+    open_jobs = (
+        await db.scalar(select(func.count(Job.id)).where(Job.status == JobStatus.open))
+        or 0
+    )
+    total_bookings = await db.scalar(select(func.count(Booking.id))) or 0
+    completed_jobs = (
+        await db.scalar(
+            select(func.count(Booking.id)).where(
+                Booking.status == BookingStatus.completed
+            )
+        )
+        or 0
+    )
+    disputed_jobs = (
+        await db.scalar(
+            select(func.count(Booking.id)).where(
+                Booking.status == BookingStatus.disputed
+            )
+        )
+        or 0
+    )
+
+    total_revenue_res = await db.execute(
+        text(
+            "SELECT COALESCE(SUM(agreed_price), 0) FROM bookings WHERE status = 'completed'"
         )
     )
-    open_jobs = await db.scalar(select(func.count(Job.id)).where(Job.status == JobStatus.open))
-    active_disputes = await db.scalar(
-        select(func.count(Booking.id)).where(Booking.status == BookingStatus.disputed)
-    )
-    revenue_today = await db.scalar(
-        select(func.coalesce(func.sum(Booking.agreed_price), 0)).where(
-            Booking.status == BookingStatus.completed,
-            func.date(Booking.created_at) == func.current_date(),
+    total_revenue = total_revenue_res.scalar() or 0
+
+    pending_verifications = (
+        await db.scalar(
+            select(func.count(ArtisanProfile.user_id)).where(
+                ArtisanProfile.verification_status == "pending"
+            )
         )
+        or 0
     )
+
+    flagged_reviews = (
+        await db.scalar(select(func.count(Review.id)).where(Review.is_flagged)) or 0
+    )
+
+    # Monthly booking trend (last 6 months)
+    monthly_res = await db.execute(
+        text("""
+        SELECT date_trunc('month', created_at) as month, COUNT(*) as bookings
+        FROM bookings
+        WHERE created_at >= NOW() - INTERVAL '6 months'
+        GROUP BY month
+        ORDER BY month ASC
+    """)
+    )
+    monthly_jobs = [
+        {"month": str(row.month)[:7], "bookings": row.bookings} for row in monthly_res
+    ]
+
     return {
-        "total_users": total_users or 0,
-        "pending_verifications": pending_verif or 0,
-        "open_jobs": open_jobs or 0,
-        "active_disputes": active_disputes or 0,
-        "revenue_today_rwf": revenue_today or 0,
+        "users": {
+            "total": total_users,
+            "clients": total_clients,
+            "artisans": total_artisans,
+        },
+        "jobs": {
+            "total": total_jobs,
+            "open": open_jobs,
+            "completed": completed_jobs,
+            "disputed": disputed_jobs,
+        },
+        # Alias fields to match frontend shape
+        "bookings": {
+            "total": total_bookings,
+            "completed": completed_jobs,
+            "disputed": disputed_jobs,
+        },
+        "revenue": {"total_rwf": int(total_revenue), "currency": "RWF"},
+        "total_revenue_rwf": int(total_revenue),
+        "pending_verifications": pending_verifications,
+        "moderation": {
+            "pending_verifications": pending_verifications,
+            "flagged_reviews": flagged_reviews,
+        },
+        "monthly_jobs": monthly_jobs,
+        "monthly_trend": monthly_jobs,
+    }
+
+
+# ── Dispute resolution ──────────────────────────────────────────────────────────
+
+
+@router.post("/bookings/{booking_id}/resolve-dispute")
+async def resolve_booking_dispute(
+    booking_id: UUID,
+    payload: DisputeResolution,
+    db: AsyncSession = Depends(get_db),
+    current_user: dict[str, Any] = Depends(require_role(UserRole.admin)),
+) -> Any:
+    """Admin resolves a dispute — marks booking completed or cancelled depending on winner."""
+    booking = await db.scalar(
+        select(Booking).where(
+            Booking.id == booking_id, Booking.status == BookingStatus.disputed
+        )
+    )
+    if not booking:
+        raise HTTPException(status_code=404, detail="Disputed booking not found.")
+
+    if payload.winner == "client":
+        new_status = BookingStatus.cancelled
+    else:
+        new_status = BookingStatus.completed
+
+    await db.execute(
+        update(Booking).where(Booking.id == booking_id).values(status=new_status)
+    )
+    await db.commit()
+    return {
+        "message": f"Dispute resolved. Winner: {payload.winner}. Booking status: {new_status}",
+        "notes": payload.notes,
     }

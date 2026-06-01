@@ -16,38 +16,26 @@ import {
 } from 'react-native';
 import Toast from 'react-native-toast-message';
 
-type Urgency = 'flexible' | 'this_week' | 'tomorrow' | 'today' | 'urgent';
-type JobType = 'one_time' | 'recurring' | 'emergency';
-
-const URGENCY_OPTIONS: { value: Urgency; label: string; emoji: string }[] = [
-  { value: 'flexible', label: 'Flexible', emoji: '📅' },
-  { value: 'this_week', label: 'This Week', emoji: '🗓️' },
-  { value: 'tomorrow', label: 'Tomorrow', emoji: '⏰' },
-  { value: 'today', label: 'Today', emoji: '🔥' },
-  { value: 'urgent', label: 'Urgent!', emoji: '🚨' },
-];
-
-const JOB_TYPE_OPTIONS: { value: JobType; label: string; desc: string }[] = [
-  { value: 'one_time', label: 'One-time', desc: 'Single job' },
-  { value: 'recurring', label: 'Recurring', desc: 'Regular work' },
-  { value: 'emergency', label: 'Emergency', desc: 'ASAP fix' },
-];
+const URGENCY_OPTIONS = [
+  { value: 'flexible', label: 'Flexible', emoji: '📅', desc: 'Within 2 weeks' },
+  { value: 'this_week', label: 'This Week', emoji: '🗓️', desc: '7 days' },
+  { value: 'tomorrow', label: 'Tomorrow', emoji: '⏰', desc: '24 hours' },
+  { value: 'today', label: 'Today', emoji: '🔥', desc: 'Today' },
+  { value: 'urgent', label: 'Urgent!', emoji: '🚨', desc: '2 hours' },
+] as const;
 
 export default function JobDetails() {
   const router = useRouter();
   const { categoryId, categoryName } = useLocalSearchParams<{ categoryId: string; categoryName?: string }>();
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
+  const [additionalNotes, setAdditionalNotes] = useState('');
   const [budget, setBudget] = useState('');
-  const [budgetMax, setBudgetMax] = useState('');
-  const [urgency, setUrgency] = useState<Urgency>('flexible');
-  const [jobType, setJobType] = useState<JobType>('one_time');
-  const [specialRequirements, setSpecialRequirements] = useState('');
-  const [isRemotePossible, setIsRemotePossible] = useState(false);
+  const [budgetNegotiable, setBudgetNegotiable] = useState(true);
+  const [urgency, setUrgency] = useState<string>('flexible');
   const [photos, setPhotos] = useState<string[]>([]);
-  const [scheduledTime, setScheduledTime] = useState<Date | null>(null);
   const [showDatePicker, setShowDatePicker] = useState(false);
-  const [showTimePicker, setShowTimePicker] = useState(false);
+  const [scheduledDate, setScheduledDate] = useState<Date | null>(null);
 
   const pickImage = async () => {
     if (photos.length >= 5) {
@@ -66,6 +54,10 @@ export default function JobDetails() {
       base64: true,
     });
     if (!result.canceled && result.assets[0].base64) {
+      if (photos.length >= 5) {
+        Toast.show({ type: 'info', text1: 'Max 5 photos', text2: 'Remove a photo first' });
+        return;
+      }
       setPhotos([...photos, result.assets[0].base64]);
     }
   };
@@ -89,14 +81,12 @@ export default function JobDetails() {
         categoryId,
         title,
         description,
+        additionalNotes,
         budget,
-        budgetMax,
+        budgetNegotiable: budgetNegotiable ? '1' : '0',
         urgency,
-        jobType,
-        specialRequirements,
-        isRemotePossible: isRemotePossible ? '1' : '0',
         photos: JSON.stringify(photos),
-        scheduledTime: scheduledTime ? scheduledTime.toISOString() : '',
+        scheduledTime: scheduledDate ? scheduledDate.toISOString() : '',
       },
     });
   };
@@ -122,10 +112,10 @@ export default function JobDetails() {
           <Text className="text-primary font-semibold">← Back</Text>
         </TouchableOpacity>
         <Text className="text-xl font-extrabold">Job Details</Text>
-        {categoryName && (
-          <Text className="text-sm text-muted-foreground mt-0.5">Category: {categoryName}</Text>
-        )}
-        <View className="flex-row mt-3">
+        <Text className="text-xs text-muted-foreground mt-0.5">
+          Step 1 of 3 — Describe what you need
+        </Text>
+        <View className="flex-row mt-2">
           {[1, 2, 3].map((s) => (
             <View
               key={s}
@@ -143,12 +133,12 @@ export default function JobDetails() {
         {/* Title */}
         <View className="mb-5">
           <Text className="text-xs font-bold uppercase tracking-wide text-muted-foreground mb-1.5">
-            Job Title *
+            Job Title <Text className="text-destructive">*</Text>
           </Text>
           <TextInput
             value={title}
             onChangeText={setTitle}
-            placeholder="e.g. Fix leaking kitchen sink pipe"
+            placeholder="e.g. Fix leaking kitchen sink under the cabinet"
             className="bg-card p-4 rounded-2xl border border-border text-foreground text-sm"
             autoCapitalize="sentences"
             maxLength={200}
@@ -161,12 +151,12 @@ export default function JobDetails() {
         {/* Description */}
         <View className="mb-5">
           <Text className="text-xs font-bold uppercase tracking-wide text-muted-foreground mb-1.5">
-            Detailed Description *
+            Describe the Problem <Text className="text-destructive">*</Text>
           </Text>
           <TextInput
             value={description}
             onChangeText={setDescription}
-            placeholder="Describe the problem in detail — what happened, how long it's been occurring, severity, access, materials needed…"
+            placeholder="What happened? How long? What have you tried? Any special access requirements (floor number, gate code)?"
             multiline
             numberOfLines={5}
             className="bg-card p-4 rounded-2xl border border-border text-foreground text-sm"
@@ -175,137 +165,110 @@ export default function JobDetails() {
             maxLength={2000}
           />
           <Text className="text-[10px] text-muted-foreground text-right mt-1">
-            {description.length}/2000
+            {description.length}/2000 — more detail = better bids
           </Text>
         </View>
 
-        {/* Job Type */}
+        {/* Additional Notes */}
         <View className="mb-5">
-          <Text className="text-xs font-bold uppercase tracking-wide text-muted-foreground mb-2">
-            Job Type
+          <Text className="text-xs font-bold uppercase tracking-wide text-muted-foreground mb-1.5">
+            Additional Notes <Text className="text-[10px] font-normal">(optional)</Text>
           </Text>
-          <View className="flex-row gap-2">
-            {JOB_TYPE_OPTIONS.map((opt) => (
-              <TouchableOpacity
-                key={opt.value}
-                onPress={() => setJobType(opt.value)}
-                className={`flex-1 py-3 px-2 rounded-xl border-2 items-center ${jobType === opt.value ? 'border-primary bg-primary/10' : 'border-border bg-card'}`}
-              >
-                <Text
-                  className={`text-[11px] font-bold ${jobType === opt.value ? 'text-primary' : 'text-foreground'}`}
-                >
-                  {opt.label}
-                </Text>
-                <Text className="text-[9px] text-muted-foreground mt-0.5">{opt.desc}</Text>
-              </TouchableOpacity>
-            ))}
-          </View>
+          <TextInput
+            value={additionalNotes}
+            onChangeText={setAdditionalNotes}
+            placeholder="Materials available on-site, preferred artisan qualities, parking info, etc."
+            multiline
+            numberOfLines={2}
+            className="bg-card p-4 rounded-2xl border border-border text-foreground text-sm"
+            style={{ textAlignVertical: 'top', minHeight: 70 }}
+            autoCapitalize="sentences"
+            maxLength={1000}
+          />
         </View>
 
         {/* Urgency */}
         <View className="mb-5">
           <Text className="text-xs font-bold uppercase tracking-wide text-muted-foreground mb-2">
-            When do you need it?
+            How Urgent? <Text className="text-destructive">*</Text>
           </Text>
-          <View className="flex-row flex-wrap gap-2">
-            {URGENCY_OPTIONS.map((opt) => (
+          <View className="flex-row gap-1.5">
+            {URGENCY_OPTIONS.map((u) => (
               <TouchableOpacity
-                key={opt.value}
-                onPress={() => setUrgency(opt.value)}
-                className={`flex-row items-center gap-1.5 px-3 py-2 rounded-xl border-2 ${urgency === opt.value ? 'border-primary bg-primary/10' : 'border-border bg-card'}`}
+                key={u.value}
+                onPress={() => setUrgency(u.value)}
+                accessibilityLabel={`${u.label}: ${u.desc}`}
+                className={`flex-1 py-2 px-1 rounded-xl border-2 items-center ${
+                  urgency === u.value ? 'border-primary bg-primary/10' : 'border-border bg-card'
+                }`}
               >
-                <Text style={{ fontSize: 14 }}>{opt.emoji}</Text>
+                <Text style={{ fontSize: 16 }}>{u.emoji}</Text>
                 <Text
-                  className={`text-[11px] font-bold ${urgency === opt.value ? 'text-primary' : 'text-foreground'}`}
+                  className={`text-[9px] font-bold mt-0.5 text-center ${
+                    urgency === u.value ? 'text-primary' : 'text-foreground'
+                  }`}
                 >
-                  {opt.label}
+                  {u.label}
                 </Text>
               </TouchableOpacity>
             ))}
           </View>
+          <Text className="text-[10px] text-muted-foreground mt-1">
+            {URGENCY_OPTIONS.find((u) => u.value === urgency)?.desc}
+          </Text>
         </View>
 
-        {/* Scheduled Date/Time */}
+        {/* Scheduled Date */}
         <View className="mb-5">
           <Text className="text-xs font-bold uppercase tracking-wide text-muted-foreground mb-1.5">
-            Preferred Date & Time (optional)
+            Preferred Date/Time <Text className="text-[10px] font-normal">(optional)</Text>
           </Text>
           <TouchableOpacity
             onPress={() => setShowDatePicker(true)}
             className="bg-card p-4 rounded-2xl border border-border flex-row items-center justify-between"
           >
-            <Text className={`text-sm ${scheduledTime ? 'text-foreground font-semibold' : 'text-muted-foreground'}`}>
-              {formattedDateTime ?? 'Tap to pick date & time'}
+            <Text
+              className={`text-sm ${scheduledDate ? 'text-foreground' : 'text-muted-foreground'}`}
+            >
+              {scheduledDate
+                ? scheduledDate.toLocaleString('en-RW', {
+                    weekday: 'short',
+                    month: 'short',
+                    day: 'numeric',
+                    hour: '2-digit',
+                    minute: '2-digit',
+                  })
+                : 'Tap to pick a date and time'}
             </Text>
             <Text className="text-lg">📅</Text>
           </TouchableOpacity>
-          {scheduledTime && (
-            <TouchableOpacity onPress={() => setScheduledTime(null)} className="mt-1">
-              <Text className="text-xs text-destructive text-right">Clear date</Text>
+          {scheduledDate && (
+            <TouchableOpacity onPress={() => setScheduledDate(null)} className="mt-1">
+              <Text className="text-xs text-destructive">Clear date</Text>
             </TouchableOpacity>
           )}
-          {showDatePicker && (
-            <DateTimePicker
-              value={scheduledTime ?? new Date()}
-              mode="date"
-              minimumDate={new Date()}
-              onChange={(_, date) => {
-                setShowDatePicker(false);
-                if (date) {
-                  setScheduledTime(date);
-                  setShowTimePicker(true);
-                }
-              }}
-            />
-          )}
-          {showTimePicker && (
-            <DateTimePicker
-              value={scheduledTime ?? new Date()}
-              mode="time"
-              onChange={(_, date) => {
-                setShowTimePicker(false);
-                if (date) setScheduledTime(date);
-              }}
-            />
-          )}
         </View>
+
+        {showDatePicker && (
+          <DateTimePicker
+            value={scheduledDate ?? new Date()}
+            mode="datetime"
+            display={Platform.OS === 'ios' ? 'inline' : 'default'}
+            minimumDate={new Date()}
+            onChange={(_: any, date: any) => {
+              setShowDatePicker(Platform.OS === 'ios');
+              if (date instanceof Date) {
+                setScheduledDate(date);
+              }
+            }}
+          />
+        )}
 
         {/* Budget */}
         <View className="mb-5">
           <Text className="text-xs font-bold uppercase tracking-wide text-muted-foreground mb-1.5">
-            Budget Range (RWF) — optional
-          </Text>
-          <View className="flex-row gap-3">
-            <View className="flex-1">
-              <Text className="text-[10px] text-muted-foreground mb-1">Min / Fixed</Text>
-              <TextInput
-                value={budget}
-                onChangeText={setBudget}
-                placeholder="e.g. 10,000"
-                keyboardType="numeric"
-                className="bg-card p-3.5 rounded-2xl border border-border text-foreground text-sm"
-              />
-            </View>
-            <View className="flex-1">
-              <Text className="text-[10px] text-muted-foreground mb-1">Max (optional)</Text>
-              <TextInput
-                value={budgetMax}
-                onChangeText={setBudgetMax}
-                placeholder="e.g. 25,000"
-                keyboardType="numeric"
-                className="bg-card p-3.5 rounded-2xl border border-border text-foreground text-sm"
-              />
-            </View>
-          </View>
-          <Text className="text-[10px] text-muted-foreground mt-1">
-            Leave blank to receive open bids from artisans
-          </Text>
-        </View>
-
-        {/* Special Requirements */}
-        <View className="mb-5">
-          <Text className="text-xs font-bold uppercase tracking-wide text-muted-foreground mb-1.5">
-            Special Requirements (optional)
+            Your Budget (RWF){' '}
+            <Text className="text-[10px] font-normal">— optional, leave blank for open bids</Text>
           </Text>
           <TextInput
             value={specialRequirements}
@@ -332,15 +295,28 @@ export default function JobDetails() {
             onValueChange={setIsRemotePossible}
             trackColor={{ false: '#E2E8F0', true: '#1B5E3B' }}
           />
+          {budget ? (
+            <TouchableOpacity
+              onPress={() => setBudgetNegotiable(!budgetNegotiable)}
+              className="flex-row items-center mt-2 gap-2"
+            >
+              <View
+                className={`w-4 h-4 rounded border-2 items-center justify-center ${
+                  budgetNegotiable ? 'bg-primary border-primary' : 'border-border'
+                }`}
+              >
+                {budgetNegotiable && <Text className="text-white text-[10px]">✓</Text>}
+              </View>
+              <Text className="text-xs text-muted-foreground">Open to negotiate if needed</Text>
+            </TouchableOpacity>
+          ) : null}
         </View>
 
         {/* Photos */}
         <View className="mb-8">
           <Text className="text-xs font-bold uppercase tracking-wide text-muted-foreground mb-1.5">
-            Photos ({photos.length}/5) — optional
-          </Text>
-          <Text className="text-[10px] text-muted-foreground mb-2">
-            Add photos of the problem area to help artisans give accurate bids
+            Photos ({photos.length}/5){' '}
+            <Text className="text-[10px] font-normal">— recommended: artisans quote better</Text>
           </Text>
           <View className="flex-row flex-wrap gap-3">
             {photos.map((p, i) => (
@@ -365,7 +341,7 @@ export default function JobDetails() {
                 className="w-20 h-20 rounded-2xl border-2 border-dashed border-border bg-muted/30 items-center justify-center"
               >
                 <Text className="text-2xl text-muted-foreground">📷</Text>
-                <Text className="text-[9px] text-muted-foreground mt-0.5">Add</Text>
+                <Text className="text-[9px] text-muted-foreground mt-0.5">Add photo</Text>
               </TouchableOpacity>
             )}
           </View>

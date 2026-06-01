@@ -13,75 +13,75 @@ from app.dependencies.jwt_auth import get_current_user, require_role
 from app.integrations.huggingface import get_job_category_match
 from app.integrations.supabase_storage import upload_image
 from app.models.artisan import ArtisanProfile, Category
-from app.models.job import Bid, BidStatus, Job, JobStatus, JobType, UrgencyLevel
+from app.models.job import Bid, Job, JobStatus, JobUrgency
 from app.models.user import UserRole
 from app.services.price_anchor_service import get_price_anchor
 
 router = APIRouter(prefix="/jobs", tags=["jobs"])
 
 
-class JobCreate(BaseModel):
-    category_id: UUID
-    title: str = Field(..., min_length=5, max_length=200)
-    description: str = Field(..., min_length=15, max_length=2000)
-    latitude: float
-    longitude: float
-    location_label: str
-    scheduled_time: datetime | None = None
-    budget: int | None = None
-    budget_max: int | None = None
-    job_type: JobType = JobType.one_time
-    urgency: UrgencyLevel = UrgencyLevel.flexible
-    special_requirements: str | None = None
-    is_remote_possible: bool = False
-    photos_base64: list[str] = []
-
-
-class JobUpdate(BaseModel):
-    title: str | None = Field(None, min_length=5, max_length=200)
-    description: str | None = Field(None, min_length=15, max_length=2000)
-    location_label: str | None = None
-    latitude: float | None = None
-    longitude: float | None = None
-    scheduled_time: datetime | None = None
-    budget: int | None = None
-    budget_max: int | None = None
-    job_type: JobType | None = None
-    urgency: UrgencyLevel | None = None
-    special_requirements: str | None = None
-    is_remote_possible: bool | None = None
-
-
-def _job_to_dict(job: Job, cat: Category | None = None, bid_count: int = 0) -> dict[str, Any]:
+def _serialize_job(
+    job: Job, category: Category | None = None, bid_count: int = 0
+) -> dict[str, Any]:
     return {
         "id": str(job.id),
         "client_id": str(job.client_id),
         "category_id": str(job.category_id),
+        "category": {
+            "id": str(category.id),
+            "name_en": category.name_en,
+            "name_rw": category.name_rw,
+            "icon_emoji": category.icon_emoji,
+        }
+        if category
+        else None,
         "title": job.title,
         "description": job.description,
+        "additional_notes": job.additional_notes,
         "location": job.location,
         "location_label": job.location_label,
-        "latitude": job.latitude,
-        "longitude": job.longitude,
-        "scheduled_time": job.scheduled_time.isoformat() if job.scheduled_time else None,
-        "budget": job.budget,
-        "budget_max": job.budget_max,
-        "job_type": job.job_type,
+        "scheduled_time": job.scheduled_time.isoformat()
+        if job.scheduled_time
+        else None,
         "urgency": job.urgency,
-        "special_requirements": job.special_requirements,
-        "is_remote_possible": job.is_remote_possible,
+        "budget": job.budget,
+        "budget_negotiable": bool(job.budget_negotiable),
         "status": job.status,
         "images": job.photos_urls or [],
         "bid_count": bid_count,
         "created_at": job.created_at.isoformat() if job.created_at else None,
         "updated_at": job.updated_at.isoformat() if job.updated_at else None,
-        "category": {
-            "id": str(cat.id),
-            "name_en": cat.name_en,
-            "name_rw": cat.name_rw,
-            "icon_emoji": cat.icon_emoji,
-        } if cat else None,
     }
+
+
+class JobCreate(BaseModel):
+    category_id: UUID
+    title: str = Field(..., min_length=5, max_length=200)
+    description: str = Field(..., min_length=15, max_length=2000)
+    additional_notes: str | None = Field(
+        None,
+        max_length=1000,
+        description="Any extra info: materials available, access details, preferred artisan skills",
+    )
+    latitude: float
+    longitude: float
+    location_label: str = Field(..., min_length=2, max_length=200)
+    scheduled_time: datetime | None = None
+    urgency: JobUrgency = JobUrgency.flexible
+    budget: int | None = Field(None, ge=500, description="Budget in RWF (minimum 500)")
+    budget_negotiable: bool = True
+    photos_base64: list[str] = Field(default=[], max_length=5)
+
+
+class JobUpdate(BaseModel):
+    title: str | None = Field(None, min_length=5, max_length=200)
+    description: str | None = Field(None, min_length=15, max_length=2000)
+    additional_notes: str | None = Field(None, max_length=1000)
+    scheduled_time: datetime | None = None
+    urgency: JobUrgency | None = None
+    budget: int | None = Field(None, ge=500)
+    budget_negotiable: bool | None = None
+    location_label: str | None = Field(None, min_length=2, max_length=200)
 
 
 @router.post("", status_code=201)
@@ -92,7 +92,7 @@ async def create_job(
 ) -> Any:
     user_id = UUID(current_user["sub"])
 
-    # AI Category Suggestion if zero UUID
+    # AI category suggestion if null UUID provided
     if str(payload.category_id) == "00000000-0000-0000-0000-000000000000":
         cats_res = await db.execute(select(Category).where(Category.is_active))
         all_cats = list(cats_res.scalars().all())
@@ -108,14 +108,18 @@ async def create_job(
                         payload.category_id = cast(Any, c).id
                         break
 
-    # Validate category exists
-    cat_check = await db.scalar(select(Category).where(Category.id == payload.category_id))
-    if not cat_check:
-        raise HTTPException(status_code=400, detail="Invalid category_id")
+    # Verify category exists
+    cat = await db.scalar(
+        select(Category).where(Category.id == payload.category_id, Category.is_active)
+    )
+    if not cat:
+        raise HTTPException(
+            status_code=400, detail="Invalid or inactive category selected."
+        )
 
-    # Upload photos
-    photo_urls = []
-    for base64_data in payload.photos_base64[:5]:  # max 5 photos
+    # Upload photos (max 5)
+    photo_urls: list[str] = []
+    for base64_data in payload.photos_base64[:5]:
         url = await upload_image(base64_data, f"job-photos/{user_id}")
         photo_urls.append(url)
 
@@ -124,25 +128,22 @@ async def create_job(
         category_id=payload.category_id,
         title=payload.title,
         description=payload.description,
+        additional_notes=payload.additional_notes,
         location=f"POINT({payload.longitude} {payload.latitude})",
         location_label=payload.location_label,
         latitude=payload.latitude,
         longitude=payload.longitude,
         scheduled_time=payload.scheduled_time,
-        budget=payload.budget,
-        budget_max=payload.budget_max,
-        job_type=payload.job_type,
         urgency=payload.urgency,
-        special_requirements=payload.special_requirements,
-        is_remote_possible=payload.is_remote_possible,
+        budget=payload.budget,
+        budget_negotiable=payload.budget_negotiable,
         photos_urls=photo_urls,
         status=JobStatus.open,
     )
     db.add(job)
     await db.commit()
     await db.refresh(job)
-    cat = await db.scalar(select(Category).where(Category.id == job.category_id))
-    return _job_to_dict(job, cat)
+    return _serialize_job(job, cat, 0)
 
 
 @router.get("/mine")
@@ -162,10 +163,10 @@ async def list_my_jobs(
     result = await db.execute(query.order_by(Job.created_at.desc()))
     jobs = []
     for job, cat in result:
-        bid_count = await db.scalar(
-            select(func.count(Bid.id)).where(Bid.job_id == job.id)
-        ) or 0
-        jobs.append(_job_to_dict(job, cat, bid_count))
+        bid_count = (
+            await db.scalar(select(func.count(Bid.id)).where(Bid.job_id == job.id)) or 0
+        )
+        jobs.append(_serialize_job(job, cat, bid_count))
     return jobs
 
 
@@ -174,9 +175,8 @@ async def list_available_jobs(
     db: AsyncSession = Depends(get_db),
     current_user: dict[str, Any] = Depends(require_role(UserRole.artisan)),
 ) -> Any:
-    """Jobs matching artisan's skills — with full category info and bid counts."""
+    """Artisan-specific: open jobs matching their skill categories."""
     user_id = UUID(current_user["sub"])
-
     artisan_result = await db.execute(
         select(ArtisanProfile).where(ArtisanProfile.user_id == user_id)
     )
@@ -185,15 +185,8 @@ async def list_available_jobs(
         raise HTTPException(status_code=404, detail="Artisan profile not found")
 
     query = text("""
-        SELECT j.id, j.title, j.description, j.budget, j.budget_max,
-               j.location_label, j.latitude, j.longitude, j.scheduled_time,
-               j.status, j.job_type, j.urgency, j.photos_urls, j.created_at,
-               j.special_requirements, j.is_remote_possible,
-               j.client_id, j.category_id,
-               c.name_en AS cat_name_en, c.name_rw AS cat_name_rw,
-               c.icon_emoji AS cat_icon,
-               (SELECT COUNT(*) FROM bids b2 WHERE b2.job_id = j.id) AS bid_count,
-               (SELECT COUNT(*) FROM bids b3 WHERE b3.job_id = j.id AND b3.artisan_id = :artisan_id) AS already_bid
+        SELECT j.*, c.id AS cat_id, c.name_en, c.name_rw, c.icon_emoji,
+               (SELECT COUNT(*) FROM bids b2 WHERE b2.job_id = j.id) AS bid_count
         FROM jobs j
         JOIN categories c ON j.category_id = c.id
         JOIN artisan_skills ask ON j.category_id = ask.category_id
@@ -206,27 +199,43 @@ async def list_available_jobs(
     result = await db.execute(query, {"artisan_id": user_id})
     jobs_list = []
     for row in result:
-        d = dict(row._mapping)
-        for f in ["id", "client_id", "category_id"]:
-            if f in d and d[f] is not None:
-                d[f] = str(d[f])
-        d["already_bid"] = bool(d.get("already_bid", 0))
-        d["category"] = {
-            "name_en": d.pop("cat_name_en"),
-            "name_rw": d.pop("cat_name_rw"),
-            "icon_emoji": d.pop("cat_icon"),
-        }
-        if d.get("scheduled_time"):
-            d["scheduled_time"] = d["scheduled_time"].isoformat()
-        if d.get("created_at"):
-            d["created_at"] = d["created_at"].isoformat()
-        jobs_list.append(d)
+        m = dict(row._mapping)
+        jobs_list.append(
+            {
+                "id": str(m["id"]),
+                "client_id": str(m["client_id"]),
+                "category_id": str(m["category_id"]),
+                "category": {
+                    "name_en": m["name_en"],
+                    "name_rw": m["name_rw"],
+                    "icon_emoji": m["icon_emoji"],
+                },
+                "title": m["title"],
+                "description": m["description"],
+                "additional_notes": m.get("additional_notes"),
+                "location_label": m.get("location_label"),
+                "urgency": m.get("urgency", "flexible"),
+                "budget": m.get("budget"),
+                "budget_negotiable": bool(m.get("budget_negotiable", True)),
+                "status": m["status"],
+                "images": m.get("photos_urls") or [],
+                "bid_count": m.get("bid_count", 0),
+                "scheduled_time": m["scheduled_time"].isoformat()
+                if m.get("scheduled_time")
+                else None,
+                "created_at": m["created_at"].isoformat()
+                if m.get("created_at")
+                else None,
+            }
+        )
     return jobs_list
 
 
 @router.get("")
 async def list_open_jobs(
     category_id: UUID | None = Query(None),
+    district: str | None = Query(None),
+    urgency: JobUrgency | None = Query(None),
     limit: int = Query(default=50, le=100),
     db: AsyncSession = Depends(get_db),
 ) -> Any:
@@ -238,9 +247,11 @@ async def list_open_jobs(
     )
     if category_id:
         query = query.where(Job.category_id == category_id)
-    query = query.order_by(
-        Job.created_at.desc()
-    ).limit(limit)
+    if urgency:
+        query = query.where(Job.urgency == urgency)
+    if district:
+        query = query.where(Job.location_label.ilike(f"%{district}%"))
+    query = query.order_by(Job.created_at.desc()).limit(limit)
 
     result = await db.execute(query)
     jobs = []
@@ -248,7 +259,7 @@ async def list_open_jobs(
         bid_count = (
             await db.scalar(select(func.count(Bid.id)).where(Bid.job_id == job.id)) or 0
         )
-        jobs.append(_job_to_dict(job, cat, bid_count))
+        jobs.append(_serialize_job(job, cat, bid_count))
     return jobs
 
 
@@ -259,33 +270,41 @@ async def get_job_detail(
     current_user: dict[str, Any] = Depends(get_current_user),
 ) -> Any:
     result = await db.execute(
-        select(Job, Category).join(Category, Job.category_id == Category.id).where(Job.id == job_id)
+        select(Job, Category)
+        .join(Category, Job.category_id == Category.id)
+        .where(Job.id == job_id)
     )
     row = result.first()
     if not row:
         raise HTTPException(status_code=404, detail="Job not found")
-
     job, cat = row
-    bid_count = await db.scalar(select(func.count(Bid.id)).where(Bid.job_id == job.id)) or 0
 
+    bid_count = (
+        await db.scalar(select(func.count(Bid.id)).where(Bid.job_id == job_id)) or 0
+    )
+
+    # Price anchoring for artisans
     price_guidance: dict[str, Any] | None = None
-    if current_user.get("role") == UserRole.artisan:
+    if current_user["role"] == UserRole.artisan:
         district = "Kigali"
         if job.location_label and "," in job.location_label:
             district = job.location_label.split(",")[-1].strip()
-        price_guidance = await get_price_anchor(UUID(str(job.category_id)), district, db)
+        price_guidance = await get_price_anchor(
+            UUID(str(job.category_id)), district, db
+        )
+        already_bid = existing_bid is not None
 
     # Check if current artisan already bid
     already_bid = False
-    if current_user.get("role") == UserRole.artisan:
-        user_id = UUID(current_user["sub"])
+    if current_user["role"] == UserRole.artisan:
+        artisan_id = UUID(current_user["sub"])
         existing_bid = await db.scalar(
-            select(Bid).where(Bid.job_id == job_id, Bid.artisan_id == user_id)
+            select(Bid).where(Bid.job_id == job_id, Bid.artisan_id == artisan_id)
         )
         already_bid = existing_bid is not None
 
     return {
-        "job": _job_to_dict(job, cat, bid_count),
+        "job": _serialize_job(job, cat, bid_count),
         "price_guidance": price_guidance,
         "already_bid": already_bid,
     }
@@ -298,7 +317,7 @@ async def update_job(
     db: AsyncSession = Depends(get_db),
     current_user: dict[str, Any] = Depends(require_role(UserRole.client)),
 ) -> Any:
-    """Client updates their own open job."""
+    """Client can update an open job before any bid is accepted."""
     user_id = UUID(current_user["sub"])
     result = await db.execute(
         select(Job).where(Job.id == job_id, Job.client_id == user_id)
@@ -307,18 +326,23 @@ async def update_job(
     if not job:
         raise HTTPException(status_code=404, detail="Job not found")
     if job.status not in (JobStatus.open, JobStatus.pending_bid):
-        raise HTTPException(status_code=400, detail="Cannot edit job in current status")
+        raise HTTPException(
+            status_code=400,
+            detail="Cannot edit a job that is already booked or completed.",
+        )
 
     update_data = payload.model_dump(exclude_none=True)
-    if "latitude" in update_data and "longitude" in update_data:
-        update_data["location"] = f"POINT({update_data['longitude']} {update_data['latitude']})"
+    if not update_data:
+        raise HTTPException(status_code=400, detail="No fields to update.")
 
     await db.execute(update(Job).where(Job.id == job_id).values(**update_data))
     await db.commit()
     await db.refresh(job)
     cat = await db.scalar(select(Category).where(Category.id == job.category_id))
-    bid_count = await db.scalar(select(func.count(Bid.id)).where(Bid.job_id == job.id)) or 0
-    return _job_to_dict(job, cat, bid_count)
+    bid_count = (
+        await db.scalar(select(func.count(Bid.id)).where(Bid.job_id == job_id)) or 0
+    )
+    return _serialize_job(job, cat, bid_count)
 
 
 @router.delete("/{job_id}")
@@ -334,12 +358,13 @@ async def cancel_job(
     job = result.scalar_one_or_none()
     if not job:
         raise HTTPException(status_code=404, detail="Job not found")
-
     if job.status not in (JobStatus.open, JobStatus.pending_bid):
         raise HTTPException(
             status_code=400, detail="Cannot cancel job in current status"
         )
 
-    job.status = cast(Any, JobStatus.cancelled)
+    await db.execute(
+        update(Job).where(Job.id == job_id).values(status=JobStatus.cancelled)
+    )
     await db.commit()
     return {"message": "Job cancelled"}

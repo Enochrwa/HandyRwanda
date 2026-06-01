@@ -1,4 +1,5 @@
 // File: mobile/app/(client)/post-job/confirm.tsx
+import { useQueryClient } from '@tanstack/react-query';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import React, { useState } from 'react';
 import { View, Text, TouchableOpacity, ScrollView, ActivityIndicator } from 'react-native';
@@ -11,42 +12,21 @@ function formatRWF(n: number) {
 }
 
 const URGENCY_LABELS: Record<string, string> = {
-  flexible: '📅 Flexible',
-  this_week: '🗓️ This Week',
-  tomorrow: '⏰ Tomorrow',
+  flexible: '📅 Flexible (within 2 weeks)',
+  this_week: '🗓️ This Week (within 7 days)',
+  tomorrow: '⏰ Tomorrow (within 24h)',
   today: '🔥 Today',
-  urgent: '🚨 Urgent!',
-};
-
-const JOB_TYPE_LABELS: Record<string, string> = {
-  one_time: 'One-time job',
-  recurring: 'Recurring work',
-  emergency: 'Emergency fix',
+  urgent: '🚨 Urgent (within 2 hours)',
 };
 
 export default function ConfirmJob() {
   const router = useRouter();
+  const qc = useQueryClient();
   const params = useLocalSearchParams<Record<string, string>>();
   const [loading, setLoading] = useState(false);
 
   const budget = params.budget ? parseInt(params.budget, 10) : null;
-  const budgetMax = params.budgetMax ? parseInt(params.budgetMax, 10) : null;
-
-  const budgetDisplay = budget
-    ? budgetMax
-      ? `${formatRWF(budget)} – ${formatRWF(budgetMax)} RWF`
-      : `${formatRWF(budget)} RWF`
-    : 'Open to bids';
-
-  const scheduledTimeDisplay = params.scheduledTime
-    ? new Date(params.scheduledTime).toLocaleString('en-RW', {
-        weekday: 'short',
-        month: 'short',
-        day: 'numeric',
-        hour: '2-digit',
-        minute: '2-digit',
-      })
-    : 'Not specified';
+  const photos = JSON.parse(params.photos ?? '[]') as string[];
 
   const handleSubmit = async () => {
     setLoading(true);
@@ -55,24 +35,19 @@ export default function ConfirmJob() {
         category_id: params.categoryId,
         title: params.title,
         description: params.description,
+        additional_notes: params.additionalNotes || undefined,
         latitude: parseFloat(params.latitude ?? '-1.9441'),
         longitude: parseFloat(params.longitude ?? '30.0619'),
-        location_label: params.locationLabel ?? 'Kigali',
-        job_type: params.jobType ?? 'one_time',
+        location_label: params.locationLabel ?? 'Custom Location',
         urgency: params.urgency ?? 'flexible',
-        is_remote_possible: params.isRemotePossible === '1',
-        ...(budget && { budget }),
-        ...(budgetMax && { budget_max: budgetMax }),
-        ...(params.specialRequirements?.trim() && { special_requirements: params.specialRequirements }),
-        ...(params.scheduledTime && { scheduled_time: params.scheduledTime }),
+        budget_negotiable: params.budgetNegotiable === '1',
+        ...(params.scheduledTime ? { scheduled_time: params.scheduledTime } : {}),
+        ...(budget ? { budget } : {}),
+        ...(photos.length > 0 ? { photos_base64: photos } : {}),
       };
 
-      const photos = JSON.parse(params.photos ?? '[]') as string[];
-      if (photos.length > 0) {
-        jobData.photos_base64 = photos;
-      }
-
       await api.post('/jobs', jobData);
+      await qc.invalidateQueries({ queryKey: ['my-jobs'] });
       Toast.show({
         type: 'success',
         text1: '🎉 Job Posted!',
@@ -91,17 +66,40 @@ export default function ConfirmJob() {
     }
   };
 
-  const rows = [
+  const summaryRows = [
     { label: 'Title', value: params.title },
-    { label: 'Job Type', value: JOB_TYPE_LABELS[params.jobType ?? 'one_time'] ?? params.jobType },
-    { label: 'Urgency', value: URGENCY_LABELS[params.urgency ?? 'flexible'] ?? params.urgency },
-    { label: 'Scheduled', value: scheduledTimeDisplay },
-    { label: 'Budget', value: budgetDisplay },
+    { label: 'Urgency', value: URGENCY_LABELS[params.urgency ?? 'flexible'] },
+    {
+      label: 'Budget',
+      value: budget
+        ? `${formatRWF(budget)} RWF${params.budgetNegotiable === '1' ? ' (negotiable)' : ''}`
+        : 'Open to bids',
+    },
     {
       label: 'Location',
       value: params.locationLabel ?? `${parseFloat(params.latitude ?? '0').toFixed(4)}, ${parseFloat(params.longitude ?? '0').toFixed(4)}`,
     },
-    ...(params.isRemotePossible === '1' ? [{ label: 'Remote', value: '✅ Remote possible' }] : []),
+    ...(params.scheduledTime
+      ? [
+          {
+            label: 'Scheduled',
+            value: new Date(params.scheduledTime).toLocaleString('en-RW', {
+              weekday: 'short',
+              month: 'short',
+              day: 'numeric',
+              hour: '2-digit',
+              minute: '2-digit',
+            }),
+          },
+        ]
+      : []),
+    {
+      label: 'Photos',
+      value:
+        photos.length > 0
+          ? `${photos.length} photo${photos.length > 1 ? 's' : ''} attached`
+          : 'None',
+    },
   ];
 
   return (
@@ -111,6 +109,9 @@ export default function ConfirmJob() {
           <Text className="text-primary font-semibold">← Back</Text>
         </TouchableOpacity>
         <Text className="text-xl font-extrabold">Review & Post</Text>
+        <Text className="text-xs text-muted-foreground mt-0.5">
+          Step 3 of 3 — Confirm your job details
+        </Text>
         <View className="flex-row mt-2">
           {[1, 2, 3].map((s) => (
             <View key={s} className="h-1 flex-1 rounded-full mr-1 bg-primary" />
@@ -119,13 +120,14 @@ export default function ConfirmJob() {
       </View>
 
       <ScrollView className="flex-1 px-5 pt-5" showsVerticalScrollIndicator={false}>
+        {/* Summary table */}
         <View className="bg-card rounded-3xl border border-border overflow-hidden mb-5">
-          {rows.map(({ label, value }, i) => (
+          {summaryRows.map(({ label, value }, i) => (
             <View
               key={label}
-              className={`px-5 py-4 ${i < rows.length - 1 ? 'border-b border-border' : ''}`}
+              className={`px-5 py-4 ${i < summaryRows.length - 1 ? 'border-b border-border' : ''}`}
             >
-              <Text className="text-xs font-bold uppercase tracking-wide text-muted-foreground mb-1">
+              <Text className="text-xs font-bold uppercase tracking-wide text-muted-foreground mb-0.5">
                 {label}
               </Text>
               <Text className="font-semibold text-foreground text-sm">{value}</Text>
@@ -133,6 +135,7 @@ export default function ConfirmJob() {
           ))}
         </View>
 
+        {/* Description */}
         {params.description ? (
           <View className="bg-card rounded-3xl border border-border p-5 mb-5">
             <Text className="text-xs font-bold uppercase tracking-wide text-muted-foreground mb-2">
@@ -142,20 +145,24 @@ export default function ConfirmJob() {
           </View>
         ) : null}
 
-        {params.specialRequirements?.trim() ? (
+        {/* Additional Notes */}
+        {params.additionalNotes ? (
           <View className="bg-card rounded-3xl border border-border p-5 mb-5">
             <Text className="text-xs font-bold uppercase tracking-wide text-muted-foreground mb-2">
-              Special Requirements
+              Additional Notes
             </Text>
-            <Text className="text-foreground text-sm leading-5">{params.specialRequirements}</Text>
+            <Text className="text-muted-foreground text-sm leading-5">
+              {params.additionalNotes}
+            </Text>
           </View>
         ) : null}
 
         <View className="bg-primary/5 border border-primary/20 rounded-2xl p-4 mb-8">
           <Text className="text-xs font-bold text-primary mb-1">📋 What happens next?</Text>
           <Text className="text-xs text-muted-foreground leading-5">
-            Verified artisans with matching skills will see your job and submit bids. You'll receive
-            push notifications and can compare bids before accepting the best one.
+            Verified artisans matching your job category will see this posting and submit
+            competitive bids. You can compare their profiles, ratings, and prices before accepting
+            any bid.
           </Text>
         </View>
       </ScrollView>
@@ -172,7 +179,7 @@ export default function ConfirmJob() {
           onPress={handleSubmit}
           disabled={loading}
           accessibilityLabel="Post job"
-          className={`flex-[2] bg-accent rounded-2xl py-4 items-center ${loading ? 'opacity-60' : ''}`}
+          className={`flex-[2] bg-primary rounded-2xl py-4 items-center ${loading ? 'opacity-60' : ''}`}
         >
           {loading ? (
             <ActivityIndicator color="white" />

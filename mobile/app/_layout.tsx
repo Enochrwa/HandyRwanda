@@ -1,6 +1,5 @@
 // File: mobile/app/_layout.tsx
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import type { PermissionResponse } from 'expo-modules-core';
 import { Stack } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { useEffect } from 'react';
@@ -29,8 +28,9 @@ function PushTokenRegistrar() {
 
     (async () => {
       try {
-        const { default: Notifications } = await import('expo-notifications');
-        const { status } = (await Notifications.requestPermissionsAsync()) as PermissionResponse;
+        const Notifications = await import('expo-notifications');
+        if (!Notifications?.requestPermissionsAsync || !Notifications?.getExpoPushTokenAsync)
+          return;
         if (status !== 'granted') return;
         const tokenData = await Notifications.getExpoPushTokenAsync();
         if (tokenData?.data) {

@@ -67,7 +67,12 @@ function PostJob() {
     scheduled_time: "",
   });
 
-  const { data: categories = [], isLoading: categoriesLoading, isError: categoriesError, refetch: refetchCategories } = useQuery({
+  const {
+    data: categories = [],
+    isLoading: categoriesLoading,
+    isError: categoriesError,
+    refetch: refetchCategories,
+  } = useQuery({
     queryKey: ["categories"],
     queryFn: () => api.get("/categories").then((r) => r.data),
     staleTime: 1000 * 60 * 10, // 10 minutes — categories rarely change
@@ -211,20 +216,22 @@ function PostJob() {
                   </button>
                 </div>
               )}
-              {!categoriesLoading && !categoriesError && categories.map((cat: { id: string; name_en: string; icon_emoji?: string }) => (
-                <button
-                  key={cat.id}
-                  onClick={() => set("category_id", cat.id)}
-                  className={`flex flex-col items-center rounded-2xl border-2 p-3 text-center transition ${formData.category_id === cat.id ? "border-primary bg-primary/10" : "border-border bg-muted/30 hover:bg-muted"}`}
-                >
-                  <span className="text-xl mb-1">{cat.icon_emoji ?? "🛠️"}</span>
-                  <span
-                    className={`text-[11px] font-semibold ${formData.category_id === cat.id ? "text-primary" : "text-foreground"}`}
+              {!categoriesLoading &&
+                !categoriesError &&
+                categories.map((cat: { id: string; name_en: string; icon_emoji?: string }) => (
+                  <button
+                    key={cat.id}
+                    onClick={() => set("category_id", cat.id)}
+                    className={`flex flex-col items-center rounded-2xl border-2 p-3 text-center transition ${formData.category_id === cat.id ? "border-primary bg-primary/10" : "border-border bg-muted/30 hover:bg-muted"}`}
                   >
-                    {cat.name_en}
-                  </span>
-                </button>
-              ))}
+                    <span className="text-xl mb-1">{cat.icon_emoji ?? "🛠️"}</span>
+                    <span
+                      className={`text-[11px] font-semibold ${formData.category_id === cat.id ? "text-primary" : "text-foreground"}`}
+                    >
+                      {cat.name_en}
+                    </span>
+                  </button>
+                ))}
             </div>
           </section>
 

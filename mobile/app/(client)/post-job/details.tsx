@@ -40,6 +40,7 @@ export default function JobDetails() {
   });
 
   const [description, setDescription] = useState('');
+  const [title, setTitle] = useState('');
   const [additionalNotes, setAdditionalNotes] = useState('');
   const [budget, setBudget] = useState('');
   const [budgetNegotiable, setBudgetNegotiable] = useState(true);

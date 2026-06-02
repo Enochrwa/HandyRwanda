@@ -64,6 +64,16 @@ function Pro() {
     refetchInterval: 30000,
   });
 
+  const withdrawBid = useMutation({
+    mutationFn: (bidId: string) => api.delete(`/bids/${bidId}`),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["my-bids"] });
+      qc.invalidateQueries({ queryKey: ["available-jobs"] });
+      toast.success("Bid withdrawn.");
+    },
+    onError: () => toast.error("Failed to withdraw bid."),
+  });
+
   const { data: bookings = [] } = useQuery({
     queryKey: ["my-bookings"],
     queryFn: () => api.get("/bookings").then((r) => r.data),

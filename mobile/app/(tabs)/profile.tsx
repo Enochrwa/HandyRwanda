@@ -51,7 +51,7 @@ const MenuItem = ({ icon: Icon, title, value, onPress, destructive, rightElement
 );
 
 export default function ProfileScreen() {
-  const { user, updateUser, logout } = useAuthStore();
+  const { user, updateUser, logout, isAuthenticated } = useAuthStore();
   const router = useRouter();
   const qc = useQueryClient();
   const [editOpen, setEditOpen] = useState(false);
@@ -181,7 +181,7 @@ export default function ProfileScreen() {
             icon={Briefcase}
             title="My Bookings"
             value={`${bookings.length} total`}
-            onPress={() => Toast.show({ type: 'info', text1: 'View your bookings in Messages' })}
+            onPress={() => router.push('/(tabs)/messages')}
           />
         )}
 
@@ -240,7 +240,7 @@ export default function ProfileScreen() {
             })
           }
         />
-        <MenuItem icon={Settings} title="Settings" onPress={() => {}} />
+        <MenuItem icon={Settings} title="Settings" onPress={() => setEditOpen(true)} />
 
         <View className="mt-4">
           <MenuItem icon={LogOut} title="Log Out" onPress={handleLogout} destructive />

@@ -111,6 +111,12 @@ function SearchPage() {
   const [isFilterOpen, setIsFilterOpen] = useState(false);
   const [filterState, dispatch] = useReducer(filterReducer, initialFilters);
 
+  const { data: allCategories = [] } = useQuery({
+    queryKey: ["categories"],
+    queryFn: () => api.get("/artisans/categories").then((r) => r.data),
+    staleTime: 300_000,
+  });
+
   const { data, isLoading } = useQuery({
     queryKey: ["artisans", q, activeChip, filterState],
     queryFn: async () => {
@@ -118,10 +124,11 @@ function SearchPage() {
       if (q) params.append("q", q);
       params.append("sort", activeChip);
       if (filterState.districts.length) params.append("districts", filterState.districts.join(","));
+      // Send first selected category as category_id (backend supports one at a time)
       if (filterState.categories.length)
-        params.append("categories", filterState.categories.join(","));
-      if (filterState.minPrice) params.append("min_price", filterState.minPrice);
-      if (filterState.maxPrice) params.append("max_price", filterState.maxPrice);
+        params.append("category_id", filterState.categories[0]);
+      if (filterState.minPrice) params.append("min_hourly_rate", filterState.minPrice);
+      if (filterState.maxPrice) params.append("max_hourly_rate", filterState.maxPrice);
       if (filterState.availableNow) params.append("available_now", "true");
       if (filterState.minRating > 0) params.append("min_rating", filterState.minRating.toString());
 
@@ -381,21 +388,21 @@ function SearchPage() {
                     Category
                   </h3>
                   <div className="grid grid-cols-2 gap-3">
-                    {["Plumbing", "Electrical", "Cleaning", "Carpentry", "Painting", "Masonry"].map(
+                    {(allCategories as { id: string; name_en: string; icon_emoji?: string }[]).map(
                       (cat) => (
-                        <div key={cat} className="flex items-center space-x-2">
+                        <div key={cat.id} className="flex items-center space-x-2">
                           <Checkbox
-                            id={`cat-${cat}`}
-                            checked={filterState.categories.includes(cat)}
+                            id={`cat-${cat.id}`}
+                            checked={filterState.categories.includes(cat.id)}
                             onCheckedChange={() =>
-                              dispatch({ type: "TOGGLE_CATEGORY", payload: cat })
+                              dispatch({ type: "TOGGLE_CATEGORY", payload: cat.id })
                             }
                           />
                           <label
-                            htmlFor={`cat-${cat}`}
+                            htmlFor={`cat-${cat.id}`}
                             className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
                           >
-                            {cat}
+                            {cat.icon_emoji} {cat.name_en}
                           </label>
                         </div>
                       ),

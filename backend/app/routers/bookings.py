@@ -18,7 +18,7 @@ from typing import Any
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, HTTPException
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 from sqlalchemy import or_, select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -38,6 +38,73 @@ router = APIRouter(prefix="/bookings", tags=["bookings"])
 
 
 # ── Endpoints ─────────────────────────────────────────────────────────────────
+
+
+
+
+class DirectBookingCreate(BaseModel):
+    job_id: UUID
+    artisan_id: UUID
+    agreed_price: int = Field(..., ge=500, description="Agreed price in RWF")
+
+
+@router.post("", status_code=201)
+async def create_direct_booking(
+    payload: DirectBookingCreate,
+    db: AsyncSession = Depends(get_db),
+    current_user: dict[str, Any] = Depends(require_role(UserRole.client)),
+) -> Any:
+    """Client creates a direct booking with a specific artisan (bypasses bidding)."""
+    user_id = UUID(current_user["sub"])
+
+    # Verify job belongs to this client and is open
+    job = await db.scalar(
+        select(Job).where(Job.id == payload.job_id, Job.client_id == user_id)
+    )
+    if not job:
+        raise HTTPException(status_code=404, detail="Job not found.")
+    if job.status not in (JobStatus.open, JobStatus.pending_bid):
+        raise HTTPException(status_code=400, detail="Job is no longer available for booking.")
+
+    # Verify artisan exists
+    artisan = await db.scalar(
+        select(User).where(User.id == payload.artisan_id, User.role == UserRole.artisan)
+    )
+    if not artisan:
+        raise HTTPException(status_code=404, detail="Artisan not found.")
+
+    # Close job to other bids
+    job.status = JobStatus.booked
+
+    booking = Booking(
+        job_id=payload.job_id,
+        client_id=user_id,
+        artisan_id=payload.artisan_id,
+        status=BookingStatus.pending_payment,
+        agreed_price=payload.agreed_price,
+    )
+    db.add(booking)
+    await db.flush()
+
+    client = await db.scalar(select(User).where(User.id == user_id))
+    client_name = client.full_name if client else "A client"
+    await notify_and_push(
+        db,
+        payload.artisan_id,
+        "booking_request",
+        f"New booking request from {client_name} 🔔",
+        f"{client_name} wants to book you directly for '{job.title}'. Agreed price: {payload.agreed_price:,} RWF.",
+        {"booking_id": str(booking.id), "job_id": str(payload.job_id)},
+    )
+    await db.commit()
+    return {
+        "id": str(booking.id),
+        "job_id": str(booking.job_id),
+        "artisan_id": str(booking.artisan_id),
+        "status": booking.status,
+        "agreed_price": booking.agreed_price,
+        "message": "Booking request sent! The artisan will confirm soon.",
+    }
 
 
 @router.get("/upcoming")

@@ -118,12 +118,14 @@ export default function ProDashboard() {
     }) => proService.submitBid(jobId, price, note, coverLetter, estimatedHours),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['proDashboard'] });
+      queryClient.invalidateQueries({ queryKey: ['available-jobs-pro'] });
+      queryClient.invalidateQueries({ queryKey: ['my-bids'] });
       setBiddingJobId(null);
       setBidAmount('');
       setBidNote('');
       setBidCoverLetter('');
       setBidHours('');
-      Toast.show({ type: 'success', text1: 'Bid submitted!' });
+      Toast.show({ type: 'success', text1: '🎉 Bid submitted!', text2: "You'll be notified if accepted." });
     },
     onError: (err: any) =>
       Toast.show({

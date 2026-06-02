@@ -126,13 +126,27 @@ async def get_my_profile(
     current_user: dict[str, Any] = Depends(require_role(UserRole.artisan)),
 ) -> Any:
     user_id = UUID(current_user["sub"])
-    result = await db.execute(
+    profile = await db.scalar(
         select(ArtisanProfile).where(ArtisanProfile.user_id == user_id)
     )
-    profile = result.scalar_one_or_none()
     if not profile:
         raise HTTPException(status_code=404, detail="Profile not found")
-    return profile
+    return {
+        "user_id": str(profile.user_id),
+        "bio": profile.bio,
+        "years_experience": profile.years_experience,
+        "hourly_rate": profile.hourly_rate,
+        "fixed_rate": profile.fixed_rate,
+        "latitude": profile.latitude,
+        "longitude": profile.longitude,
+        "service_radius_km": profile.service_radius_km,
+        "is_available": profile.is_available,
+        "community_score": profile.community_score,
+        "average_rating": float(profile.average_rating) if profile.average_rating else 0.0,
+        "total_reviews": profile.total_reviews or 0,
+        "verification_status": str(profile.verification_status),
+        "created_at": profile.created_at.isoformat() if profile.created_at else None,
+    }
 
 
 @router.post("/profile/me/id-verification")
@@ -161,7 +175,7 @@ async def submit_id_verification(
 
 @router.get("/categories")
 async def list_categories(db: AsyncSession = Depends(get_db)) -> Any:
-    result = await db.execute(select(Category).where(Category.is_active))
+    result = await db.execute(select(Category).where(Category.is_active.is_(True)))
     cats = result.scalars().all()
     return [
         {
@@ -504,6 +518,30 @@ async def register_push_token(
     return {"message": "Push token registered."}
 
 
+@router.get("/skills/mine")
+async def get_my_skills(
+    db: AsyncSession = Depends(get_db),
+    current_user: dict[str, Any] = Depends(require_role(UserRole.artisan)),
+) -> Any:
+    """Artisan: get their own skill categories."""
+    user_id = UUID(current_user["sub"])
+    cats_result = await db.execute(
+        select(Category)
+        .join(artisan_skills, artisan_skills.c.category_id == Category.id)
+        .where(artisan_skills.c.artisan_id == user_id)
+    )
+    return [
+        {
+            "id": str(c.id),
+            "name_en": c.name_en,
+            "name_rw": c.name_rw,
+            "name_fr": c.name_fr,
+            "icon_emoji": c.icon_emoji,
+        }
+        for c in cats_result.scalars().all()
+    ]
+
+
 @router.get("/{artisan_id}/skills")
 async def get_artisan_skills(
     artisan_id: UUID,
@@ -526,3 +564,93 @@ async def get_artisan_skills(
         }
         for c in cats_result.scalars().all()
     ]
+
+
+@router.get("/{artisan_id}/public")
+async def get_artisan_public_profile(
+    artisan_id: UUID,
+    db: AsyncSession = Depends(get_db),
+) -> Any:
+    """Public artisan profile with skills, portfolio, and recent reviews."""
+    from app.models.review import Review
+
+    # Fetch user + profile
+    user = await db.scalar(
+        select(User).where(User.id == artisan_id, User.role == UserRole.artisan)
+    )
+    if not user:
+        from fastapi import HTTPException
+        raise HTTPException(status_code=404, detail="Artisan not found.")
+
+    profile = await db.scalar(
+        select(ArtisanProfile).where(ArtisanProfile.user_id == artisan_id)
+    )
+
+    # Skills
+    cats_result = await db.execute(
+        select(Category)
+        .join(artisan_skills, artisan_skills.c.category_id == Category.id)
+        .where(artisan_skills.c.artisan_id == artisan_id)
+    )
+    categories = [
+        {"id": str(c.id), "name_en": c.name_en, "name_rw": c.name_rw, "icon_emoji": c.icon_emoji}
+        for c in cats_result.scalars().all()
+    ]
+
+    # Portfolio
+    portfolio_result = await db.execute(
+        select(PortfolioPhoto)
+        .where(PortfolioPhoto.artisan_id == artisan_id)
+        .order_by(PortfolioPhoto.created_at.desc())
+        .limit(12)
+    )
+    portfolio = [
+        {
+            "id": str(p.id),
+            "image_url": p.image_url,
+            "job_type": p.job_type,
+            "description": p.description,
+        }
+        for p in portfolio_result.scalars().all()
+    ]
+
+    # Recent reviews
+    reviews_result = await db.execute(
+        select(Review, User.full_name.label("client_name"), User.avatar_url.label("client_avatar"))
+        .join(User, Review.client_id == User.id)
+        .where(Review.artisan_id == artisan_id, Review.is_flagged.is_(False))
+        .order_by(Review.created_at.desc())
+        .limit(10)
+    )
+    reviews = [
+        {
+            "id": str(rev.id),
+            "rating": rev.rating,
+            "comment": rev.comment,
+            "artisan_reply": rev.artisan_reply,
+            "client_name": client_name,
+            "client_avatar": client_avatar,
+            "created_at": rev.created_at.isoformat() if rev.created_at else None,
+        }
+        for rev, client_name, client_avatar in reviews_result.all()
+    ]
+
+    return {
+        "id": str(user.id),
+        "full_name": user.full_name,
+        "avatar_url": user.avatar_url,
+        "district": user.district,
+        "phone_number": user.phone_number if profile else None,  # only expose if profile exists
+        "bio": profile.bio if profile else None,
+        "years_experience": profile.years_experience if profile else 0,
+        "hourly_rate": profile.hourly_rate if profile else None,
+        "fixed_rate": profile.fixed_rate if profile else None,
+        "is_available": profile.is_available if profile else False,
+        "verification_status": str(profile.verification_status) if profile else "unverified",
+        "community_score": profile.community_score if profile else 0,
+        "average_rating": float(profile.average_rating) if profile and profile.average_rating else 0.0,
+        "total_reviews": profile.total_reviews if profile else 0,
+        "categories": categories,
+        "portfolio": portfolio,
+        "reviews": reviews,
+    }

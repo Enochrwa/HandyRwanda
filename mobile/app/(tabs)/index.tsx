@@ -46,7 +46,7 @@ export default function HomeScreen() {
     queryFn: () => api.get('/artisans/categories').then((r) => r.data),
   });
 
-  useQuery({
+  const { data: featuredArtisans } = useQuery({
     queryKey: ['featuredArtisans'],
     queryFn: () =>
       api
@@ -145,10 +145,7 @@ export default function HomeScreen() {
         </View>
         <View className="flex-row flex-wrap justify-between">
           {categories?.slice(0, 6).map((cat: any) => {
-            const emoji =
-              SERVICE_ICONS[cat.slug?.toLowerCase()] ||
-              SERVICE_ICONS[cat.name_en?.toLowerCase()] ||
-              SERVICE_ICONS.default;
+            const emoji = cat.icon_emoji || SERVICE_ICONS[cat.name_en?.toLowerCase()] || SERVICE_ICONS.default;
             return (
               <TouchableOpacity
                 accessibilityLabel={`Browse ${cat.name_en ?? cat.name}`}
@@ -206,6 +203,58 @@ export default function HomeScreen() {
           >
             <Text className="text-white font-bold">Sign Up — It's Free</Text>
           </TouchableOpacity>
+        </View>
+      )}
+
+      {/* ── Featured Artisans ───────────────────────────────────────── */}
+      {featuredArtisans && featuredArtisans.length > 0 && (
+        <View className="px-6 mb-4">
+          <View className="flex-row justify-between items-center mb-3">
+            <Text className="text-xl font-bold text-foreground">Top Artisans</Text>
+            <TouchableOpacity
+              accessibilityLabel="See all artisans"
+              onPress={() => router.push('/(tabs)/search')}
+            >
+              <Text className="text-primary font-semibold text-sm">See All →</Text>
+            </TouchableOpacity>
+          </View>
+          <ScrollView horizontal showsHorizontalScrollIndicator={false} className="-mx-2">
+            {featuredArtisans.slice(0, 6).map((artisan: any) => (
+              <TouchableOpacity
+                key={artisan.id}
+                accessibilityLabel={`View ${artisan.full_name}`}
+                onPress={() => router.push(`/(client)/search/artisan/${artisan.id}`)}
+                className="bg-card border border-border rounded-3xl p-4 mr-3 w-36 items-center"
+                style={{ marginHorizontal: 6 }}
+              >
+                <View className="w-16 h-16 rounded-full bg-muted overflow-hidden mb-2">
+                  {artisan.avatar_url ? (
+                    <Image source={{ uri: artisan.avatar_url }} className="w-full h-full" />
+                  ) : (
+                    <View className="w-full h-full items-center justify-center bg-primary/10">
+                      <Text className="text-2xl font-black text-primary">
+                        {artisan.full_name?.[0] ?? '?'}
+                      </Text>
+                    </View>
+                  )}
+                </View>
+                <Text className="font-bold text-xs text-center text-foreground" numberOfLines={1}>
+                  {artisan.full_name}
+                </Text>
+                <View className="flex-row items-center gap-1 mt-1">
+                  <Star size={10} color="#E8A020" fill="#E8A020" />
+                  <Text className="text-xs text-muted-foreground">
+                    {parseFloat(artisan.average_rating || 0).toFixed(1)}
+                  </Text>
+                </View>
+                {artisan.is_available && (
+                  <View className="mt-1 bg-success/10 px-2 py-0.5 rounded-full">
+                    <Text className="text-[9px] text-success font-bold">● Available</Text>
+                  </View>
+                )}
+              </TouchableOpacity>
+            ))}
+          </ScrollView>
         </View>
       )}
 

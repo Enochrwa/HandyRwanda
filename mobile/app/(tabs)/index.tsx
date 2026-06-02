@@ -43,10 +43,7 @@ export default function HomeScreen() {
 
   const { data: categories } = useQuery({
     queryKey: ['categories'],
-    queryFn: () => api.get('/artisans/categories').then((r) => r.data),
-  });
-
-  // Featured artisans are shown on the search tab; no separate home-screen fetch needed.
+    queryFn: () => api.get('/categories').then((r) => r.data),
 
   if (checkingOnboard) {
     return (

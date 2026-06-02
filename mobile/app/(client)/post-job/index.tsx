@@ -9,9 +9,10 @@ import api from '../../../src/services/api';
 export default function PostJobCategory() {
   const router = useRouter();
 
-  const { data: categories = [], isLoading } = useQuery({
+  const { data: categories = [], isLoading, isError, refetch } = useQuery({
     queryKey: ['categories'],
-    queryFn: () => api.get('/artisans/categories').then((r) => r.data),
+    queryFn: () => api.get('/categories').then((r) => r.data),
+    retry: 3,
   });
 
   if (isLoading) {
@@ -22,7 +23,26 @@ export default function PostJobCategory() {
     );
   }
 
-  return (
+  if (isError) {
+    return (
+      <View className="flex-1 bg-background items-center justify-center px-8">
+        <Text className="text-foreground text-lg font-semibold text-center mb-2">
+          Couldn't load categories
+        </Text>
+        <Text className="text-muted-foreground text-sm text-center mb-6">
+          Check your connection and try again.
+        </Text>
+        <TouchableOpacity
+          onPress={() => refetch()}
+          className="bg-primary px-6 py-3 rounded-full"
+        >
+          <Text className="text-white font-semibold">Retry</Text>
+        </TouchableOpacity>
+      </View>
+    );
+  }
+
+
     <View className="flex-1 bg-background">
       <View className="pt-14 pb-4 px-5 bg-primary">
         <Text className="text-white text-2xl font-extrabold">Post a Job</Text>

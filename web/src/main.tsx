@@ -7,8 +7,17 @@ import { getRouter } from "./router";
 import "./styles.css";
 import "@/i18n";
 
-const queryClient = new QueryClient();
-const router = getRouter();
+// Single shared QueryClient used by both RouterProvider context and QueryClientProvider.
+const queryClient = new QueryClient({
+  defaultOptions: {
+    queries: {
+      staleTime: 1000 * 60 * 5, // 5 minutes — reduces redundant refetches
+      retry: 2,
+    },
+  },
+});
+
+const router = getRouter(queryClient);
 
 const rootElement = document.getElementById("root")!;
 ReactDOM.createRoot(rootElement).render(

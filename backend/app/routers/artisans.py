@@ -149,7 +149,7 @@ async def submit_id_verification(
 
 @router.get("/categories")
 async def list_categories(db: AsyncSession = Depends(get_db)) -> Any:
-    result = await db.execute(select(Category).where(Category.is_active))
+    result = await db.execute(select(Category).where(Category.is_active).order_by(Category.name_en))
     cats = result.scalars().all()
     return [
         {
@@ -162,6 +162,22 @@ async def list_categories(db: AsyncSession = Depends(get_db)) -> Any:
         }
         for c in cats
     ]
+
+
+@router.get("/categories/{category_id}")
+async def get_category(category_id: UUID, db: AsyncSession = Depends(get_db)) -> Any:
+    result = await db.execute(select(Category).where(Category.id == category_id))
+    cat = result.scalar_one_or_none()
+    if not cat:
+        raise HTTPException(status_code=404, detail="Category not found")
+    return {
+        "id": str(cat.id),
+        "name_en": cat.name_en,
+        "name_rw": cat.name_rw,
+        "name_fr": cat.name_fr,
+        "icon_emoji": cat.icon_emoji,
+        "is_active": cat.is_active,
+    }
 
 
 @router.post("/skills")

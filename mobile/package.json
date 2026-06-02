@@ -6,7 +6,9 @@
   "main": "expo-router/entry",
   "scripts": {
     "start": "expo start",
+    "start:clear": "expo start --clear",
     "android": "expo start --android",
+    "android:clear": "expo start --android --clear",
     "ios": "expo start --ios",
     "web": "expo start --web",
     "lint": "eslint .",
@@ -60,6 +62,7 @@
     "@types/react": "~19.1.10",
     "@types/react-dom": "~19.1.7",
     "@types/react-native": "^0.73.0",
+    "babel-plugin-module-resolver": "^5.0.2",
     "eslint": "^9.0.0",
     "eslint-config-universe": "^15.2.0",
     "eslint-plugin-node": "^11.1.0",

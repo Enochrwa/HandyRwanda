@@ -36,11 +36,11 @@ export default function JobDetails() {
 
   const { data: allCategories = [] } = useQuery({
     queryKey: ['categories'],
-    queryFn: () => api.get('/artisans/categories').then((r) => r.data),
+    queryFn: () => api.get('/categories').then((r) => r.data),
   });
 
-  const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
+  const [title, setTitle] = useState('');
   const [additionalNotes, setAdditionalNotes] = useState('');
   const [budget, setBudget] = useState('');
   const [budgetNegotiable, setBudgetNegotiable] = useState(true);

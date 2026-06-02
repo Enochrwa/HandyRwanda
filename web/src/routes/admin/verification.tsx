@@ -574,7 +574,7 @@ function CategoriesTab({ qc }: { qc: ReturnType<typeof useQueryClient> }) {
   const [form, setForm] = useState({ name_rw: "", name_en: "", name_fr: "", icon_emoji: "" });
   const { data: categories = [], isLoading } = useQuery({
     queryKey: ["categories"],
-    queryFn: () => api.get("/artisans/categories").then((r) => r.data),
+    queryFn: () => api.get("/categories").then((r) => r.data),
   });
 
   const create = useMutation({

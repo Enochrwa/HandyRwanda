@@ -25,14 +25,15 @@ export default function ConfirmJob() {
   const params = useLocalSearchParams<Record<string, string>>();
   const [loading, setLoading] = useState(false);
 
-  const { data: category } = useQuery({
-    queryKey: ['category', params.categoryId],
-    queryFn: () =>
-      params.categoryId
-        ? api.get(`/artisans/categories/${params.categoryId}`).then((r) => r.data)
-        : null,
-    enabled: !!params.categoryId,
+  // Fetch the full category list (already cached by React Query from the previous screen)
+  // and derive the selected category from it — avoids a non-existent /categories/:id endpoint.
+  const { data: allCategories = [] } = useQuery<
+    { id: string; name_en: string; icon_emoji?: string }[]
+  >({
+    queryKey: ['categories'],
+    queryFn: () => api.get('/categories').then((r) => r.data),
   });
+  const category = allCategories.find((c) => c.id === params.categoryId) ?? null;
 
   const budget = params.budget ? parseInt(params.budget, 10) : null;
   const photos = JSON.parse(params.photos ?? '[]') as string[];

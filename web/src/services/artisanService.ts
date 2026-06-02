@@ -149,7 +149,7 @@ import api from "./api";
 
 export const artisanService = {
   async getCategories() {
-    const res = await api.get("/artisans/categories");
+    const res = await api.get("/categories");
     return res.data;
   },
 

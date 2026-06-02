@@ -11,7 +11,8 @@
     "baseUrl": ".",
     "moduleResolution": "bundler",
     "paths": {
-      "@icons": ["./src/icons"]
+      "@icons": ["./src/icons"],
+      "@icons/*": ["./src/icons"]
     }
   },
   "include": ["**/*.ts", "**/*.tsx", "nativewind-env.d.ts"]

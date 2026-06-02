@@ -54,23 +54,33 @@ manager = ConnectionManager()
 
 @asynccontextmanager
 async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
-    if os.getenv("ENV") == "development":
-        await init_db()
+    # Always create tables (no-op if they exist) and seed categories if empty.
+    # In production, Alembic migrations handle schema changes; seeding is safe to always run.
+    await init_db()
     yield
 
 
 app = FastAPI(title="HandyRwanda API", version="2.0.0", lifespan=lifespan)
 
+_CORS_ORIGINS = os.getenv("CORS_ORIGINS", "").split(",")
+_EXTRA_ORIGINS = [o.strip() for o in _CORS_ORIGINS if o.strip()]
+
+# NOTE: allow_credentials=True is incompatible with allow_origins=["*"] per the
+# CORS spec (browsers reject such responses). We therefore list known origins
+# explicitly and fall back to env-injected extras for production deployments.
+_ALLOW_ORIGINS = [
+    "http://localhost:5173",    # Vite web dev
+    "http://localhost:8081",    # Expo web / Metro
+    "http://localhost:19006",   # Expo web (older port)
+    "http://10.0.2.2:5173",    # Android emulator → host Vite
+    "http://10.0.2.2:8081",    # Android emulator → host Metro
+    *_EXTRA_ORIGINS,
+]
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=[
-        "http://localhost:5173",   # Vite web dev
-        "http://localhost:8081",   # Expo web / Metro
-        "http://localhost:19006",  # Expo web (older)
-        "http://10.0.2.2:5173",   # Android emulator → host Vite
-        "http://10.0.2.2:8081",   # Android emulator → host Metro
-        "*",                       # Allow all in dev; tighten via ENV in production
-    ],
+    allow_origins=_ALLOW_ORIGINS,
+    allow_origin_regex=r"http://192\.168\.\d+\.\d+(:\d+)?",  # LAN (Expo Go physical device)
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -85,6 +95,35 @@ app.include_router(jobs.router)
 app.include_router(messages.router)
 app.include_router(notifications.router)
 app.include_router(reviews.router)
+
+
+@app.get(
+    "/categories",
+    tags=["categories"],
+    summary="List all active service categories (public)",
+)
+async def list_categories_public(db: AsyncSession = Depends(get_db)) -> Any:
+    """
+    Public endpoint — no authentication required.
+
+    Returns every active service category.  Both the web job-posting form
+    and the mobile category-picker call this endpoint.  It mirrors
+    GET /artisans/categories but lives at the root so clients don't need to
+    know which sub-router owns categories.
+    """
+    result = await db.execute(select(Category).where(Category.is_active).order_by(Category.name_en))
+    cats = result.scalars().all()
+    return [
+        {
+            "id": str(c.id),
+            "name_en": c.name_en,
+            "name_rw": c.name_rw,
+            "name_fr": c.name_fr,
+            "icon_emoji": c.icon_emoji,
+            "is_active": c.is_active,
+        }
+        for c in cats
+    ]
 
 
 @app.websocket("/ws/messages/{booking_id}")

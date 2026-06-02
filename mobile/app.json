@@ -18,7 +18,8 @@
       "adaptiveIcon": {
         "backgroundColor": "#ffffff"
       },
-      "scheme": "handyrwanda"
+      "scheme": "handyrwanda",
+      "package": "com.handyrwanda.app"
     },
     "web": {},
     "plugins": [
@@ -29,6 +30,11 @@
       "expo-notifications"
     ],
     "scheme": "handyrwanda",
-    "entryPoint": "node_modules/expo-router/entry.js"
+    "entryPoint": "node_modules/expo-router/entry.js",
+    "extra": {
+      "router": {
+        "origin": false
+      }
+    }
   }
 }

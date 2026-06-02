@@ -67,9 +67,15 @@ function PostJob() {
     scheduled_time: "",
   });
 
-  const { data: categories = [] } = useQuery({
+  const {
+    data: categories = [],
+    isLoading: categoriesLoading,
+    isError: categoriesError,
+    refetch: refetchCategories,
+  } = useQuery({
     queryKey: ["categories"],
-    queryFn: () => api.get("/artisans/categories").then((r) => r.data),
+    queryFn: () => api.get("/categories").then((r) => r.data),
+    staleTime: 1000 * 60 * 10, // 10 minutes — categories rarely change
   });
 
   const set = (k: string, v: string | boolean) => setFormData((p) => ({ ...p, [k]: v }));
@@ -193,20 +199,39 @@ function PostJob() {
               Service Category <span className="text-destructive">*</span>
             </label>
             <div className="grid grid-cols-3 gap-2 sm:grid-cols-4">
-              {categories.map((cat: { id: string; name_en: string; icon_emoji?: string }) => (
-                <button
-                  key={cat.id}
-                  onClick={() => set("category_id", cat.id)}
-                  className={`flex flex-col items-center rounded-2xl border-2 p-3 text-center transition ${formData.category_id === cat.id ? "border-primary bg-primary/10" : "border-border bg-muted/30 hover:bg-muted"}`}
-                >
-                  <span className="text-xl mb-1">{cat.icon_emoji ?? "🛠️"}</span>
-                  <span
-                    className={`text-[11px] font-semibold ${formData.category_id === cat.id ? "text-primary" : "text-foreground"}`}
+              {categoriesLoading && (
+                <div className="col-span-full flex items-center justify-center py-8 gap-2 text-muted-foreground text-sm">
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                  Loading categories…
+                </div>
+              )}
+              {categoriesError && (
+                <div className="col-span-full flex flex-col items-center py-6 gap-2">
+                  <p className="text-sm text-destructive">Failed to load categories.</p>
+                  <button
+                    onClick={() => refetchCategories()}
+                    className="text-xs text-primary underline hover:no-underline"
                   >
-                    {cat.name_en}
-                  </span>
-                </button>
-              ))}
+                    Retry
+                  </button>
+                </div>
+              )}
+              {!categoriesLoading &&
+                !categoriesError &&
+                categories.map((cat: { id: string; name_en: string; icon_emoji?: string }) => (
+                  <button
+                    key={cat.id}
+                    onClick={() => set("category_id", cat.id)}
+                    className={`flex flex-col items-center rounded-2xl border-2 p-3 text-center transition ${formData.category_id === cat.id ? "border-primary bg-primary/10" : "border-border bg-muted/30 hover:bg-muted"}`}
+                  >
+                    <span className="text-xl mb-1">{cat.icon_emoji ?? "🛠️"}</span>
+                    <span
+                      className={`text-[11px] font-semibold ${formData.category_id === cat.id ? "text-primary" : "text-foreground"}`}
+                    >
+                      {cat.name_en}
+                    </span>
+                  </button>
+                ))}
             </div>
           </section>
 

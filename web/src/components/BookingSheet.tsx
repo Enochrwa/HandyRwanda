@@ -51,8 +51,7 @@ export function BookingSheet({
 
   const { data: categories = [] } = useQuery<Category[]>({
     queryKey: ["categories"],
-    queryFn: () => api.get("/artisans/categories").then((r) => r.data),
-    enabled: open,
+    queryFn: () => api.get("/categories").then((r) => r.data),
   });
 
   useEffect(() => {

@@ -5,36 +5,66 @@
     "version": "1.0.0",
     "orientation": "portrait",
     "userInterfaceStyle": "automatic",
+
+    "icon": "./assets/icon.png",
+
     "splash": {
       "resizeMode": "contain",
       "backgroundColor": "#ffffff"
     },
+
     "assetBundlePatterns": ["**/*"],
+
     "ios": {
       "supportsTablet": true,
       "scheme": "handyrwanda",
       "bundleIdentifier": "com.handyrwanda.app"
     },
+
     "android": {
+      "package": "com.handyrwanda.app",
+      "scheme": "handyrwanda",
+
       "adaptiveIcon": {
         "backgroundColor": "#ffffff"
       },
-      "scheme": "handyrwanda",
-      "package": "com.handyrwanda.app"
+
+      "googleServicesFile": "./android/app/google-services.json",
+
+      "permissions": ["NOTIFICATIONS"],
+
+      "notification": {
+        "icon": "./assets/notification-icon.png",
+        "color": "#ffffff"
+      }
     },
+
     "web": {},
+
     "plugins": [
       "expo-secure-store",
       "expo-localization",
       "expo-font",
       "expo-router",
-      "expo-notifications"
+      [
+        "expo-notifications",
+        {
+          "icon": "./assets/notification-icon.png",
+          "color": "#ffffff",
+          "defaultChannel": "default"
+        }
+      ]
     ],
+
     "scheme": "handyrwanda",
     "entryPoint": "node_modules/expo-router/entry.js",
+
     "extra": {
       "router": {
         "origin": false
+      },
+      "eas": {
+        "projectId": "YOUR_EAS_PROJECT_ID_HERE"
       }
     }
   }

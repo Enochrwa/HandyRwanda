@@ -28,7 +28,7 @@ Module._resolveFilename = function (request, parent, isMain, options) {
 };
 
 const { getDefaultConfig } = await import('@expo/metro-config');
-const { withNativeWind } = await import('nativewind/metro');
+const { withNativeWind } = await import('nativewind/dist/metro/index.js');
 
 const config = getDefaultConfig(__dirname);
 

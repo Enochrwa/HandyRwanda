@@ -12,9 +12,7 @@ async function registerForPushNotifications(): Promise<string | null> {
   if (Platform.OS === 'web') return null;
   const { status: existing } = await Notifications.getPermissionsAsync();
   const finalStatus =
-    existing === 'granted'
-      ? existing
-      : (await Notifications.requestPermissionsAsync()).status;
+    existing === 'granted' ? existing : (await Notifications.requestPermissionsAsync()).status;
   if (finalStatus !== 'granted') return null;
   const tokenData = await Notifications.getExpoPushTokenAsync();
   return tokenData.data;

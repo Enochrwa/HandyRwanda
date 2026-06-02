@@ -84,23 +84,28 @@ export default function ArtisanProfile() {
       scheduledDate.setDate(scheduledDate.getDate() + (dateOffset[when] ?? 1));
       scheduledDate.setHours(9, 0, 0, 0);
 
-      await api.post('/jobs', {
-        category_id: artisan?.categories?.[0]?.id ?? '00000000-0000-0000-0000-000000000000',
-        title: jobDesc.slice(0, 100) || `${artisan?.categories?.[0]?.name_en ?? 'Service'} request`,
-        description: jobDesc || 'Service request',
-        latitude: -1.9441,
-        longitude: 30.0619,
-        location_label: user?.district ?? 'Kigali',
-        scheduled_time: scheduledDate.toISOString(),
-        budget: budget ? parseInt(budget, 10) : undefined,
-      }).then(async (jobRes) => {
-        // Create a direct booking with this specific artisan
-        await api.post('/bookings', {
-          job_id: jobRes.data.id,
-          artisan_id: artisan?.id,
-          agreed_price: budget ? parseInt(budget, 10) : (artisan?.profile?.hourly_rate ?? artisan?.profile?.fixed_rate ?? 5000),
+      await api
+        .post('/jobs', {
+          category_id: artisan?.categories?.[0]?.id ?? '00000000-0000-0000-0000-000000000000',
+          title:
+            jobDesc.slice(0, 100) || `${artisan?.categories?.[0]?.name_en ?? 'Service'} request`,
+          description: jobDesc || 'Service request',
+          latitude: -1.9441,
+          longitude: 30.0619,
+          location_label: user?.district ?? 'Kigali',
+          scheduled_time: scheduledDate.toISOString(),
+          budget: budget ? parseInt(budget, 10) : undefined,
+        })
+        .then(async (jobRes) => {
+          // Create a direct booking with this specific artisan
+          await api.post('/bookings', {
+            job_id: jobRes.data.id,
+            artisan_id: artisan?.id,
+            agreed_price: budget
+              ? parseInt(budget, 10)
+              : (artisan?.profile?.hourly_rate ?? artisan?.profile?.fixed_rate ?? 5000),
+          });
         });
-      });
       setStep(3);
       setDone(true);
     } catch (err: any) {

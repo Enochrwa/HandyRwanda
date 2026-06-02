@@ -11,15 +11,23 @@
     },
     "assetBundlePatterns": ["**/*"],
     "ios": {
-      "supportsTablet": true
+      "supportsTablet": true,
+      "scheme": "handyrwanda"
     },
     "android": {
       "adaptiveIcon": {
         "backgroundColor": "#ffffff"
-      }
+      },
+      "scheme": "handyrwanda"
     },
     "web": {},
-    "plugins": ["expo-secure-store", "expo-localization", "expo-font", "expo-router", "expo-notifications"],
+    "plugins": [
+      "expo-secure-store",
+      "expo-localization",
+      "expo-font",
+      "expo-router",
+      "expo-notifications"
+    ],
     "scheme": "handyrwanda",
     "entryPoint": "node_modules/expo-router/entry.js"
   }

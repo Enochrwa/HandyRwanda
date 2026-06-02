@@ -1,5 +1,5 @@
 // File: mobile/app/(client)/post-job/confirm.tsx
-import { useQueryClient } from '@tanstack/react-query';
+import { useQueryClient, useQuery } from '@tanstack/react-query';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import React, { useState } from 'react';
 import { View, Text, TouchableOpacity, ScrollView, ActivityIndicator } from 'react-native';
@@ -24,6 +24,15 @@ export default function ConfirmJob() {
   const qc = useQueryClient();
   const params = useLocalSearchParams<Record<string, string>>();
   const [loading, setLoading] = useState(false);
+
+  const { data: category } = useQuery({
+    queryKey: ['category', params.categoryId],
+    queryFn: () =>
+      params.categoryId
+        ? api.get(`/artisans/categories/${params.categoryId}`).then((r) => r.data)
+        : null,
+    enabled: !!params.categoryId,
+  });
 
   const budget = params.budget ? parseInt(params.budget, 10) : null;
   const photos = JSON.parse(params.photos ?? '[]') as string[];
@@ -67,6 +76,11 @@ export default function ConfirmJob() {
   };
 
   const summaryRows = [
+    {
+      label: 'Service Category',
+      value: category?.name_en ?? 'Loading...',
+      icon: category?.icon_emoji ?? '🛠️',
+    },
     { label: 'Title', value: params.title },
     { label: 'Urgency', value: URGENCY_LABELS[params.urgency ?? 'flexible'] },
     {
@@ -121,14 +135,17 @@ export default function ConfirmJob() {
       <ScrollView className="flex-1 px-5 pt-5" showsVerticalScrollIndicator={false}>
         {/* Summary table */}
         <View className="bg-card rounded-3xl border border-border overflow-hidden mb-5">
-          {summaryRows.map(({ label, value }, i) => (
+          {summaryRows.map(({ label, value, icon }, i) => (
             <View
               key={label}
               className={`px-5 py-4 ${i < summaryRows.length - 1 ? 'border-b border-border' : ''}`}
             >
-              <Text className="text-xs font-bold uppercase tracking-wide text-muted-foreground mb-0.5">
-                {label}
-              </Text>
+              <View className="flex-row items-center gap-2 mb-0.5">
+                {icon && <Text style={{ fontSize: 16 }}>{icon}</Text>}
+                <Text className="text-xs font-bold uppercase tracking-wide text-muted-foreground">
+                  {label}
+                </Text>
+              </View>
               <Text className="font-semibold text-foreground text-sm">{value}</Text>
             </View>
           ))}

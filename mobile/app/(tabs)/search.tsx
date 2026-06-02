@@ -209,10 +209,10 @@ export default function SearchScreen() {
           },
         })
         .then((r) => {
-            // Backend /artisans/search returns a plain array
-            const items = Array.isArray(r.data) ? r.data : (r.data?.items ?? []);
-            return items;
-          }),
+          // Backend /artisans/search returns a plain array
+          const items = Array.isArray(r.data) ? r.data : (r.data?.items ?? []);
+          return items;
+        }),
     placeholderData: keepPreviousData,
   });
 

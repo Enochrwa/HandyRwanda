@@ -1,5 +1,6 @@
 // File: mobile/app/(client)/post-job/details.tsx
 import DateTimePicker from '@react-native-community/datetimepicker';
+import { useQuery } from '@tanstack/react-query';
 import * as ImagePicker from 'expo-image-picker';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import React, { useState } from 'react';
@@ -15,6 +16,8 @@ import {
 } from 'react-native';
 import Toast from 'react-native-toast-message';
 
+import api from '../../../src/services/api';
+
 const URGENCY_OPTIONS = [
   { value: 'flexible', label: 'Flexible', emoji: '📅', desc: 'Within 2 weeks' },
   { value: 'this_week', label: 'This Week', emoji: '🗓️', desc: '7 days' },
@@ -25,7 +28,17 @@ const URGENCY_OPTIONS = [
 
 export default function JobDetails() {
   const router = useRouter();
-  const { categoryId } = useLocalSearchParams<{ categoryId: string }>();
+  const initialParams = useLocalSearchParams<{ categoryId: string }>();
+
+  const [selectedCategoryId, setSelectedCategoryId] = useState<string | null>(
+    initialParams.categoryId ?? null,
+  );
+
+  const { data: allCategories = [] } = useQuery({
+    queryKey: ['categories'],
+    queryFn: () => api.get('/artisans/categories').then((r) => r.data),
+  });
+
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
   const [additionalNotes, setAdditionalNotes] = useState('');
@@ -58,6 +71,10 @@ export default function JobDetails() {
   };
 
   const handleNext = () => {
+    if (!selectedCategoryId) {
+      Toast.show({ type: 'error', text1: 'Select a service category' });
+      return;
+    }
     if (!title.trim() || title.length < 5) {
       Toast.show({ type: 'error', text1: 'Add a title', text2: 'At least 5 characters' });
       return;
@@ -73,7 +90,7 @@ export default function JobDetails() {
     router.push({
       pathname: '/(client)/post-job/location',
       params: {
-        categoryId,
+        categoryId: selectedCategoryId,
         title,
         description,
         additionalNotes,
@@ -105,6 +122,40 @@ export default function JobDetails() {
             />
           ))}
         </View>
+      </View>
+
+      {/* Service Category Selection */}
+      <View className="px-5 pt-5 pb-3">
+        <Text className="text-xs font-bold uppercase tracking-wide text-muted-foreground mb-3">
+          Service Category <Text className="text-destructive">*</Text>
+        </Text>
+        <View className="flex-row flex-wrap gap-2">
+          {allCategories.map((cat: { id: string; name_en: string; icon_emoji?: string }) => (
+            <TouchableOpacity
+              key={cat.id}
+              onPress={() => setSelectedCategoryId(cat.id)}
+              className={`flex-1 min-w-[30%] aspect-square rounded-2xl border-2 items-center justify-center p-2 ${
+                selectedCategoryId === cat.id
+                  ? 'border-primary bg-primary/10'
+                  : 'border-border bg-card'
+              }`}
+            >
+              <Text style={{ fontSize: 28 }} className="mb-1">
+                {cat.icon_emoji ?? '🛠️'}
+              </Text>
+              <Text
+                className={`text-[10px] font-bold text-center ${
+                  selectedCategoryId === cat.id ? 'text-primary' : 'text-foreground'
+                }`}
+              >
+                {cat.name_en}
+              </Text>
+            </TouchableOpacity>
+          ))}
+        </View>
+        {!selectedCategoryId && (
+          <Text className="text-xs text-destructive mt-2">Please select a category</Text>
+        )}
       </View>
 
       <ScrollView

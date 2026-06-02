@@ -1,23 +1,6 @@
-@import "tailwindcss";
-
-@theme {
-  --color-primary: #1b5e3b;
-  --color-primary-light: #2e7d4f;
-  --color-accent: #e8a020;
-  --color-accent-light: #fff8ee;
-  --color-bg: #f7f5f0;
-  --color-surface: #ffffff;
-  --color-text: #1a1a1a;
-  --color-text-secondary: #6b6b6b;
-  --color-verified: #1565c0;
-  --color-danger: #c0392b;
-  --color-success: #2e7d4f;
-  --font-plus-jakarta: "Plus Jakarta Sans", sans-serif;
-  --radius-sm: 8px;
-  --radius-md: 12px;
-  --radius-lg: 20px;
-  --shadow-card: 0 2px 8px rgba(0, 0, 0, 0.08);
-}
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
 
 :root {
   --color-primary: #1b5e3b;

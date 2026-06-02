@@ -4,7 +4,7 @@ import { Header } from "@/components/Header";
 import { useState, useEffect, useRef, useCallback } from "react";
 import { useAuthStore } from "@/store/authStore";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import api from "@/services/api";
+import api, { getApiBaseUrl } from "@/services/api";
 import {
   Send,
   Loader2,
@@ -92,7 +92,7 @@ function MessagesPage() {
     setWsMessages([]);
 
     const wsUrl =
-      (import.meta.env.VITE_API_URL || "http://localhost:8000").replace(/^http/, "ws") +
+      (getApiBaseUrl() || "http://localhost:8000").replace(/^http/, "ws") +
       `/ws/messages/${selectedBookingId}`;
 
     const ws = new WebSocket(wsUrl);

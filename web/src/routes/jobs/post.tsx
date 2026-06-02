@@ -50,7 +50,7 @@ const PLACEHOLDER_DESCRIPTIONS: Record<string, string> = {
 
 function PostJob() {
   const navigate = useNavigate();
-  const { isAuthenticated } = useAuthStore();
+  const { isAuthenticated, user, token } = useAuthStore();
   const [loading, setLoading] = useState(false);
   const [done, setDone] = useState(false);
   const [authOpen, setAuthOpen] = useState(false);
@@ -95,6 +95,11 @@ function PostJob() {
   const handleSubmit = async () => {
     if (!isAuthenticated) {
       setAuthOpen(true);
+      return;
+    }
+    if (user?.role !== "client") {
+      toast.error("Only clients can post jobs");
+      navigate({ to: "/search" });
       return;
     }
     if (!formData.category_id) {

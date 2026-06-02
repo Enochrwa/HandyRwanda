@@ -11,19 +11,19 @@ try {
   withNativeWind = require('nativewind/dist/metro/index.js').withNativeWind;
 }
 
-const __dirname = path.dirname(require.resolve('./package.json'));
-const config = getDefaultConfig(__dirname);
+const projectDir = path.dirname(require.resolve('./package.json'));
+const config = getDefaultConfig(projectDir);
 
 // Restrict resolution to mobile's own node_modules to avoid hoisting issues
-config.resolver.nodeModulesPaths = [path.resolve(__dirname, 'node_modules')];
+config.resolver.nodeModulesPaths = [path.resolve(projectDir, 'node_modules')];
 
 // Resolve path aliases declared in tsconfig.json.
 // Metro does NOT read tsconfig paths — they must be registered here.
 // "@icons" maps to ./src/icons.ts (tree-shaken Lucide icons barrel).
 config.resolver.extraNodeModules = {
-  react: path.resolve(__dirname, 'node_modules/react'),
-  'react-dom': path.resolve(__dirname, 'node_modules/react-dom'),
-  '@icons': path.resolve(__dirname, 'src/icons.ts'),
+  react: path.resolve(projectDir, 'node_modules/react'),
+  'react-dom': path.resolve(projectDir, 'node_modules/react-dom'),
+  '@icons': path.resolve(projectDir, 'src/icons.ts'),
 };
 
 // Allow Metro to resolve .ts and .tsx files via the alias above
@@ -35,14 +35,14 @@ config.resolver.sourceExts = ['ts', 'tsx', 'js', 'jsx', 'json', 'cjs', 'mjs'];
 config.resolver.unstable_enablePackageExports = false;
 
 // Reduce Metro's file-watching overhead (speeds up initial bundling)
-config.watchFolders = [__dirname];
+config.watchFolders = [projectDir];
 
 // Increase transformer concurrency for faster bundling
 config.maxWorkers = 4;
 
 // NativeWind v4 requires the CSS transformer
 module.exports = withNativeWind(config, {
-  input: './src/global.css',
-  configPath: './tailwind.config.js',
-  projectRoot: __dirname,
+  input: path.join(projectDir, 'src/global.css'),
+  configPath: path.join(projectDir, 'tailwind.config.js'),
+  projectRoot: projectDir,
 });

@@ -42,7 +42,7 @@ export default function PostJobCategory() {
     );
   }
 
-
+  return (
     <View className="flex-1 bg-background">
       <View className="pt-14 pb-4 px-5 bg-primary">
         <Text className="text-white text-2xl font-extrabold">Post a Job</Text>

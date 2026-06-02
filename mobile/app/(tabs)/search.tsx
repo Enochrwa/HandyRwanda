@@ -188,6 +188,9 @@ export default function SearchScreen() {
   const { data: categories } = useQuery({
     queryKey: ['categories'],
     queryFn: () => api.get('/categories').then((r) => r.data),
+  });
+
+  const { data: artisansData, isLoading } = useQuery({
     queryKey: ['artisans', debouncedQuery, filters],
     queryFn: () =>
       api

@@ -44,6 +44,7 @@ export default function HomeScreen() {
   const { data: categories } = useQuery({
     queryKey: ['categories'],
     queryFn: () => api.get('/categories').then((r) => r.data),
+  });
 
   if (checkingOnboard) {
     return (

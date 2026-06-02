@@ -27,7 +27,9 @@ export default function ConfirmJob() {
 
   // Fetch the full category list (already cached by React Query from the previous screen)
   // and derive the selected category from it — avoids a non-existent /categories/:id endpoint.
-  const { data: allCategories = [] } = useQuery<{ id: string; name_en: string; icon_emoji?: string }[]>({
+  const { data: allCategories = [] } = useQuery<
+    { id: string; name_en: string; icon_emoji?: string }[]
+  >({
     queryKey: ['categories'],
     queryFn: () => api.get('/categories').then((r) => r.data),
   });

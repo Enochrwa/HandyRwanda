@@ -1,7 +1,7 @@
 // File: mobile/metro.config.js
 // CommonJS metro config (required because package.json has "type": "commonjs")
-const path = require('path');
 const { getDefaultConfig } = require('@expo/metro-config');
+const path = require('path');
 
 let withNativeWind;
 try {

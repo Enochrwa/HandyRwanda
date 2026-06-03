@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "786750836514",
+    "project_id": "handyrwanda",
+    "storage_bucket": "handyrwanda.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:786750836514:android:97ebab54d74c2abfd71f7b",
+        "android_client_info": {
+          "package_name": "com.handyrwanda.app"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyDmh5p8cPrdgUriUrkEPQLg0HN82NqpMdI"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

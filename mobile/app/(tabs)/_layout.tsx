@@ -1,15 +1,60 @@
 // File: mobile/app/(tabs)/_layout.tsx
 import { Home, Search, MessageCircle, User, LayoutDashboard } from '@icons';
+import * as Notifications from 'expo-notifications';
 import { Tabs, useRouter } from 'expo-router';
-import { TouchableOpacity, Text } from 'react-native';
+import { useEffect } from 'react';
+import { Platform, TouchableOpacity, Text } from 'react-native';
 
+import api from '../../src/services/api';
+import { proService } from '../../src/services/proService';
 import { useAuthStore } from '../../src/store/authStore';
+
+async function registerForPushNotifications(): Promise<string | null> {
+  if (Platform.OS === 'web') return null;
+  const { status: existing } = await Notifications.getPermissionsAsync();
+  const finalStatus =
+    existing === 'granted'
+      ? existing
+      : (await Notifications.requestPermissionsAsync()).status;
+  if (finalStatus !== 'granted') return null;
+  const tokenData = await Notifications.getExpoPushTokenAsync();
+  return tokenData.data;
+}
 
 export default function TabsLayout() {
   const { isAuthenticated, user } = useAuthStore();
   const router = useRouter();
 
   const isArtisan = user?.role === 'artisan';
+
+  // Register push token after artisan logs in
+  useEffect(() => {
+    if (!isAuthenticated || !isArtisan) return;
+    registerForPushNotifications()
+      .then((token) => {
+        if (token) return proService.registerPushToken(token);
+      })
+      .catch(() => {
+        // Non-fatal — app works without push tokens
+      });
+  }, [isAuthenticated, isArtisan]);
+
+  // Onboarding gate: if artisan hasn't completed their profile, redirect to step 1
+  useEffect(() => {
+    if (!isAuthenticated || !isArtisan) return;
+    api
+      .get('/artisans/profile/me')
+      .then((r) => {
+        const profile = r.data;
+        const incomplete = !profile?.bio || !profile?.skills?.length;
+        if (incomplete) {
+          router.replace('/(artisan)/onboarding/step1-bio');
+        }
+      })
+      .catch(() => {
+        router.replace('/(artisan)/onboarding/step1-bio');
+      });
+  }, [isAuthenticated, isArtisan, router]);
 
   return (
     <Tabs
@@ -57,7 +102,6 @@ export default function TabsLayout() {
           href: isAuthenticated ? undefined : null,
         }}
       />
-      {/* Pro dashboard — always declared, hidden unless artisan */}
       <Tabs.Screen
         name="pro"
         options={{

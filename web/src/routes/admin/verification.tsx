@@ -19,6 +19,7 @@ import {
   Eye,
   Loader2,
   TrendingUp,
+  CreditCard,
 } from "lucide-react";
 import { Header } from "@/components/Header";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
@@ -41,7 +42,7 @@ export const Route = createFileRoute("/admin/verification")({
   component: AdminDashboard,
 });
 
-type Tab = "verification" | "analytics" | "users" | "disputes" | "categories";
+type Tab = "verification" | "analytics" | "users" | "disputes" | "categories" | "payments";
 
 function AdminDashboard() {
   const { user, logout } = useAuthStore();
@@ -87,6 +88,7 @@ function AdminDashboard() {
           {(
             [
               ["verification", ShieldCheck, "Verification"],
+              ["payments", CreditCard, "Payments"],
               ["analytics", BarChart3, "Analytics"],
               ["users", Users, "Users"],
               ["disputes", AlertTriangle, "Disputes"],
@@ -104,6 +106,7 @@ function AdminDashboard() {
         </div>
 
         {tab === "verification" && <VerificationTab qc={qc} />}
+        {tab === "payments" && <PaymentsTab qc={qc} />}
         {tab === "analytics" && <AnalyticsTab />}
         {tab === "users" && <UsersTab search={userSearch} setSearch={setUserSearch} qc={qc} />}
         {tab === "disputes" && <DisputesTab qc={qc} />}
@@ -655,6 +658,222 @@ function CategoriesTab({ qc }: { qc: ReturnType<typeof useQueryClient> }) {
           </button>
         </div>
       </div>
+    </div>
+  );
+}
+
+// ── Payments Tab ──────────────────────────────────────────────────────────────
+interface PendingPayment {
+  payment_id: string;
+  booking_id: string;
+  client_name: string;
+  client_phone: string;
+  amount: number;
+  method: string;
+  reference_code: string;
+  client_transaction_id: string | null;
+  proof_screenshot_url: string | null;
+  proof_submitted_at: string | null;
+  created_at: string;
+}
+
+function PaymentsTab({ qc }: { qc: ReturnType<typeof useQueryClient> }) {
+  const { data: payments = [], isLoading } = useQuery<PendingPayment[]>({
+    queryKey: ["admin-pending-payments"],
+    queryFn: () => api.get("/admin/payments/pending").then((r) => r.data),
+    refetchInterval: 15000,
+  });
+
+  const [rejectNote, setRejectNote] = useState<Record<string, string>>({});
+  const [screenshotOpen, setScreenshotOpen] = useState<string | null>(null);
+
+  const verify = useMutation({
+    mutationFn: ({
+      paymentId,
+      approved,
+      note,
+    }: {
+      paymentId: string;
+      approved: boolean;
+      note?: string;
+    }) =>
+      api.post(`/admin/payments/${paymentId}/verify`, {
+        approved,
+        admin_note: note || undefined,
+      }),
+    onSuccess: (_, { approved }) => {
+      toast.success(approved ? "Payment approved ✅" : "Payment rejected ❌");
+      qc.invalidateQueries({ queryKey: ["admin-pending-payments"] });
+    },
+    onError: () => toast.error("Action failed. Try again."),
+  });
+
+  if (isLoading) {
+    return (
+      <div className="flex items-center justify-center h-48">
+        <Loader2 className="h-6 w-6 animate-spin text-primary" />
+      </div>
+    );
+  }
+
+  return (
+    <div>
+      <div className="flex items-center justify-between mb-6">
+        <div>
+          <h2 className="text-xl font-bold">Payment Verification</h2>
+          <p className="text-sm text-muted-foreground mt-0.5">
+            Manual MoMo / Airtel payment proofs awaiting review
+          </p>
+        </div>
+        <div className="flex items-center gap-2 bg-amber-50 border border-amber-200 rounded-2xl px-4 py-2">
+          <div className="w-2 h-2 rounded-full bg-amber-400 animate-pulse" />
+          <span className="text-sm font-semibold text-amber-800">{payments.length} pending</span>
+        </div>
+      </div>
+
+      {payments.length === 0 ? (
+        <div className="flex flex-col items-center justify-center py-16 text-muted-foreground">
+          <CheckCircle className="h-12 w-12 mb-3 text-green-400" />
+          <p className="font-semibold text-lg">All clear!</p>
+          <p className="text-sm mt-1">No payments waiting for verification.</p>
+        </div>
+      ) : (
+        <div className="space-y-4">
+          {payments.map((p) => (
+            <div
+              key={p.payment_id}
+              className="bg-card border border-border rounded-3xl p-5 shadow-sm"
+            >
+              {/* Header row */}
+              <div className="flex items-start justify-between gap-4 mb-4">
+                <div>
+                  <div className="flex items-center gap-2 mb-1">
+                    <span className="text-lg font-extrabold text-primary">
+                      {formatRWF(p.amount)} RWF
+                    </span>
+                    <span
+                      className={`text-xs font-bold px-2 py-0.5 rounded-full ${
+                        p.method === "mtn_momo"
+                          ? "bg-yellow-100 text-yellow-800"
+                          : "bg-red-100 text-red-800"
+                      }`}
+                    >
+                      {p.method === "mtn_momo" ? "📱 MTN MoMo" : "💳 Airtel Money"}
+                    </span>
+                  </div>
+                  <p className="text-sm text-muted-foreground">
+                    Client: <span className="font-semibold text-foreground">{p.client_name}</span>
+                    {" · "}
+                    <span>{p.client_phone}</span>
+                  </p>
+                </div>
+                <div className="text-right shrink-0">
+                  <p className="text-xs font-mono bg-muted/50 px-2 py-1 rounded-lg text-foreground">
+                    {p.reference_code}
+                  </p>
+                  {p.proof_submitted_at && (
+                    <p className="text-[10px] text-muted-foreground mt-1">
+                      Submitted{" "}
+                      {new Date(p.proof_submitted_at).toLocaleTimeString("en-RW", {
+                        hour: "2-digit",
+                        minute: "2-digit",
+                      })}
+                    </p>
+                  )}
+                </div>
+              </div>
+
+              {/* Transaction ID */}
+              <div className="bg-muted/30 rounded-2xl p-3 mb-4">
+                <p className="text-[10px] font-bold uppercase tracking-wide text-muted-foreground mb-1">
+                  Transaction ID (from MoMo SMS)
+                </p>
+                <p className="font-mono text-sm text-foreground">
+                  {p.client_transaction_id ?? (
+                    <span className="text-muted-foreground italic">Not provided</span>
+                  )}
+                </p>
+              </div>
+
+              {/* Screenshot */}
+              {p.proof_screenshot_url && (
+                <div className="mb-4">
+                  <button
+                    onClick={() => setScreenshotOpen(p.proof_screenshot_url!)}
+                    className="flex items-center gap-2 text-sm text-primary hover:underline"
+                  >
+                    <Eye className="h-4 w-4" />
+                    View payment screenshot
+                  </button>
+                </div>
+              )}
+
+              {/* Rejection note */}
+              <div className="mb-3">
+                <input
+                  value={rejectNote[p.payment_id] ?? ""}
+                  onChange={(e) =>
+                    setRejectNote((prev) => ({ ...prev, [p.payment_id]: e.target.value }))
+                  }
+                  placeholder="Rejection reason (required if rejecting)"
+                  className="w-full rounded-xl border border-border bg-muted/30 px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-primary/40"
+                />
+              </div>
+
+              {/* Action buttons */}
+              <div className="flex gap-3">
+                <button
+                  onClick={() => verify.mutate({ paymentId: p.payment_id, approved: true })}
+                  disabled={verify.isPending}
+                  className="flex-1 flex items-center justify-center gap-2 bg-green-600 hover:bg-green-700 text-white rounded-2xl py-2.5 text-sm font-bold transition-colors disabled:opacity-50"
+                >
+                  <CheckCircle className="h-4 w-4" />
+                  Approve
+                </button>
+                <button
+                  onClick={() => {
+                    const note = rejectNote[p.payment_id]?.trim();
+                    if (!note) {
+                      toast.error("Enter a rejection reason before rejecting.");
+                      return;
+                    }
+                    verify.mutate({
+                      paymentId: p.payment_id,
+                      approved: false,
+                      note,
+                    });
+                  }}
+                  disabled={verify.isPending}
+                  className="flex-1 flex items-center justify-center gap-2 bg-destructive hover:bg-destructive/90 text-white rounded-2xl py-2.5 text-sm font-bold transition-colors disabled:opacity-50"
+                >
+                  <XCircle className="h-4 w-4" />
+                  Reject
+                </button>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+
+      {/* Screenshot lightbox */}
+      {screenshotOpen && (
+        <div
+          className="fixed inset-0 z-50 bg-black/80 flex items-center justify-center p-4"
+          onClick={() => setScreenshotOpen(null)}
+        >
+          <img
+            src={screenshotOpen}
+            alt="Payment screenshot"
+            className="max-w-full max-h-full rounded-2xl object-contain"
+          />
+          <button
+            onClick={() => setScreenshotOpen(null)}
+            className="absolute top-4 right-4 text-white text-2xl font-bold hover:opacity-80"
+          >
+            ✕
+          </button>
+        </div>
+      )}
     </div>
   );
 }

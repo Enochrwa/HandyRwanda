@@ -514,3 +514,142 @@ async def resolve_booking_dispute(
         "message": f"Dispute resolved. Winner: {payload.winner}. Booking status: {new_status}",
         "notes": payload.notes,
     }
+
+
+# ── Payment Verification ───────────────────────────────────────────────────────
+
+from datetime import datetime, timezone  # noqa: E402 (appended section)
+
+from app.models.notification import Notification  # noqa: E402
+from app.models.payment import Payment, PaymentStatus  # noqa: E402
+
+
+class PaymentVerdict(BaseModel):
+    approved: bool
+    admin_note: str | None = None
+
+
+@router.get("/payments/pending")
+async def list_pending_payments(
+    db: AsyncSession = Depends(get_db),
+    current_user: dict[str, Any] = Depends(require_role(UserRole.admin)),
+) -> Any:
+    """List all payments awaiting manual verification."""
+    result = await db.execute(
+        select(Payment, User)
+        .join(User, Payment.client_id == User.id)
+        .where(Payment.status == PaymentStatus.pending_verification)
+        .order_by(Payment.proof_submitted_at.asc())
+    )
+    items = []
+    for payment, client in result:
+        items.append({
+            "payment_id": str(payment.id),
+            "booking_id": str(payment.booking_id),
+            "client_name": client.full_name,
+            "client_phone": client.phone_number,
+            "amount": payment.amount,
+            "method": payment.method,
+            "reference_code": payment.reference_code,
+            "client_transaction_id": payment.client_transaction_id,
+            "proof_screenshot_url": payment.proof_screenshot_url,
+            "proof_submitted_at": payment.proof_submitted_at,
+            "created_at": payment.created_at,
+        })
+    return items
+
+
+@router.post("/payments/{payment_id}/verify")
+async def verify_payment(
+    payment_id: UUID,
+    payload: PaymentVerdict,
+    db: AsyncSession = Depends(get_db),
+    current_user: dict[str, Any] = Depends(require_role(UserRole.admin)),
+) -> Any:
+    """Approve or reject a pending payment proof."""
+    admin_id = UUID(current_user["sub"])
+
+    payment = await db.scalar(
+        select(Payment).where(
+            Payment.id == payment_id,
+            Payment.status == PaymentStatus.pending_verification,
+        )
+    )
+    if not payment:
+        raise HTTPException(status_code=404, detail="Payment not found or not pending.")
+
+    new_status = PaymentStatus.approved if payload.approved else PaymentStatus.rejected
+    await db.execute(
+        update(Payment)
+        .where(Payment.id == payment_id)
+        .values(
+            status=new_status,
+            admin_note=payload.admin_note,
+            verified_by=admin_id,
+            verified_at=datetime.now(timezone.utc),
+        )
+    )
+
+    if payload.approved:
+        # Move booking to confirmed
+        await db.execute(
+            update(Booking)
+            .where(Booking.id == payment.booking_id)
+            .values(status=BookingStatus.confirmed)
+        )
+        # Notify artisan via DB notification + push
+        notif = Notification(
+            user_id=payment.artisan_id,
+            event_type="booking_confirmed",
+            title="✅ Booking Confirmed",
+            body=f"Payment of {payment.amount:,} RWF received. Job is confirmed!",
+            payload={"booking_id": str(payment.booking_id)},
+        )
+        db.add(notif)
+        # Notify client via DB notification + push
+        client_notif = Notification(
+            user_id=payment.client_id,
+            event_type="payment_approved",
+            title="💚 Payment Verified",
+            body=f"Your payment of {payment.amount:,} RWF has been confirmed. Your artisan is on the way!",
+            payload={"booking_id": str(payment.booking_id)},
+        )
+        db.add(client_notif)
+        await db.commit()
+        # Send push notifications (after commit so DB is consistent)
+        from app.integrations.expo_push import send_push_to_user  # noqa: PLC0415
+        await send_push_to_user(
+            db, payment.artisan_id,
+            "✅ New Booking Confirmed",
+            f"Payment of {payment.amount:,} RWF received. A job is waiting for you!",
+            {"screen": "messages", "booking_id": str(payment.booking_id)},
+        )
+        await send_push_to_user(
+            db, payment.client_id,
+            "💚 Payment Verified",
+            "Your payment was confirmed. Your artisan has been notified!",
+            {"screen": "messages", "booking_id": str(payment.booking_id)},
+        )
+    else:
+        # Notify client of rejection via DB notification + push
+        notif = Notification(
+            user_id=payment.client_id,
+            event_type="payment_rejected",
+            title="❌ Payment Not Verified",
+            body=payload.admin_note or "We couldn't verify your payment. Please try again.",
+            payload={"payment_id": str(payment_id), "booking_id": str(payment.booking_id)},
+        )
+        db.add(notif)
+        await db.commit()
+        from app.integrations.expo_push import send_push_to_user  # noqa: PLC0415
+        await send_push_to_user(
+            db, payment.client_id,
+            "❌ Payment Not Verified",
+            payload.admin_note or "We couldn't verify your payment. Please try again or contact support.",
+            {"screen": "payment", "booking_id": str(payment.booking_id)},
+        )
+    return {
+        "message": f"Payment {'approved' if payload.approved else 'rejected'}.",
+        "payment_id": str(payment_id),
+        "new_status": new_status,
+    }

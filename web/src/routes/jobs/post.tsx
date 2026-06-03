@@ -20,6 +20,40 @@ import { toast } from "sonner";
 import { AuthModal } from "@/components/AuthModal";
 import { formatRWF } from "@/services/artisanService";
 
+// District → approximate center coordinates (WGS-84)
+const DISTRICT_COORDS: Record<string, [number, number]> = {
+  Gasabo: [-1.8845, 30.1167],
+  Kicukiro: [-1.9769, 30.0985],
+  Nyarugenge: [-1.95, 30.0588],
+  Bugesera: [-2.2024, 30.1676],
+  Gatsibo: [-1.576, 30.4602],
+  Kayonza: [-1.88, 30.6474],
+  Kirehe: [-2.169, 30.6748],
+  Ngoma: [-2.1583, 30.4386],
+  Nyagatare: [-1.2985, 30.3263],
+  Rwamagana: [-1.9487, 30.4345],
+  Burera: [-1.4801, 29.8511],
+  Gakenke: [-1.6905, 29.7832],
+  Gicumbi: [-1.5725, 30.0621],
+  Musanze: [-1.4991, 29.6346],
+  Rulindo: [-1.7194, 30.0332],
+  Gisagara: [-2.6095, 29.827],
+  Huye: [-2.5967, 29.7397],
+  Kamonyi: [-2.0278, 29.88],
+  Muhanga: [-2.0833, 29.756],
+  Nyamagabe: [-2.4545, 29.4872],
+  Nyanza: [-2.3571, 29.7527],
+  Nyaruguru: [-2.7316, 29.5441],
+  Ruhango: [-2.2179, 29.7906],
+  Karongi: [-2.1556, 29.367],
+  Ngororero: [-1.8617, 29.5636],
+  Nyabihu: [-1.6571, 29.5014],
+  Nyamasheke: [-2.336, 29.1349],
+  Rubavu: [-1.6812, 29.35],
+  Rusizi: [-2.4824, 28.907],
+  Rutsiro: [-1.9365, 29.4303],
+};
+
 export const Route = createFileRoute("/jobs/post")({
   head: () => ({ meta: [{ title: "Post a Job — HandyRwanda" }] }),
   component: PostJob,
@@ -55,6 +89,7 @@ function PostJob() {
   const [done, setDone] = useState(false);
   const [authOpen, setAuthOpen] = useState(false);
   const [selectedUrgency, setSelectedUrgency] = useState("flexible");
+  const [selectedDistrict, setSelectedDistrict] = useState("Gasabo");
   const [formData, setFormData] = useState({
     category_id: "",
     title: "",
@@ -114,21 +149,18 @@ function PostJob() {
       toast.error("Describe the work in more detail (at least 15 characters)");
       return;
     }
-    if (!formData.location_label.trim()) {
-      toast.error("Please specify a location");
-      return;
-    }
 
     setLoading(true);
     try {
+      const [lat, lng] = DISTRICT_COORDS[selectedDistrict] ?? [-1.9441, 30.0619];
       await api.post("/jobs", {
         category_id: formData.category_id,
         title: formData.title.trim(),
         description: formData.description.trim(),
         additional_notes: formData.additional_notes.trim() || undefined,
-        location_label: formData.location_label.trim(),
-        latitude: -1.9441,
-        longitude: 30.0619,
+        location_label: `${formData.location_label.trim() || selectedDistrict}, ${selectedDistrict}`,
+        latitude: lat,
+        longitude: lng,
         urgency: selectedUrgency,
         scheduled_time: buildScheduledTime(),
         budget_negotiable: formData.budget_negotiable,
@@ -389,13 +421,30 @@ function PostJob() {
               </div>
               <div>
                 <label className="text-[10px] font-semibold text-muted-foreground mb-1 block">
-                  <MapPin className="inline h-3 w-3 mr-0.5" /> Location{" "}
+                  <MapPin className="inline h-3 w-3 mr-0.5" /> District{" "}
                   <span className="text-destructive">*</span>
+                </label>
+                <select
+                  value={selectedDistrict}
+                  onChange={(e) => setSelectedDistrict(e.target.value)}
+                  className="w-full rounded-2xl border border-border bg-muted/30 px-4 py-3 text-sm outline-none focus:ring-2 focus:ring-primary/40 mb-2"
+                >
+                  {Object.keys(DISTRICT_COORDS)
+                    .sort()
+                    .map((d) => (
+                      <option key={d} value={d}>
+                        {d}
+                      </option>
+                    ))}
+                </select>
+                <label className="text-[10px] font-semibold text-muted-foreground mb-1 block">
+                  Neighbourhood / street{" "}
+                  <span className="text-muted-foreground font-normal">(optional)</span>
                 </label>
                 <input
                   value={formData.location_label}
                   onChange={(e) => set("location_label", e.target.value)}
-                  placeholder="Neighbourhood / district e.g. Kiyovu, Kigali"
+                  placeholder="e.g. Kiyovu, near Chez Lando Hotel"
                   className="w-full rounded-2xl border border-border bg-muted/30 px-4 py-3 text-sm outline-none focus:ring-2 focus:ring-primary/40"
                 />
               </div>

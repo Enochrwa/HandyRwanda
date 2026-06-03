@@ -9,7 +9,12 @@ import api from '../../../src/services/api';
 export default function PostJobCategory() {
   const router = useRouter();
 
-  const { data: categories = [], isLoading, isError, refetch } = useQuery({
+  const {
+    data: categories = [],
+    isLoading,
+    isError,
+    refetch,
+  } = useQuery({
     queryKey: ['categories'],
     queryFn: () => api.get('/categories').then((r) => r.data),
     retry: 3,
@@ -32,10 +37,7 @@ export default function PostJobCategory() {
         <Text className="text-muted-foreground text-sm text-center mb-6">
           Check your connection and try again.
         </Text>
-        <TouchableOpacity
-          onPress={() => refetch()}
-          className="bg-primary px-6 py-3 rounded-full"
-        >
+        <TouchableOpacity onPress={() => refetch()} className="bg-primary px-6 py-3 rounded-full">
           <Text className="text-white font-semibold">Retry</Text>
         </TouchableOpacity>
       </View>

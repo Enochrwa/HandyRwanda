@@ -13,7 +13,9 @@ async function registerForPushNotifications(): Promise<string | null> {
   if (Platform.OS === 'web') return null;
   const { status: existing } = await Notifications.getPermissionsAsync();
   const finalStatus =
-    existing === 'granted' ? existing : (await Notifications.requestPermissionsAsync()).status;
+    existing === 'granted'
+      ? existing
+      : (await Notifications.requestPermissionsAsync()).status;
   if (finalStatus !== 'granted') return null;
   const tokenData = await Notifications.getExpoPushTokenAsync();
   return tokenData.data;
@@ -44,14 +46,12 @@ export default function TabsLayout() {
       .get('/artisans/profile/me')
       .then((r) => {
         const profile = r.data;
-        // Profile incomplete if no bio or no skills registered
         const incomplete = !profile?.bio || !profile?.skills?.length;
         if (incomplete) {
           router.replace('/(artisan)/onboarding/step1-bio');
         }
       })
       .catch(() => {
-        // 404 means no profile at all — send to onboarding
         router.replace('/(artisan)/onboarding/step1-bio');
       });
   }, [isAuthenticated, isArtisan, router]);
@@ -102,7 +102,6 @@ export default function TabsLayout() {
           href: isAuthenticated ? undefined : null,
         }}
       />
-      {/* Pro dashboard — always declared, hidden unless artisan */}
       <Tabs.Screen
         name="pro"
         options={{

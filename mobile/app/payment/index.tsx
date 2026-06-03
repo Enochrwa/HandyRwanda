@@ -1,11 +1,11 @@
 // File: mobile/app/payment/index.tsx
-import * as Clipboard from 'expo-clipboard';
 import * as ImagePicker from 'expo-image-picker';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import React, { useState, useEffect } from 'react';
 import {
   View, Text, ScrollView, TouchableOpacity, TextInput,
   ActivityIndicator, KeyboardAvoidingView, Platform, Alert,
+  Clipboard,
 } from 'react-native';
 import Toast from 'react-native-toast-message';
 
@@ -109,8 +109,8 @@ export default function PaymentScreen() {
     }
   };
 
-  const copy = async (text: string, label: string) => {
-    await Clipboard.setStringAsync(text);
+  const copy = (text: string, label: string) => {
+    Clipboard.setString(text);
     Toast.show({ type: 'success', text1: `${label} copied!` });
   };
 

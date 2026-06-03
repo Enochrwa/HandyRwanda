@@ -12,7 +12,8 @@
     "assetBundlePatterns": ["**/*"],
     "ios": {
       "supportsTablet": true,
-      "scheme": "handyrwanda"
+      "scheme": "handyrwanda",
+      "bundleIdentifier": "com.handyrwanda.app"
     },
     "android": {
       "adaptiveIcon": {

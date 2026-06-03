@@ -28,7 +28,9 @@ async def get_current_user(
 
 def require_role(*roles: str) -> Callable[[Any], Coroutine[Any, Any, Any]]:
     async def checker(user: Any = Depends(get_current_user)) -> Any:
-        if user["role"] not in roles:
+        # Convert enum roles to their string values for comparison
+        role_strings = [r.value if hasattr(r, "value") else r for r in roles]
+        if user["role"] not in role_strings:
             raise HTTPException(
                 status_code=status.HTTP_403_FORBIDDEN, detail="Forbidden"
             )

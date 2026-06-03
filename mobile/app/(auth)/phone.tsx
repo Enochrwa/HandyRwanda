@@ -36,7 +36,7 @@ export default function PhoneScreen() {
     }
     setLoading(true);
     try {
-      await api.post('/auth/otp/request', { phone_number: phone, email, lang: 'en' });
+      await api.post('/auth/otp/request', { email, lang: 'en' });
       router.push({ pathname: '/(auth)/otp', params: { email } });
     } catch (err: any) {
       const detail = err?.response?.data?.detail;

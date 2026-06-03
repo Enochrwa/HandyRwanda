@@ -8,7 +8,7 @@ from sqlalchemy import delete, func, select, text, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.database import get_db
-from app.dependencies.jwt_auth import get_current_user, require_role
+from app.dependencies.jwt_auth import require_role
 from app.integrations.supabase_storage import upload_image
 from app.models.artisan import (
     ArtisanProfile,

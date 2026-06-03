@@ -61,14 +61,16 @@ async def send_push(
 
 
 async def send_push_to_user(
-    db_session: Any,  # AsyncSession — typed as Any to avoid circular import
-    user_id: Any,     # UUID
+    db_session: Any,
+    user_id: Any,
     title: str,
     body: str,
     data: dict[str, Any] | None = None,
 ) -> bool:
     """Look up a user's Expo push token from the DB then dispatch the notification."""
+    # Local imports to avoid circular dependency at module load time
     from sqlalchemy import select  # noqa: PLC0415
+
     from app.models.user import User  # noqa: PLC0415
 
     token = await db_session.scalar(

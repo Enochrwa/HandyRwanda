@@ -25,6 +25,8 @@ import {
 
 import * as Location from 'expo-location';
 
+import api from '../../src/services/api';
+
 // Safe MapView import — only on native
 let MapView: any = null;
 let Marker: any = null;
@@ -198,7 +200,7 @@ export default function SearchScreen() {
 
   const { data: categories } = useQuery({
     queryKey: ['categories'],
-    queryFn: () => api.get('/categories').then((r) => r.data),
+    queryFn: () => api.get<{ id: string; name_en: string; icon_emoji: string }[]>('/categories').then((r) => r.data),
   });
 
   const searchCoords = userCoords ?? { latitude: KIGALI_REGION.latitude, longitude: KIGALI_REGION.longitude };
@@ -221,8 +223,8 @@ export default function SearchScreen() {
             min_rating: filters.minRating || undefined,
           },
         })
-        .then((r) => {
-          const items = Array.isArray(r.data) ? r.data : (r.data?.items ?? []);
+        .then((r: { data: unknown[] | { items: unknown[] } }) => {
+          const items = Array.isArray(r.data) ? r.data : ((r.data as { items: unknown[] })?.items ?? []);
           return items;
         }),
     placeholderData: keepPreviousData,

@@ -53,8 +53,8 @@ async def send_push(
     try:
         async with httpx.AsyncClient(timeout=8.0) as client:
             resp = await client.post(EXPO_PUSH_URL, json=payload, headers=headers)
-            result = resp.json()
-            status = result.get("data", {}).get("status")
+            result: dict[str, Any] = resp.json()
+            status: str = result.get("data", {}).get("status", "")
             return status == "ok"
     except Exception:
         return False

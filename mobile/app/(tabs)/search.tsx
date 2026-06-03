@@ -205,11 +205,11 @@ export default function SearchScreen() {
 
   const searchCoords = userCoords ?? { latitude: KIGALI_REGION.latitude, longitude: KIGALI_REGION.longitude };
 
-  const { data: artisansData, isLoading } = useQuery({
+  const { data: artisansData, isLoading } = useQuery<Artisan[]>({
     queryKey: ['artisans', debouncedQuery, filters, userCoords],
     queryFn: () =>
       api
-        .get('/artisans/search', {
+        .get<Artisan[] | { items: Artisan[] }>('/artisans/search', {
           params: {
             q: debouncedQuery || undefined,
             latitude: searchCoords.latitude,
@@ -223,9 +223,9 @@ export default function SearchScreen() {
             min_rating: filters.minRating || undefined,
           },
         })
-        .then((r: { data: unknown[] | { items: unknown[] } }) => {
-          const items = Array.isArray(r.data) ? r.data : ((r.data as { items: unknown[] })?.items ?? []);
-          return items;
+        .then((r) => {
+          const raw = r.data;
+          return Array.isArray(raw) ? raw : ((raw as { items: Artisan[] }).items ?? []);
         }),
     placeholderData: keepPreviousData,
   });

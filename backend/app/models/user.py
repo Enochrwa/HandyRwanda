@@ -44,8 +44,13 @@ class User(Base):
     date_of_birth: Mapped[date | None] = mapped_column(Date, nullable=True)
     gender: Mapped[Gender | None] = mapped_column(SQLEnum(Gender), nullable=True)
     national_id: Mapped[str | None] = mapped_column(String(20), nullable=True)
+
+    # Granular Rwanda address fields
     district: Mapped[str | None] = mapped_column(String(100), nullable=True)
     sector: Mapped[str | None] = mapped_column(String(100), nullable=True)
+    cell: Mapped[str | None] = mapped_column(String(100), nullable=True)
+    village: Mapped[str | None] = mapped_column(String(100), nullable=True)
+    street_road: Mapped[str | None] = mapped_column(String(200), nullable=True)
     address_detail: Mapped[str | None] = mapped_column(String(300), nullable=True)
 
     avatar_url: Mapped[str | None] = mapped_column(String, nullable=True)
@@ -79,8 +84,20 @@ class User(Base):
     agreed_at: Mapped[datetime | None] = mapped_column(
         DateTime(timezone=True), nullable=True
     )
+    # Explicit timestamp per terms version acceptance (for legal compliance)
+    terms_accepted_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True), nullable=True
+    )
 
+    # Push notification tokens
     expo_push_token: Mapped[str | None] = mapped_column(String, nullable=True)
+    fcm_push_token: Mapped[str | None] = mapped_column(String, nullable=True)
+
+    # Notification preferences (JSON-encoded bitmask as string for SQLite compat)
+    notification_prefs: Mapped[str | None] = mapped_column(
+        String(500), nullable=True, default='{"new_bid":true,"booking_update":true,"payment":true,"message":true,"promo":false}'
+    )
+
     is_active: Mapped[bool] = mapped_column(Boolean, default=True)
 
     created_at: Mapped[datetime | None] = mapped_column(

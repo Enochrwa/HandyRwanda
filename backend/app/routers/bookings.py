@@ -29,6 +29,7 @@ from app.models.booking import Booking, BookingStatus
 from app.models.job import Job
 from app.models.notification import Notification
 from app.models.user import User, UserRole
+from app.services.escrow_service import release_escrow, schedule_release
 
 router = APIRouter(prefix="/bookings", tags=["bookings"])
 
@@ -350,6 +351,9 @@ async def artisan_confirm_receipt(
         .values(auto_confirm_at=auto_confirm)
     )
 
+    # Schedule escrow auto-release 48h from now if client doesn't respond
+    await schedule_release(db, booking_id, release_in_hours=48)
+
     # Notify client
     await _notify(
         db,
@@ -392,6 +396,9 @@ async def client_mark_complete(
         .where(Booking.id == booking_id)
         .values(status=BookingStatus.completed)
     )
+
+    # Release escrow: client confirmed job done → release funds to artisan
+    await release_escrow(db, booking_id, released_by="client")
 
     # Notify artisan
     await _notify(

@@ -88,7 +88,31 @@ async def approve_artisan(
         .where(ArtisanProfile.user_id == user_id)
         .values(verification_status=VerificationStatus.id_verified)
     )
+    # Activate account if still pending
+    await db.execute(
+        update(User)
+        .where(User.id == user_id)
+        .values(account_status=AccountStatus.active, email_verified=True)
+    )
+
+    # In-app notification
+    from app.models.notification import Notification  # noqa: PLC0415
+    db.add(Notification(
+        user_id=user_id,
+        event_type="verification_approved",
+        title="Identity Verified! ✅",
+        body="Your ID has been verified. Your profile now shows a verified badge. You can start accepting jobs.",
+        payload={"event_type": "verification_approved", "screen": "artisan_profile"},
+    ))
     await db.commit()
+
+    # Push notification
+    from app.integrations.push import send_push_notification  # noqa: PLC0415
+    await send_push_notification(
+        db, user_id, "Identity Verified! ✅",
+        "Your ID has been verified. You can now accept jobs on HandyRwanda.",
+        {"event_type": "verification_approved"},
+    )
     return {"message": "Artisan approved"}
 
 
@@ -104,6 +128,15 @@ async def reject_artisan(
         .where(ArtisanProfile.user_id == user_id)
         .values(verification_status=VerificationStatus.rejected)
     )
+
+    from app.models.notification import Notification  # noqa: PLC0415
+    db.add(Notification(
+        user_id=user_id,
+        event_type="verification_rejected",
+        title="Verification Update",
+        body=f"Your verification was not approved. Reason: {payload.reason}",
+        payload={"event_type": "verification_rejected"},
+    ))
     await db.commit()
     return {"message": "Artisan rejected", "reason": payload.reason}
 
@@ -653,3 +686,81 @@ async def verify_payment(
         "payment_id": str(payment_id),
         "new_status": new_status,
     }
+
+
+# ── Pro verification nightly upgrade ─────────────────────────────────────────
+
+@router.post("/artisans/cron/pro-upgrade")
+async def cron_pro_upgrade(
+    db: AsyncSession = Depends(get_db),
+    current_user: dict[str, Any] = Depends(require_role(UserRole.admin)),
+) -> Any:
+    """
+    Nightly cron: auto-upgrade artisans to pro_verified if they meet criteria:
+    - Already id_verified
+    - 10+ reviews
+    - Average rating >= 4.0
+    - completion_rate >= 0.8
+    """
+    from app.models.notification import Notification  # noqa: PLC0415
+
+    eligible = await db.execute(
+        select(ArtisanProfile)
+        .where(
+            ArtisanProfile.verification_status == VerificationStatus.id_verified,
+            ArtisanProfile.total_reviews >= 10,
+            ArtisanProfile.average_rating >= 4.0,
+            ArtisanProfile.completion_rate >= 0.8,
+        )
+    )
+    artisans = eligible.scalars().all()
+    upgraded = 0
+    for ap in artisans:
+        await db.execute(
+            update(ArtisanProfile)
+            .where(ArtisanProfile.user_id == ap.user_id)
+            .values(verification_status=VerificationStatus.pro_verified)
+        )
+        db.add(Notification(
+            user_id=ap.user_id,
+            event_type="pro_verified",
+            title="You're now Pro Verified! 🌟",
+            body="Congratulations! You've earned the Pro Verified badge for your outstanding service.",
+            payload={"event_type": "pro_verified", "screen": "artisan_profile"},
+        ))
+        upgraded += 1
+
+    if upgraded:
+        await db.commit()
+
+    return {"upgraded": upgraded, "message": f"{upgraded} artisan(s) upgraded to pro_verified."}
+
+
+@router.post("/escrow/create")
+async def admin_create_escrow(
+    booking_id: str,
+    db: AsyncSession = Depends(get_db),
+    current_user: dict[str, Any] = Depends(require_role(UserRole.admin)),
+) -> Any:
+    """Create escrow hold when payment is manually approved (called from verify_payment)."""
+    from uuid import UUID as _UUID  # noqa: PLC0415
+    from app.models.booking import Booking  # noqa: PLC0415
+    from app.models.payment import Payment  # noqa: PLC0415
+    from app.services.escrow_service import create_escrow_hold  # noqa: PLC0415
+
+    bid = _UUID(booking_id)
+    booking = await db.scalar(select(Booking).where(Booking.id == bid))  # type: ignore
+    if not booking:
+        raise HTTPException(status_code=404, detail="Booking not found")
+
+    payment = await db.scalar(
+        select(Payment).where(Payment.booking_id == bid)  # type: ignore
+    )
+    if not payment:
+        raise HTTPException(status_code=404, detail="Payment not found")
+
+    escrow = await create_escrow_hold(
+        db, bid, booking.artisan_id, booking.client_id, payment.amount
+    )
+    await db.commit()
+    return {"escrow_id": str(escrow.id), "amount": escrow.amount, "status": escrow.status}

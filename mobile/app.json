@@ -2,7 +2,7 @@
   "expo": {
     "name": "HandyRwanda",
     "slug": "handyrwanda",
-    "version": "1.0.0",
+    "version": "1.1.0",
     "orientation": "portrait",
     "userInterfaceStyle": "automatic",
 
@@ -18,24 +18,32 @@
     "ios": {
       "supportsTablet": true,
       "scheme": "handyrwanda",
-      "bundleIdentifier": "com.handyrwanda.app"
+      "bundleIdentifier": "com.handyrwanda.app",
+      "googleServicesFile": "./GoogleService-Info.plist",
+      "infoPlist": {
+        "UIBackgroundModes": ["fetch", "remote-notification"]
+      }
     },
 
     "android": {
       "package": "com.handyrwanda.app",
       "scheme": "handyrwanda",
-
       "adaptiveIcon": {
-        "backgroundColor": "#ffffff"
+        "backgroundColor": "#FF6B35"
       },
-
       "googleServicesFile": "./android/app/google-services.json",
-
-      "permissions": ["NOTIFICATIONS"],
-
+      "permissions": [
+        "NOTIFICATIONS",
+        "RECEIVE_BOOT_COMPLETED",
+        "VIBRATE",
+        "INTERNET",
+        "ACCESS_NETWORK_STATE"
+      ],
       "notification": {
         "icon": "./assets/notification-icon.png",
-        "color": "#ffffff"
+        "color": "#FF6B35",
+        "androidMode": "default",
+        "androidCollapsedTitle": "#{unread_notifications} new updates"
       }
     },
 
@@ -46,14 +54,23 @@
       "expo-localization",
       "expo-font",
       "expo-router",
+      "@react-native-async-storage/async-storage",
+      "@react-native-community/netinfo",
+      [
+        "expo-image-manipulator",
+        {}
+      ],
       [
         "expo-notifications",
         {
           "icon": "./assets/notification-icon.png",
-          "color": "#ffffff",
-          "defaultChannel": "default"
+          "color": "#FF6B35",
+          "defaultChannel": "default",
+          "sounds": ["./assets/notification-sound.wav"]
         }
-      ]
+      ],
+      "@react-native-firebase/app",
+      "@react-native-firebase/messaging"
     ],
 
     "scheme": "handyrwanda",
@@ -64,7 +81,7 @@
         "origin": false
       },
       "eas": {
-        "projectId": "YOUR_EAS_PROJECT_ID_HERE"
+        "projectId": "786750836514"
       }
     }
   }

@@ -1,4 +1,5 @@
 # File: backend/app/routers/jobs.py
+import asyncio
 from datetime import datetime
 from typing import Any, cast
 from uuid import UUID
@@ -15,6 +16,7 @@ from app.integrations.supabase_storage import upload_image
 from app.models.artisan import ArtisanProfile, Category
 from app.models.job import Bid, Job, JobStatus, JobUrgency
 from app.models.user import UserRole
+from app.services.matching_service import notify_matching_artisans
 from app.services.price_anchor_service import get_price_anchor
 
 router = APIRouter(prefix="/jobs", tags=["jobs"])
@@ -141,7 +143,27 @@ async def create_job(
     db.add(job)
     await db.commit()
     await db.refresh(job)
+
+    # Trigger smart matching: notify top-5 artisans in background
+    asyncio.ensure_future(
+        _notify_artisans_async(job.id, cat.name_en if cat else "")
+    )
+
     return _serialize_job(job, cat, 0)
+
+
+async def _notify_artisans_async(job_id: UUID, category_name: str) -> None:
+    """Background task: fetch fresh DB session and notify matching artisans."""
+    from app.database import AsyncSessionLocal  # noqa: PLC0415
+
+    try:
+        async with AsyncSessionLocal() as session:
+            job = await session.scalar(select(Job).where(Job.id == job_id))
+            if job:
+                count = await notify_matching_artisans(session, job, category_name)
+                await session.commit()
+    except Exception as e:
+        print(f"[MatchingService] Error notifying artisans for job {job_id}: {e}")
 
 
 @router.get("/mine")

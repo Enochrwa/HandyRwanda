@@ -55,14 +55,14 @@ export function ArtisanCard({ a }: { a: Artisan }) {
             <span className="text-muted-foreground">({a.reviews})</span>
           </div>
           <div className="mt-2 flex flex-wrap gap-1.5">
-            {a.verified && (
+            {(a.verification_status === 'id_verified' || a.verified) && (
               <span className="inline-flex items-center gap-1 rounded-full bg-[color:var(--verified)]/10 px-2 py-0.5 text-[11px] font-semibold text-[color:var(--verified)]">
                 <ShieldCheck className="h-3 w-3" /> Verified
               </span>
             )}
-            {a.pro && (
-              <span className="inline-flex items-center gap-1 rounded-full bg-accent/15 px-2 py-0.5 text-[11px] font-semibold text-foreground">
-                <Zap className="h-3 w-3" /> Pro
+            {(a.verification_status === 'pro_verified' || a.pro) && (
+              <span className="inline-flex items-center gap-1 rounded-full bg-amber-100 px-2 py-0.5 text-[11px] font-semibold text-amber-700">
+                <Zap className="h-3 w-3" /> Pro Verified
               </span>
             )}
             {a.availableNow && (

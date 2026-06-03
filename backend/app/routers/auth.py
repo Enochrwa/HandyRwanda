@@ -144,8 +144,19 @@ async def register(
 
 @router.post("/otp/request")
 async def request_otp(
-    payload: OTPRequest, db: AsyncSession = Depends(get_db)
+    payload: OTPRequest, request: Request, db: AsyncSession = Depends(get_db)
 ) -> dict[str, Any]:
+    # Rate limit: max 5 requests per email per 10 minutes
+    rate_key = f"otp_rate:{payload.email.lower()}"
+    count_raw = await redis_get(rate_key)
+    count = int(count_raw) if count_raw else 0
+    if count >= 5:
+        raise HTTPException(
+            status_code=429,
+            detail="Too many OTP requests. Please wait 10 minutes before trying again.",
+        )
+    await redis_set(rate_key, str(count + 1), ttl_seconds=600)
+
     user = await db.scalar(select(User).where(User.email == payload.email))
     if not user:
         return {

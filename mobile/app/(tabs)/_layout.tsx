@@ -5,6 +5,7 @@ import { Tabs, useRouter } from 'expo-router';
 import { useEffect } from 'react';
 import { Platform, TouchableOpacity, Text } from 'react-native';
 
+import api from '../../src/services/api';
 import { proService } from '../../src/services/proService';
 import { useAuthStore } from '../../src/store/authStore';
 
@@ -35,6 +36,25 @@ export default function TabsLayout() {
         // Non-fatal — app works without push tokens
       });
   }, [isAuthenticated, isArtisan]);
+
+  // Onboarding gate: if artisan hasn't completed their profile, redirect to step 1
+  useEffect(() => {
+    if (!isAuthenticated || !isArtisan) return;
+    api
+      .get('/artisans/profile/me')
+      .then((r) => {
+        const profile = r.data;
+        // Profile incomplete if no bio or no skills registered
+        const incomplete = !profile?.bio || !profile?.skills?.length;
+        if (incomplete) {
+          router.replace('/(artisan)/onboarding/step1-bio');
+        }
+      })
+      .catch(() => {
+        // 404 means no profile at all — send to onboarding
+        router.replace('/(artisan)/onboarding/step1-bio');
+      });
+  }, [isAuthenticated, isArtisan, router]);
 
   return (
     <Tabs

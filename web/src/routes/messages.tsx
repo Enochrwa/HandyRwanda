@@ -5,6 +5,7 @@ import { useState, useEffect, useRef, useCallback } from "react";
 import { useAuthStore } from "@/store/authStore";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import api from "@/services/api";
+import { ReviewDialog } from "@/components/ReviewDialog";
 import {
   Send,
   Loader2,
@@ -45,6 +46,166 @@ interface Message {
   created_at: string;
 }
 
+// ── Web Payment Panel ─────────────────────────────────────────────────────────
+type PaymentMethod = "mtn_momo" | "airtel_money";
+
+interface PaymentInstructions {
+  payment_id: string;
+  reference_code: string;
+  amount: number;
+  method_label: string;
+  receiver_phone: string;
+  instructions: string[];
+  note: string;
+  status: string;
+}
+
+function PaymentPanel({ bookingId, amount }: { bookingId: string; amount: number }) {
+  const qc = useQueryClient();
+  const [step, setStep] = useState<"select" | "instructions" | "proof" | "pending">("select");
+  const [method, setMethod] = useState<PaymentMethod>("mtn_momo");
+  const [instr, setInstr] = useState<PaymentInstructions | null>(null);
+  const [txId, setTxId] = useState("");
+  const [loading, setLoading] = useState(false);
+
+  // Check existing payment
+  useEffect(() => {
+    api
+      .get(`/payments/booking/${bookingId}`)
+      .then((r) => {
+        if (r.data.status === "pending_verification" || r.data.status === "approved") {
+          setInstr(r.data);
+          setStep("pending");
+        } else if (r.data.status && r.data.status !== "not_initiated") {
+          setInstr(r.data);
+          setStep("instructions");
+        }
+      })
+      .catch(() => {});
+  }, [bookingId]);
+
+  const initiate = async () => {
+    setLoading(true);
+    try {
+      const res = await api.post(`/payments/initiate/${bookingId}`, { method });
+      setInstr(res.data);
+      setStep("instructions");
+    } catch {
+      toast.error("Could not initiate payment.");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const submitProof = async () => {
+    if (txId.trim().length < 3) {
+      toast.error("Enter your transaction ID");
+      return;
+    }
+    setLoading(true);
+    try {
+      await api.post(`/payments/${instr!.payment_id}/submit-proof`, {
+        client_transaction_id: txId.trim(),
+      });
+      setStep("pending");
+      qc.invalidateQueries({ queryKey: ["booking-detail", bookingId] });
+      toast.success("Proof submitted! We'll verify within 5 minutes.");
+    } catch (e: unknown) {
+      const msg = (e as { response?: { data?: { detail?: string } } })?.response?.data?.detail;
+      toast.error(typeof msg === "string" ? msg : "Submission failed.");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const copy = (text: string, label: string) => {
+    navigator.clipboard.writeText(text).then(() => toast.success(`${label} copied!`));
+  };
+
+  if (step === "pending") {
+    return (
+      <div className="flex items-center gap-3 text-sm text-amber-700 py-1">
+        <span className="text-lg">⏳</span>
+        <span>Payment proof submitted — verifying (usually under 5 min). You'll be notified.</span>
+      </div>
+    );
+  }
+
+  if (step === "instructions" && instr) {
+    return (
+      <div className="space-y-3 py-2">
+        <div className="flex items-center gap-4 flex-wrap">
+          <div className="flex gap-2">
+            <button
+              onClick={() => copy(instr.receiver_phone, "Phone")}
+              className="flex items-center gap-1.5 bg-amber-50 border border-amber-200 rounded-xl px-3 py-1.5 text-xs font-medium text-amber-800 hover:bg-amber-100"
+            >
+              📋 Send to: <strong>{instr.receiver_phone}</strong>
+            </button>
+            <button
+              onClick={() => copy(instr.reference_code, "Reference")}
+              className="flex items-center gap-1.5 bg-amber-50 border border-amber-200 rounded-xl px-3 py-1.5 text-xs font-medium text-amber-800 hover:bg-amber-100"
+            >
+              📋 Ref: <strong>{instr.reference_code}</strong>
+            </button>
+          </div>
+          <span className="text-xs text-muted-foreground">
+            {formatRWF(instr.amount)} RWF via {instr.method_label}
+          </span>
+        </div>
+        <div className="flex items-center gap-2 flex-wrap">
+          <input
+            value={txId}
+            onChange={(e) => setTxId(e.target.value)}
+            placeholder="Transaction ID from MoMo SMS (e.g. MP250601.1234.X12345)"
+            className="flex-1 min-w-[220px] rounded-xl border border-border bg-muted/30 px-3 py-2 text-xs outline-none focus:ring-2 focus:ring-primary/40"
+          />
+          <Button
+            size="sm"
+            onClick={submitProof}
+            disabled={loading || txId.trim().length < 3}
+            className="bg-primary text-white"
+          >
+            {loading ? <Loader2 className="h-3 w-3 animate-spin" /> : "Submit Proof →"}
+          </Button>
+        </div>
+      </div>
+    );
+  }
+
+  // select step
+  return (
+    <div className="flex items-center gap-3 flex-wrap py-1">
+      <span className="text-sm font-semibold text-amber-700">
+        💰 Payment due: {formatRWF(amount)} RWF
+      </span>
+      <div className="flex gap-2">
+        {(["mtn_momo", "airtel_money"] as PaymentMethod[]).map((m) => (
+          <button
+            key={m}
+            onClick={() => setMethod(m)}
+            className={`px-3 py-1.5 rounded-xl border text-xs font-semibold transition-colors ${
+              method === m
+                ? "bg-primary border-primary text-white"
+                : "border-border text-foreground hover:border-primary"
+            }`}
+          >
+            {m === "mtn_momo" ? "📱 MTN MoMo" : "💳 Airtel"}
+          </button>
+        ))}
+        <Button
+          size="sm"
+          onClick={initiate}
+          disabled={loading}
+          className="bg-amber-500 hover:bg-amber-600 text-white"
+        >
+          {loading ? <Loader2 className="h-3 w-3 animate-spin" /> : "Pay Now →"}
+        </Button>
+      </div>
+    </div>
+  );
+}
+
 function MessagesPage() {
   const { isAuthenticated, user } = useAuthStore();
   const navigate = useNavigate();
@@ -54,6 +215,7 @@ function MessagesPage() {
   const wsRef = useRef<WebSocket | null>(null);
   const qc = useQueryClient();
   const [wsMessages, setWsMessages] = useState<Message[]>([]);
+  const [reviewOpen, setReviewOpen] = useState(false);
 
   useEffect(() => {
     if (!isAuthenticated) {
@@ -149,6 +311,8 @@ function MessagesPage() {
     onSuccess: () => {
       toast.success("Job marked as complete!");
       qc.invalidateQueries({ queryKey: ["booking-detail", selectedBookingId] });
+      // Show review prompt — only for the client
+      if (bookingDetail?.is_client) setReviewOpen(true);
     },
   });
 
@@ -183,6 +347,13 @@ function MessagesPage() {
   return (
     <div className="min-h-dvh flex flex-col">
       <Header />
+      {reviewOpen && selectedBookingId && bookingDetail && (
+        <ReviewDialog
+          bookingId={selectedBookingId}
+          artisanName={bookingDetail.artisan?.full_name ?? "the artisan"}
+          onClose={() => setReviewOpen(false)}
+        />
+      )}
       <div className="flex flex-1 overflow-hidden max-h-[calc(100dvh-64px)]">
         {/* Sidebar: conversation list */}
         <aside
@@ -289,28 +460,10 @@ function MessagesPage() {
             {bookingDetail && (
               <div className="border-b border-border bg-muted/30 px-4 py-2">
                 {bookingDetail.status === "pending_payment" && bookingDetail.is_client && (
-                  <div className="flex items-center gap-3 flex-wrap">
-                    <div className="flex items-center gap-1.5 text-sm text-amber-700">
-                      <Clock className="h-4 w-4" />
-                      <span>
-                        Send <strong>{formatRWF(bookingDetail.agreed_price)} RWF</strong> to{" "}
-                        {bookingDetail.artisan?.phone_number} via MoMo
-                      </span>
-                    </div>
-                    <Button
-                      size="sm"
-                      onClick={() => confirmPayment.mutate()}
-                      disabled={confirmPayment.isPending}
-                      className="bg-amber-500 hover:bg-amber-600 text-white"
-                    >
-                      {confirmPayment.isPending ? (
-                        <Loader2 className="h-3 w-3 animate-spin" />
-                      ) : (
-                        <CheckCircle className="h-3 w-3" />
-                      )}
-                      I've sent payment
-                    </Button>
-                  </div>
+                  <PaymentPanel
+                    bookingId={selectedBookingId!}
+                    amount={bookingDetail.agreed_price}
+                  />
                 )}
                 {bookingDetail.status === "in_progress" && bookingDetail.is_client && (
                   <div className="flex items-center gap-3 flex-wrap">

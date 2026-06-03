@@ -34,17 +34,52 @@ export default function ChatThread() {
   const qc = useQueryClient();
   const [content, setContent] = useState('');
   const flatListRef = useRef<FlatList>(null);
+  const wsRef = useRef<WebSocket | null>(null);
+  const [wsMessages, setWsMessages] = useState<any[]>([]);
 
   useEffect(() => {
     if (!isAuthenticated && !isOnAuthRoute(pathname)) router.replace('/auth');
   }, [isAuthenticated, pathname, router]);
 
-  const { data: messages, isLoading } = useQuery({
+  // WebSocket — real-time messages, falls back to polling if unavailable
+  useEffect(() => {
+    if (!bookingId || !isAuthenticated) return;
+    setWsMessages([]);
+
+    const apiBase = (process.env.EXPO_PUBLIC_API_URL || 'http://localhost:8000').replace(
+      /^http/,
+      'ws',
+    );
+    const ws = new WebSocket(`${apiBase}/ws/messages/${bookingId}`);
+    wsRef.current = ws;
+
+    ws.onmessage = (e) => {
+      try {
+        const msg = JSON.parse(e.data);
+        if (msg.sender_id !== user?.id) {
+          setWsMessages((prev) => [...prev, msg]);
+          qc.invalidateQueries({ queryKey: ['conversations'] });
+        }
+      } catch {}
+    };
+    ws.onerror = () => {}; // silent — polling still runs as backup
+    return () => ws.close();
+  }, [bookingId, isAuthenticated, user?.id, qc]);
+
+  const { data: rawMessages = [], isLoading } = useQuery({
     queryKey: ['messages', bookingId],
     queryFn: () => api.get(`/messages/${bookingId}`).then((r) => r.data),
-    refetchInterval: 8000,
+    refetchInterval: wsRef.current?.readyState === WebSocket.OPEN ? false : 8000,
     enabled: isAuthenticated && !!bookingId,
   });
+
+  // Merge API messages with WebSocket-pushed messages (deduplicate by id)
+  const messages = [
+    ...rawMessages,
+    ...wsMessages.filter((wm: any) => !rawMessages.find((m: any) => m.id === wm.id)),
+  ].sort(
+    (a: any, b: any) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime(),
+  );
 
   const { data: booking } = useQuery({
     queryKey: ['booking-detail', bookingId],
@@ -57,19 +92,21 @@ export default function ChatThread() {
     onMutate: async (newText) => {
       await qc.cancelQueries({ queryKey: ['messages', bookingId] });
       const prev = qc.getQueryData(['messages', bookingId]);
-      qc.setQueryData(['messages', bookingId], (old: any) => [
-        ...(old || []),
-        {
-          id: Date.now().toString(),
-          sender_id: user?.id,
-          content: newText,
-          created_at: new Date().toISOString(),
-          is_read: false,
-        },
-      ]);
+      const optimistic = {
+        id: `opt-${Date.now()}`,
+        sender_id: user?.id,
+        content: newText,
+        created_at: new Date().toISOString(),
+        is_read: false,
+      };
+      qc.setQueryData(['messages', bookingId], (old: any) => [...(old || []), optimistic]);
       return { prev };
     },
-    onSuccess: () => {
+    onSuccess: (res) => {
+      // Broadcast to other participant via WS
+      if (wsRef.current?.readyState === WebSocket.OPEN) {
+        wsRef.current.send(JSON.stringify(res.data));
+      }
       qc.invalidateQueries({ queryKey: ['messages', bookingId] });
       qc.invalidateQueries({ queryKey: ['conversations'] });
       setContent('');
@@ -97,6 +134,16 @@ export default function ChatThread() {
     onSuccess: () => {
       Toast.show({ type: 'success', text1: '✅ Job completed!' });
       qc.invalidateQueries({ queryKey: ['booking-detail', bookingId] });
+      // Prompt for review — navigate after short delay so toast shows
+      setTimeout(() => {
+        router.push({
+          pathname: '/review',
+          params: {
+            bookingId: bookingId as string,
+            artisanName: booking?.artisan?.full_name ?? '',
+          },
+        });
+      }, 800);
     },
   });
 
@@ -174,19 +221,23 @@ export default function ChatThread() {
               <View className="mt-3 bg-amber-50 border border-amber-200 rounded-2xl px-4 py-3">
                 <Text className="text-xs font-bold text-amber-800 mb-1">💰 Payment Required</Text>
                 <Text className="text-xs text-amber-700 mb-2">
-                  Send {formatRWF(booking.agreed_price)} RWF to {booking.artisan?.phone_number} via
-                  MoMo, then confirm:
+                  Complete your payment of{' '}
+                  <Text className="font-bold">{formatRWF(booking.agreed_price)} RWF</Text> to
+                  confirm this booking.
                 </Text>
                 <TouchableOpacity
-                  onPress={() => confirmPayment.mutate()}
-                  disabled={confirmPayment.isPending}
-                  className="bg-amber-500 rounded-xl py-2 items-center"
+                  onPress={() =>
+                    router.push({
+                      pathname: '/payment',
+                      params: {
+                        bookingId: bookingId as string,
+                        amount: String(booking.agreed_price),
+                      },
+                    })
+                  }
+                  className="bg-amber-500 rounded-xl py-2.5 items-center"
                 >
-                  {confirmPayment.isPending ? (
-                    <ActivityIndicator color="white" size="small" />
-                  ) : (
-                    <Text className="text-white text-xs font-bold">✓ I've sent payment</Text>
-                  )}
+                  <Text className="text-white text-xs font-bold">Pay Now →</Text>
                 </TouchableOpacity>
               </View>
             )}

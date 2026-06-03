@@ -8,7 +8,7 @@ from sqlalchemy import delete, func, select, text, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.database import get_db
-from app.dependencies.jwt_auth import require_role
+from app.dependencies.jwt_auth import get_current_user, require_role
 from app.integrations.supabase_storage import upload_image
 from app.models.artisan import (
     ArtisanProfile,
@@ -120,7 +120,26 @@ async def get_my_profile(
     profile = result.scalar_one_or_none()
     if not profile:
         raise HTTPException(status_code=404, detail="Profile not found")
-    return profile
+
+    # Include skills for onboarding gate check
+    skills_result = await db.execute(
+        select(Category)
+        .join(artisan_skills, artisan_skills.c.category_id == Category.id)
+        .where(artisan_skills.c.artisan_id == user_id)
+    )
+    skills = [{"id": str(c.id), "name_en": c.name_en} for c in skills_result.scalars().all()]
+
+    return {
+        "bio": profile.bio,
+        "years_experience": profile.years_experience,
+        "hourly_rate": profile.hourly_rate,
+        "fixed_rate": profile.fixed_rate,
+        "district": profile.district,
+        "service_radius_km": profile.service_radius_km,
+        "is_available": profile.is_available,
+        "verification_status": profile.verification_status,
+        "skills": skills,
+    }
 
 
 @router.post("/profile/me/id-verification")

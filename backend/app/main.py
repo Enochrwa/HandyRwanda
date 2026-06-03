@@ -22,6 +22,7 @@ from app.routers import (
     jobs,
     messages,
     notifications,
+    payments,
     reviews,
 )
 
@@ -94,6 +95,7 @@ app.include_router(bookings.router)
 app.include_router(jobs.router)
 app.include_router(messages.router)
 app.include_router(notifications.router)
+app.include_router(payments.router)
 app.include_router(reviews.router)
 
 
@@ -174,7 +176,7 @@ async def get_artisan_public(
     portfolio = [
         {
             "id": str(p.id),
-            "image_url": p.image_url,
+            "photo_url": p.photo_url,
             "job_type": p.job_type,
             "description": p.description,
         }
@@ -188,7 +190,7 @@ async def get_artisan_public(
             User.avatar_url.label("client_avatar"),
         )
         .join(User, Review.client_id == User.id)
-        .where(Review.artisan_id == artisan_id, Review.is_flagged == False)  # noqa
+        .where(Review.artisan_id == artisan_id, Review.is_flagged.is_(False))  # noqa
         .order_by(Review.created_at.desc())
         .limit(10)
     )

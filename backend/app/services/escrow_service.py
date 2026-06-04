@@ -4,21 +4,20 @@ Escrow lifecycle management.
 
 Flow:
   1. Admin approves payment → create_escrow_hold()
-  2. Client marks job complete → schedule_release() (48h countdown)
-     OR artisan marks done and client doesn't respond in 48h → auto_release()
-  3. release_escrow() → moves funds to artisan earnings
+  2. Artisan marks job done → schedule_release() (48h countdown)
+  3. Client confirms / 48h passes → release_escrow()
   4. Artisan requests withdrawal → handled by withdrawal router
 """
+
 from __future__ import annotations
 
 from datetime import datetime, timedelta, timezone
 from typing import Any
 from uuid import UUID
 
-from sqlalchemy import select, update
+from sqlalchemy import func, select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.models.booking import Booking, BookingStatus
 from app.models.escrow import (
     EscrowStatus,
     EscrowTransaction,
@@ -26,7 +25,6 @@ from app.models.escrow import (
     WithdrawalStatus,
 )
 from app.models.notification import Notification
-from app.models.user import User
 
 
 async def create_escrow_hold(
@@ -36,10 +34,7 @@ async def create_escrow_hold(
     client_id: UUID,
     amount: int,
 ) -> EscrowTransaction:
-    """
-    Called when admin approves a payment.
-    Creates the escrow record to hold funds until job completion.
-    """
+    """Called when admin approves payment."""
     escrow = EscrowTransaction(
         booking_id=booking_id,
         artisan_id=artisan_id,
@@ -57,10 +52,7 @@ async def schedule_release(
     booking_id: UUID,
     release_in_hours: int = 48,
 ) -> EscrowTransaction | None:
-    """
-    Called when artisan marks job done.
-    Sets auto-release timer: if client doesn't dispute in 48h, funds auto-release.
-    """
+    """Called when artisan marks job done. Sets auto-release timer."""
     escrow = await db.scalar(
         select(EscrowTransaction).where(
             EscrowTransaction.booking_id == booking_id,
@@ -83,15 +75,13 @@ async def schedule_release(
 async def release_escrow(
     db: AsyncSession,
     booking_id: UUID,
-    released_by: str = "client",  # "client" | "auto" | "admin"
+    released_by: str = "client",
 ) -> bool:
-    """
-    Release held funds to the artisan's earnings.
-    """
+    """Release held funds to the artisan's earnings."""
     escrow = await db.scalar(
         select(EscrowTransaction).where(
             EscrowTransaction.booking_id == booking_id,
-            EscrowTransaction.status.in_([EscrowStatus.held]),
+            EscrowTransaction.status == EscrowStatus.held,
         )
     )
     if not escrow:
@@ -101,14 +91,9 @@ async def release_escrow(
     await db.execute(
         update(EscrowTransaction)
         .where(EscrowTransaction.id == escrow.id)
-        .values(
-            status=EscrowStatus.released,
-            released_at=now,
-            released_by=released_by,
-        )
+        .values(status=EscrowStatus.released, released_at=now, released_by=released_by)
     )
 
-    # Notify artisan that funds are released
     notif = Notification(
         user_id=escrow.artisan_id,
         event_type="earnings_released",
@@ -129,12 +114,7 @@ async def release_escrow(
 async def get_artisan_earnings_summary(
     db: AsyncSession, artisan_id: UUID
 ) -> dict[str, Any]:
-    """
-    Return earnings breakdown: pending release, available, total earned.
-    """
-    from sqlalchemy import func  # noqa: PLC0415
-
-    # Held (job complete but release not yet triggered)
+    """Return earnings breakdown: pending, available, total."""
     held_result = await db.execute(
         select(func.sum(EscrowTransaction.amount)).where(
             EscrowTransaction.artisan_id == artisan_id,
@@ -143,7 +123,6 @@ async def get_artisan_earnings_summary(
     )
     held = held_result.scalar() or 0
 
-    # Released (available for withdrawal)
     released_result = await db.execute(
         select(func.sum(EscrowTransaction.amount)).where(
             EscrowTransaction.artisan_id == artisan_id,
@@ -152,7 +131,6 @@ async def get_artisan_earnings_summary(
     )
     total_released = released_result.scalar() or 0
 
-    # Withdrawn
     withdrawn_result = await db.execute(
         select(func.sum(WithdrawalRequest.amount)).where(
             WithdrawalRequest.artisan_id == artisan_id,
@@ -161,7 +139,6 @@ async def get_artisan_earnings_summary(
     )
     withdrawn = withdrawn_result.scalar() or 0
 
-    # Pending withdrawal requests
     pending_withdrawal_result = await db.execute(
         select(func.sum(WithdrawalRequest.amount)).where(
             WithdrawalRequest.artisan_id == artisan_id,
@@ -184,10 +161,7 @@ async def get_artisan_earnings_summary(
 
 
 async def process_auto_releases(db: AsyncSession) -> int:
-    """
-    Cron job: find escrows past their release_at timestamp and auto-release.
-    Returns count of released escrows.
-    """
+    """Cron: find escrows past their release_at and auto-release them."""
     now = datetime.now(timezone.utc)
     due = await db.execute(
         select(EscrowTransaction).where(

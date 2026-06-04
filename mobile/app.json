@@ -5,26 +5,26 @@
     "version": "1.1.0",
     "orientation": "portrait",
     "userInterfaceStyle": "automatic",
-
     "icon": "./assets/icon.png",
-
     "splash": {
       "resizeMode": "contain",
       "backgroundColor": "#ffffff"
     },
-
-    "assetBundlePatterns": ["**/*"],
-
+    "assetBundlePatterns": [
+      "**/*"
+    ],
     "ios": {
       "supportsTablet": true,
       "scheme": "handyrwanda",
       "bundleIdentifier": "com.handyrwanda.app",
       "googleServicesFile": "./GoogleService-Info.plist",
       "infoPlist": {
-        "UIBackgroundModes": ["fetch", "remote-notification"]
+        "UIBackgroundModes": [
+          "fetch",
+          "remote-notification"
+        ]
       }
     },
-
     "android": {
       "package": "com.handyrwanda.app",
       "scheme": "handyrwanda",
@@ -46,9 +46,7 @@
         "androidCollapsedTitle": "#{unread_notifications} new updates"
       }
     },
-
     "web": {},
-
     "plugins": [
       "expo-secure-store",
       "expo-localization",
@@ -66,16 +64,14 @@
           "icon": "./assets/notification-icon.png",
           "color": "#FF6B35",
           "defaultChannel": "default",
-          "sounds": ["./assets/notification-sound.wav"]
+          "sounds": [
+            "./assets/notification-sound.wav"
+          ]
         }
-      ],
-      "@react-native-firebase/app",
-      "@react-native-firebase/messaging"
+      ]
     ],
-
     "scheme": "handyrwanda",
     "entryPoint": "node_modules/expo-router/entry.js",
-
     "extra": {
       "router": {
         "origin": false

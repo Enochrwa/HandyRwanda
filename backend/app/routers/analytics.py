@@ -10,12 +10,13 @@ GET /analytics/geo-heatmap      — jobs per district + artisans per district
 GET /analytics/cohort-retention — client retention by monthly cohort
 GET /analytics/export/{report}  — CSV export
 """
+
 import csv
 import io
-from datetime import datetime, timedelta, timezone
+from datetime import datetime, timezone
 from typing import Any
 
-from fastapi import APIRouter, Depends, Query
+from fastapi import APIRouter, Depends, HTTPException, Query
 from fastapi.responses import StreamingResponse
 from sqlalchemy import func, select, text
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -24,7 +25,6 @@ from app.database import get_db
 from app.dependencies.jwt_auth import require_role
 from app.models.artisan import ArtisanProfile
 from app.models.booking import Booking, BookingStatus
-from app.models.escrow import EscrowTransaction
 from app.models.job import Bid, Job, JobStatus
 from app.models.payment import Payment, PaymentStatus
 from app.models.user import User, UserRole
@@ -39,21 +39,35 @@ async def get_overview(
 ) -> Any:
     """Key metrics: total users, jobs, bookings, revenue."""
     total_users = await db.scalar(select(func.count(User.id)).where(User.is_active))
-    total_artisans = await db.scalar(select(func.count(User.id)).where(User.role == UserRole.artisan, User.is_active))
-    total_clients = await db.scalar(select(func.count(User.id)).where(User.role == UserRole.client, User.is_active))
+    total_artisans = await db.scalar(
+        select(func.count(User.id)).where(User.role == UserRole.artisan, User.is_active)
+    )
+    total_clients = await db.scalar(
+        select(func.count(User.id)).where(User.role == UserRole.client, User.is_active)
+    )
     total_jobs = await db.scalar(select(func.count(Job.id)))
-    open_jobs = await db.scalar(select(func.count(Job.id)).where(Job.status == JobStatus.open))
+    open_jobs = await db.scalar(
+        select(func.count(Job.id)).where(Job.status == JobStatus.open)
+    )
     total_bookings = await db.scalar(select(func.count(Booking.id)))
-    completed_bookings = await db.scalar(select(func.count(Booking.id)).where(Booking.status == BookingStatus.completed))
-    disputed_bookings = await db.scalar(select(func.count(Booking.id)).where(Booking.status == BookingStatus.disputed))
+    completed_bookings = await db.scalar(
+        select(func.count(Booking.id)).where(Booking.status == BookingStatus.completed)
+    )
+    disputed_bookings = await db.scalar(
+        select(func.count(Booking.id)).where(Booking.status == BookingStatus.disputed)
+    )
 
     # Revenue (approved payments)
     total_revenue = await db.scalar(
-        select(func.sum(Payment.amount)).where(Payment.status.in_([PaymentStatus.approved, PaymentStatus.auto_verified]))
+        select(func.sum(Payment.amount)).where(
+            Payment.status.in_([PaymentStatus.approved, PaymentStatus.auto_verified])
+        )
     )
 
     # This month
-    month_start = datetime.now(timezone.utc).replace(day=1, hour=0, minute=0, second=0, microsecond=0)
+    month_start = datetime.now(timezone.utc).replace(
+        day=1, hour=0, minute=0, second=0, microsecond=0
+    )
     month_revenue = await db.scalar(
         select(func.sum(Payment.amount)).where(
             Payment.status.in_([PaymentStatus.approved, PaymentStatus.auto_verified]),
@@ -65,13 +79,19 @@ async def get_overview(
     )
 
     return {
-        "users": {"total": total_users or 0, "artisans": total_artisans or 0, "clients": total_clients or 0},
+        "users": {
+            "total": total_users or 0,
+            "artisans": total_artisans or 0,
+            "clients": total_clients or 0,
+        },
         "jobs": {"total": total_jobs or 0, "open": open_jobs or 0},
         "bookings": {
             "total": total_bookings or 0,
             "completed": completed_bookings or 0,
             "disputed": disputed_bookings or 0,
-            "completion_rate": round((completed_bookings or 0) / max(total_bookings or 1, 1) * 100, 1),
+            "completion_rate": round(
+                (completed_bookings or 0) / max(total_bookings or 1, 1) * 100, 1
+            ),
         },
         "revenue": {
             "total_rwf": int(total_revenue or 0),
@@ -131,9 +151,7 @@ async def get_funnel(
 ) -> Any:
     """Conversion funnel: jobs posted → bids received → bookings → payments."""
     jobs = await db.scalar(select(func.count(Job.id)))
-    jobs_with_bids = await db.scalar(
-        select(func.count(func.distinct(Bid.job_id)))
-    )
+    jobs_with_bids = await db.scalar(select(func.count(func.distinct(Bid.job_id))))
     bookings = await db.scalar(select(func.count(Booking.id)))
     payments = await db.scalar(
         select(func.count(Payment.id)).where(
@@ -187,7 +205,9 @@ async def get_leaderboard(
         .join(User, ArtisanProfile.user_id == User.id)
         .where(User.is_active)
         .order_by(
-            ArtisanProfile.completion_rate.desc() if metric == "completion" else ArtisanProfile.average_rating.desc()
+            ArtisanProfile.completion_rate.desc()
+            if metric == "completion"
+            else ArtisanProfile.average_rating.desc()
         )
         .limit(limit)
     )
@@ -222,7 +242,10 @@ async def get_geo_heatmap(
             ORDER BY 2 DESC
         """)
         jobs_result = await db.execute(jobs_query)
-        jobs_by_district = {row["district"].strip(): row["job_count"] for row in jobs_result.mappings().all()}
+        jobs_by_district = {
+            row["district"].strip(): row["job_count"]
+            for row in jobs_result.mappings().all()
+        }
     except Exception:
         jobs_by_district = {}
 
@@ -234,13 +257,17 @@ async def get_geo_heatmap(
     artisans_by_district = {row[0]: row[1] for row in artisans_result.all()}
 
     # Combine
-    all_districts = set(list(jobs_by_district.keys()) + list(artisans_by_district.keys()))
+    all_districts = set(
+        list(jobs_by_district.keys()) + list(artisans_by_district.keys())
+    )
     return [
         {
             "district": d,
             "job_count": jobs_by_district.get(d, 0),
             "artisan_count": artisans_by_district.get(d, 0),
-            "demand_gap": max(0, jobs_by_district.get(d, 0) - artisans_by_district.get(d, 0)),
+            "demand_gap": max(
+                0, jobs_by_district.get(d, 0) - artisans_by_district.get(d, 0)
+            ),
         }
         for d in sorted(all_districts)
     ]
@@ -255,39 +282,77 @@ async def export_report(
     """Export analytics data as CSV."""
     allowed_reports = ["users", "bookings", "payments", "jobs"]
     if report not in allowed_reports:
-        from fastapi import HTTPException
-        raise HTTPException(status_code=400, detail=f"Report must be one of: {', '.join(allowed_reports)}")
+        raise HTTPException(
+            status_code=400,
+            detail=f"Report must be one of: {', '.join(allowed_reports)}",
+        )
 
     output = io.StringIO()
     writer = csv.writer(output)
 
     if report == "users":
-        writer.writerow(["id", "full_name", "email", "phone", "role", "district", "account_status", "created_at"])
-        result = await db.execute(select(User).order_by(User.created_at.desc()).limit(5000))
+        writer.writerow(
+            [
+                "id",
+                "full_name",
+                "email",
+                "phone",
+                "role",
+                "district",
+                "account_status",
+                "created_at",
+            ]
+        )
+        result = await db.execute(
+            select(User).order_by(User.created_at.desc()).limit(5000)
+        )
         for u in result.scalars().all():
-            writer.writerow([str(u.id), u.full_name, u.email, u.phone_number, u.role, u.district, u.account_status, u.created_at])
+            writer.writerow(
+                [
+                    str(u.id),
+                    u.full_name,
+                    u.email,
+                    u.phone_number,
+                    u.role,
+                    u.district,
+                    u.account_status,
+                    u.created_at,
+                ]
+            )
 
     elif report == "bookings":
         writer.writerow(["id", "status", "agreed_price", "created_at"])
-        result = await db.execute(select(Booking).order_by(Booking.created_at.desc()).limit(5000))
+        result = await db.execute(
+            select(Booking).order_by(Booking.created_at.desc()).limit(5000)
+        )
         for b in result.scalars().all():
             writer.writerow([str(b.id), b.status, b.agreed_price, b.created_at])
 
     elif report == "payments":
         writer.writerow(["id", "amount", "status", "method", "created_at"])
-        result = await db.execute(select(Payment).order_by(Payment.created_at.desc()).limit(5000))
+        result = await db.execute(
+            select(Payment).order_by(Payment.created_at.desc()).limit(5000)
+        )
         for p in result.scalars().all():
             writer.writerow([str(p.id), p.amount, p.status, p.method, p.created_at])
 
     elif report == "jobs":
-        writer.writerow(["id", "title", "status", "budget", "location_label", "created_at"])
-        result = await db.execute(select(Job).order_by(Job.created_at.desc()).limit(5000))
+        writer.writerow(
+            ["id", "title", "status", "budget", "location_label", "created_at"]
+        )
+        result = await db.execute(
+            select(Job).order_by(Job.created_at.desc()).limit(5000)
+        )
         for j in result.scalars().all():
-            writer.writerow([str(j.id), j.title, j.status, j.budget, j.location_label, j.created_at])
+            writer.writerow(
+                [str(j.id), j.title, j.status, j.budget, j.location_label, j.created_at]
+            )
 
     output.seek(0)
     return StreamingResponse(
         io.BytesIO(output.getvalue().encode()),
         media_type="text/csv",
-        headers={"Content-Disposition": f"attachment; filename={report}_{datetime.now().strftime('%Y%m%d')}.csv"},
+        headers={
+            "Content-Disposition": f"attachment; filename={report}_{datetime.now().strftime('%Y%m%d')}.csv"
+        },
     )

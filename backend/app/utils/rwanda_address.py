@@ -7,6 +7,7 @@ based on Rwanda's official administrative divisions.
 
 Also includes address formatting helpers and geocoding support.
 """
+
 from __future__ import annotations
 
 # Complete Rwanda administrative structure
@@ -238,7 +239,6 @@ RWANDA_ADDRESSES: dict[str, dict[str, dict[str, list[str]]]] = {
             "Muyira": ["Gisagara", "Kabagari", "Muyira"],
             "Nzangwa": ["Gisagara", "Kabagari", "Nzangwa"],
             "Save": ["Gisagara", "Kabagari", "Save"],
-            "Muganza": ["Gisagara", "Kabagari", "Muganza"],
         },
         "Huye": {
             "Gishamvu": ["Gishamvu", "Huye", "Kabagari"],
@@ -431,9 +431,7 @@ def get_sectors(province: str, district: str) -> list[str]:
 
 
 def get_cells(province: str, district: str, sector: str) -> list[str]:
-    return sorted(
-        RWANDA_ADDRESSES.get(province, {}).get(district, {}).get(sector, [])
-    )
+    return sorted(RWANDA_ADDRESSES.get(province, {}).get(district, {}).get(sector, []))
 
 
 def format_address(

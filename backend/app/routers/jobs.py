@@ -145,9 +145,7 @@ async def create_job(
     await db.refresh(job)
 
     # Trigger smart matching: notify top-5 artisans in background
-    asyncio.ensure_future(
-        _notify_artisans_async(job.id, cat.name_en if cat else "")
-    )
+    asyncio.ensure_future(_notify_artisans_async(job.id, cat.name_en if cat else ""))
 
     return _serialize_job(job, cat, 0)
 
@@ -160,7 +158,7 @@ async def _notify_artisans_async(job_id: UUID, category_name: str) -> None:
         async with AsyncSessionLocal() as session:
             job = await session.scalar(select(Job).where(Job.id == job_id))
             if job:
-                count = await notify_matching_artisans(session, job, category_name)
+                await notify_matching_artisans(session, job, category_name)
                 await session.commit()
     except Exception as e:
         print(f"[MatchingService] Error notifying artisans for job {job_id}: {e}")

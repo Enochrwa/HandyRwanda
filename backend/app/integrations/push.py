@@ -5,6 +5,10 @@ Unified push notification dispatcher.
 Priority: FCM (Android/iOS native) → Expo push (Expo Go / managed workflow)
 Both can coexist on the same user account.
 """
+
+from __future__ import annotations
+
+import json
 from typing import Any
 
 
@@ -17,11 +21,10 @@ async def send_push_notification(
 ) -> bool:
     """
     Send a push notification to a user via the best available channel.
-    Also checks notification preferences before sending.
-    Never raises.
+    Checks notification preferences before sending. Never raises.
     """
-    import json  # noqa: PLC0415
     from sqlalchemy import select  # noqa: PLC0415
+
     from app.models.user import User  # noqa: PLC0415
 
     try:
@@ -34,7 +37,6 @@ async def send_push_notification(
         if user.notification_prefs:
             try:
                 prefs = json.loads(user.notification_prefs)
-                # Map event types to preference keys
                 pref_map = {
                     "new_bid": "new_bid",
                     "bid_accepted": "booking_update",
@@ -48,24 +50,24 @@ async def send_push_notification(
                 }
                 pref_key = pref_map.get(event_type, "")
                 if pref_key and not prefs.get(pref_key, True):
-                    return False  # User opted out
+                    return False
             except Exception:
                 pass
 
         sent = False
 
-        # Try FCM first
         fcm_token = getattr(user, "fcm_push_token", None)
         if fcm_token:
             from app.integrations.firebase_push import send_fcm_push  # noqa: PLC0415
+
             sent = await send_fcm_push(fcm_token, title, body, data)
 
-        # Fallback to Expo
         if not sent:
             expo_token = getattr(user, "expo_push_token", None)
             if expo_token:
                 from app.integrations.expo_push import send_push  # noqa: PLC0415
-                sent = await send_push(expo_token, title, body, data)
+
+                sent = await send_push(expo_token, title, body, data)  # type: ignore[arg-type]
 
         return sent
     except Exception:

@@ -4,35 +4,40 @@ Dispute management router with evidence collection.
 
 POST /disputes/{booking_id}/evidence     — submit evidence (photo URL or statement)
 GET  /disputes/{booking_id}/evidence     — list all evidence for a dispute
-GET  /disputes/{booking_id}/timeline     — full dispute timeline (messages + evidence + booking history)
+GET  /disputes/{booking_id}/timeline     — full dispute timeline (admin)
 POST /disputes/{booking_id}/resolve      — admin: resolve dispute
 """
+
 from datetime import datetime, timedelta, timezone
 from typing import Any
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel, Field
-from sqlalchemy import or_, select
+from sqlalchemy import or_, select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.database import get_db
 from app.dependencies.jwt_auth import get_current_user, require_role
 from app.models.booking import Booking, BookingStatus
-from app.models.escrow import DisputeEvidence, DisputeEvidenceType, EscrowStatus, EscrowTransaction
+from app.models.escrow import (
+    DisputeEvidence,
+    DisputeEvidenceType,
+    EscrowStatus,
+    EscrowTransaction,
+)
 from app.models.message import Message
 from app.models.notification import Notification
 from app.models.user import User, UserRole
 
 router = APIRouter(prefix="/disputes", tags=["disputes"])
 
-# 72-hour window for evidence submission
 EVIDENCE_WINDOW_HOURS = 72
 
 
 class EvidenceSubmit(BaseModel):
     evidence_type: DisputeEvidenceType
-    content: str = Field(..., min_length=1, max_length=2000, description="URL for photos, text for statements")
+    content: str = Field(..., min_length=1, max_length=2000)
 
 
 class DisputeResolvePayload(BaseModel):
@@ -48,8 +53,6 @@ async def submit_evidence(
     current_user: dict[str, Any] = Depends(get_current_user),
 ) -> Any:
     user_id = UUID(current_user["sub"])
-
-    # Verify booking is in disputed state and user is a party
     booking = await db.scalar(
         select(Booking).where(
             Booking.id == booking_id,
@@ -62,7 +65,6 @@ async def submit_evidence(
             status_code=404,
             detail="Disputed booking not found or you are not a party to this booking.",
         )
-
     evidence = DisputeEvidence(
         booking_id=booking_id,
         submitted_by=user_id,
@@ -70,9 +72,6 @@ async def submit_evidence(
         content=payload.content,
     )
     db.add(evidence)
-
-    # Notify admin about new evidence
-    # In production: send email to admin@handyrwanda.rw
     await db.commit()
     return {"message": "Evidence submitted successfully.", "id": str(evidence.id)}
 
@@ -85,8 +84,6 @@ async def get_evidence(
 ) -> Any:
     user_id = UUID(current_user["sub"])
     role = current_user["role"]
-
-    # Check access
     if role != UserRole.admin:
         booking = await db.scalar(
             select(Booking).where(
@@ -96,7 +93,6 @@ async def get_evidence(
         )
         if not booking:
             raise HTTPException(status_code=403, detail="Access denied.")
-
     result = await db.execute(
         select(DisputeEvidence, User)
         .join(User, DisputeEvidence.submitted_by == User.id)
@@ -122,7 +118,6 @@ async def get_dispute_timeline(
     db: AsyncSession = Depends(get_db),
     current_user: dict[str, Any] = Depends(require_role(UserRole.admin)),
 ) -> Any:
-    """Admin: get full dispute context — booking info, messages, evidence, payment."""
     from app.models.job import Job  # noqa: PLC0415
     from app.models.payment import Payment  # noqa: PLC0415
 
@@ -134,10 +129,8 @@ async def get_dispute_timeline(
     row = booking_result.first()
     if not row:
         raise HTTPException(status_code=404, detail="Booking not found.")
-
     booking, job = row
 
-    # Messages
     messages_result = await db.execute(
         select(Message, User)
         .join(User, Message.sender_id == User.id)
@@ -154,7 +147,6 @@ async def get_dispute_timeline(
         for m, u in messages_result.all()
     ]
 
-    # Evidence
     evidence_result = await db.execute(
         select(DisputeEvidence, User)
         .join(User, DisputeEvidence.submitted_by == User.id)
@@ -171,12 +163,9 @@ async def get_dispute_timeline(
         for e, u in evidence_result.all()
     ]
 
-    # Payment
     payment = await db.scalar(
-        select(Payment).where(Payment.booking_id == booking_id)  # type: ignore
+        select(Payment).where(Payment.booking_id == booking_id)  # type: ignore[arg-type]
     )
-
-    # Parties
     client = await db.scalar(select(User).where(User.id == booking.client_id))
     artisan = await db.scalar(select(User).where(User.id == booking.artisan_id))
 
@@ -187,15 +176,23 @@ async def get_dispute_timeline(
             "agreed_price": booking.agreed_price,
             "before_photo_url": booking.before_photo_url,
             "after_photo_url": booking.after_photo_url,
-            "created_at": booking.created_at.isoformat() if booking.created_at else None,
+            "created_at": booking.created_at.isoformat()
+            if booking.created_at
+            else None,
         },
         "job": {
             "title": job.title,
             "description": job.description,
             "location_label": job.location_label,
         },
-        "client": {"name": client.full_name if client else None, "phone": client.phone_number if client else None},
-        "artisan": {"name": artisan.full_name if artisan else None, "phone": artisan.phone_number if artisan else None},
+        "client": {
+            "name": client.full_name if client else None,
+            "phone": client.phone_number if client else None,
+        },
+        "artisan": {
+            "name": artisan.full_name if artisan else None,
+            "phone": artisan.phone_number if artisan else None,
+        },
         "payment": {
             "amount": payment.amount if payment else None,
             "status": payment.status if payment else None,
@@ -203,7 +200,9 @@ async def get_dispute_timeline(
         },
         "messages": messages,
         "evidence": evidence,
-        "evidence_deadline": (datetime.now(timezone.utc) + timedelta(hours=EVIDENCE_WINDOW_HOURS)).isoformat(),
+        "evidence_deadline": (
+            datetime.now(timezone.utc) + timedelta(hours=EVIDENCE_WINDOW_HOURS)
+        ).isoformat(),
     }
 
 
@@ -214,11 +213,12 @@ async def resolve_dispute(
     db: AsyncSession = Depends(get_db),
     current_user: dict[str, Any] = Depends(require_role(UserRole.admin)),
 ) -> Any:
-    from sqlalchemy import update  # noqa: PLC0415
     from app.services.escrow_service import release_escrow  # noqa: PLC0415
 
     if payload.winner not in ("client", "artisan"):
-        raise HTTPException(status_code=400, detail='winner must be "client" or "artisan"')
+        raise HTTPException(
+            status_code=400, detail='winner must be "client" or "artisan"'
+        )
 
     booking = await db.scalar(
         select(Booking).where(
@@ -232,38 +232,49 @@ async def resolve_dispute(
     await db.execute(
         update(Booking)
         .where(Booking.id == booking_id)
-        .values(status=BookingStatus.completed if payload.winner == "artisan" else BookingStatus.cancelled)
+        .values(
+            status=BookingStatus.completed
+            if payload.winner == "artisan"
+            else BookingStatus.cancelled
+        )
     )
 
     winner_id = booking.artisan_id if payload.winner == "artisan" else booking.client_id
     loser_id = booking.client_id if payload.winner == "artisan" else booking.artisan_id
 
-    # Handle escrow
     if payload.winner == "artisan":
         await release_escrow(db, booking_id, released_by="admin")
     else:
-        # Refund to client — update escrow status
         await db.execute(
             update(EscrowTransaction)
             .where(EscrowTransaction.booking_id == booking_id)
             .values(status=EscrowStatus.refunded, released_by="admin")
         )
 
-    # Notify both parties
-    db.add(Notification(
-        user_id=winner_id,
-        event_type="dispute_resolved_win",
-        title="Dispute resolved in your favour ✅",
-        body=f"The dispute has been resolved in your favour. {payload.notes or ''}",
-        payload={"booking_id": str(booking_id), "event_type": "dispute_resolved_win"},
-    ))
-    db.add(Notification(
-        user_id=loser_id,
-        event_type="dispute_resolved_loss",
-        title="Dispute outcome",
-        body=f"The dispute was resolved. {payload.notes or 'Contact support for details.'}",
-        payload={"booking_id": str(booking_id), "event_type": "dispute_resolved_loss"},
-    ))
+    db.add(
+        Notification(
+            user_id=winner_id,
+            event_type="dispute_resolved_win",
+            title="Dispute resolved in your favour ✅",
+            body=f"The dispute has been resolved in your favour. {payload.notes or ''}",
+            payload={
+                "booking_id": str(booking_id),
+                "event_type": "dispute_resolved_win",
+            },
+        )
+    )
+    db.add(
+        Notification(
+            user_id=loser_id,
+            event_type="dispute_resolved_loss",
+            title="Dispute outcome",
+            body=f"The dispute was resolved. {payload.notes or 'Contact support for details.'}",
+            payload={
+                "booking_id": str(booking_id),
+                "event_type": "dispute_resolved_loss",
+            },
+        )
+    )
 
     await db.commit()
     return {"message": f"Dispute resolved. Winner: {payload.winner}."}

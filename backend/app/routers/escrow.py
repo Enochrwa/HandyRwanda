@@ -11,18 +11,19 @@ POST /escrow/admin/withdrawals/{id}/pay     — admin: mark withdrawal as paid
 POST /escrow/admin/withdrawals/{id}/reject  — admin: reject withdrawal
 POST /escrow/admin/cron/auto-release        — admin/cron: process auto-releases
 """
+
+from datetime import datetime, timezone
 from typing import Any
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel, Field
-from sqlalchemy import select
+from sqlalchemy import select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.database import get_db
-from app.dependencies.jwt_auth import get_current_user, require_role
+from app.dependencies.jwt_auth import require_role
 from app.models.escrow import (
-    EscrowStatus,
     EscrowTransaction,
     WithdrawalRequest,
     WithdrawalStatus,
@@ -153,7 +154,11 @@ async def admin_list_withdrawals(
     result = await db.execute(
         select(WithdrawalRequest, User)
         .join(User, WithdrawalRequest.artisan_id == User.id)
-        .where(WithdrawalRequest.status.in_([WithdrawalStatus.pending, WithdrawalStatus.processing]))
+        .where(
+            WithdrawalRequest.status.in_(
+                [WithdrawalStatus.pending, WithdrawalStatus.processing]
+            )
+        )
         .order_by(WithdrawalRequest.created_at.asc())
     )
     return [
@@ -182,9 +187,6 @@ async def admin_mark_paid(
     db: AsyncSession = Depends(get_db),
     current_user: dict[str, Any] = Depends(require_role(UserRole.admin)),
 ) -> Any:
-    from datetime import datetime, timezone  # noqa: PLC0415
-    from sqlalchemy import update  # noqa: PLC0415
-
     w = await db.scalar(
         select(WithdrawalRequest).where(WithdrawalRequest.id == withdrawal_id)
     )
@@ -223,9 +225,6 @@ async def admin_reject_withdrawal(
     db: AsyncSession = Depends(get_db),
     current_user: dict[str, Any] = Depends(require_role(UserRole.admin)),
 ) -> Any:
-    from datetime import datetime, timezone  # noqa: PLC0415
-    from sqlalchemy import update  # noqa: PLC0415
-
     w = await db.scalar(
         select(WithdrawalRequest).where(WithdrawalRequest.id == withdrawal_id)
     )
@@ -249,7 +248,10 @@ async def admin_reject_withdrawal(
         event_type="withdrawal_rejected",
         title="Withdrawal rejected ❌",
         body=f"Your withdrawal of {w.amount:,} RWF was rejected. Reason: {payload.admin_note or 'see admin'}",
-        payload={"withdrawal_id": str(withdrawal_id), "event_type": "withdrawal_rejected"},
+        payload={
+            "withdrawal_id": str(withdrawal_id),
+            "event_type": "withdrawal_rejected",
+        },
     )
     db.add(notif)
     await db.commit()

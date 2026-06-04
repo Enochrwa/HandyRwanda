@@ -8,7 +8,8 @@ POST /schedule/blocked                — artisan: add a blocked date
 DELETE /schedule/blocked/{date}       — artisan: remove a blocked date
 GET  /schedule/{artisan_id}/available — public: check if artisan is available on a date
 """
-from datetime import date, time
+
+from datetime import date, datetime, time, timezone
 from typing import Any
 from uuid import UUID
 
@@ -18,8 +19,7 @@ from sqlalchemy import delete, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.database import get_db
-from app.dependencies.jwt_auth import get_current_user, require_role
-from app.models.artisan import ArtisanProfile
+from app.dependencies.jwt_auth import require_role
 from app.models.booking import Booking, BookingStatus
 from app.models.job import Job
 from app.models.schedule import ArtisanSchedule, BlockedDate
@@ -187,9 +187,12 @@ async def check_artisan_availability(
         }
 
     # Check for existing confirmed bookings on this date
-    from datetime import datetime, timezone  # noqa: PLC0415
-    day_start = datetime.combine(check_date, datetime.min.time()).replace(tzinfo=timezone.utc)
-    day_end = datetime.combine(check_date, datetime.max.time()).replace(tzinfo=timezone.utc)
+    day_start = datetime.combine(check_date, datetime.min.time()).replace(
+        tzinfo=timezone.utc
+    )
+    day_end = datetime.combine(check_date, datetime.max.time()).replace(
+        tzinfo=timezone.utc
+    )
 
     bookings_result = await db.execute(
         select(Booking, Job)
@@ -202,7 +205,9 @@ async def check_artisan_availability(
     )
     booked_times = [
         {
-            "start": row[1].scheduled_time.isoformat() if row[1].scheduled_time else None,
+            "start": row[1].scheduled_time.isoformat()
+            if row[1].scheduled_time
+            else None,
             "job_title": row[1].title,
         }
         for row in bookings_result.all()

@@ -17,8 +17,16 @@ interface Prefs {
 
 const PREF_LABELS: { key: keyof Prefs; label: string; desc: string }[] = [
   { key: 'new_bid', label: 'New bids', desc: 'When an artisan bids on your job' },
-  { key: 'booking_update', label: 'Booking updates', desc: 'Confirmations, completions, and status changes' },
-  { key: 'payment', label: 'Payments & earnings', desc: 'Payment approvals, escrow releases, withdrawals' },
+  {
+    key: 'booking_update',
+    label: 'Booking updates',
+    desc: 'Confirmations, completions, and status changes',
+  },
+  {
+    key: 'payment',
+    label: 'Payments & earnings',
+    desc: 'Payment approvals, escrow releases, withdrawals',
+  },
   { key: 'message', label: 'Messages', desc: 'When you receive a new message' },
   { key: 'promo', label: 'Promotions', desc: 'Tips, offers, and HandyRwanda news' },
 ];
@@ -26,7 +34,11 @@ const PREF_LABELS: { key: keyof Prefs; label: string; desc: string }[] = [
 export default function NotificationPreferencesScreen() {
   const qc = useQueryClient();
   const [prefs, setPrefs] = useState<Prefs>({
-    new_bid: true, booking_update: true, payment: true, message: true, promo: false,
+    new_bid: true,
+    booking_update: true,
+    payment: true,
+    message: true,
+    promo: false,
   });
 
   const { data: serverPrefs } = useQuery<Prefs>({
@@ -61,7 +73,10 @@ export default function NotificationPreferencesScreen() {
 
         <View style={styles.card}>
           {PREF_LABELS.map((item, i) => (
-            <View key={item.key} style={[styles.row, i < PREF_LABELS.length - 1 && styles.rowBorder]}>
+            <View
+              key={item.key}
+              style={[styles.row, i < PREF_LABELS.length - 1 && styles.rowBorder]}
+            >
               <View style={styles.rowText}>
                 <Text style={styles.rowLabel}>{item.label}</Text>
                 <Text style={styles.rowDesc}>{item.desc}</Text>
@@ -85,8 +100,20 @@ const styles = StyleSheet.create({
   content: { padding: 16, gap: 12 },
   heading: { fontSize: 22, fontWeight: '700', color: '#111827' },
   subheading: { fontSize: 14, color: '#6B7280' },
-  card: { backgroundColor: '#FFFFFF', borderRadius: 12, overflow: 'hidden', borderWidth: 1, borderColor: '#E5E7EB' },
-  row: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 16, paddingVertical: 14 },
+  card: {
+    backgroundColor: '#FFFFFF',
+    borderRadius: 12,
+    overflow: 'hidden',
+    borderWidth: 1,
+    borderColor: '#E5E7EB',
+  },
+  row: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: 16,
+    paddingVertical: 14,
+  },
   rowBorder: { borderBottomWidth: 1, borderBottomColor: '#F3F4F6' },
   rowText: { flex: 1, marginRight: 12 },
   rowLabel: { fontSize: 15, fontWeight: '600', color: '#111827' },

@@ -34,9 +34,13 @@ export function useOfflineStatus() {
             return online;
           });
         });
-      } catch { /* NetInfo unavailable */ }
+      } catch {
+        /* NetInfo unavailable */
+      }
     })();
-    return () => { unsubscribe?.(); };
+    return () => {
+      unsubscribe?.();
+    };
   }, [qc]);
 
   return { isOnline };
@@ -45,7 +49,9 @@ export function useOfflineStatus() {
 export async function cacheData(key: string, data: unknown) {
   try {
     await AsyncStorage.setItem(`${CACHE_PREFIX}${key}`, JSON.stringify({ data, ts: Date.now() }));
-  } catch { /* non-fatal */ }
+  } catch {
+    /* non-fatal */
+  }
 }
 
 export async function getCachedData<T>(key: string): Promise<T | null> {
@@ -53,7 +59,9 @@ export async function getCachedData<T>(key: string): Promise<T | null> {
     const raw = await AsyncStorage.getItem(`${CACHE_PREFIX}${key}`);
     if (!raw) return null;
     return JSON.parse(raw).data as T;
-  } catch { return null; }
+  } catch {
+    return null;
+  }
 }
 
 export async function queueOfflineAction(action: Omit<OfflineAction, 'id' | 'timestamp'>) {
@@ -62,7 +70,9 @@ export async function queueOfflineAction(action: Omit<OfflineAction, 'id' | 'tim
     const queue: OfflineAction[] = raw ? JSON.parse(raw) : [];
     queue.push({ ...action, id: Math.random().toString(36).slice(2), timestamp: Date.now() });
     await AsyncStorage.setItem(QUEUE_KEY, JSON.stringify(queue));
-  } catch { /* non-fatal */ }
+  } catch {
+    /* non-fatal */
+  }
 }
 
 async function flushOfflineQueue() {
@@ -74,9 +84,16 @@ async function flushOfflineQueue() {
     const { default: api } = await import('../services/api');
     const ok: string[] = [];
     for (const action of queue) {
-      try { await api.request({ url: action.url, method: action.method, data: action.data }); ok.push(action.id); } catch { /* keep in queue */ }
+      try {
+        await api.request({ url: action.url, method: action.method, data: action.data });
+        ok.push(action.id);
+      } catch {
+        /* keep in queue */
+      }
     }
     const remaining = queue.filter((a) => !ok.includes(a.id));
     await AsyncStorage.setItem(QUEUE_KEY, JSON.stringify(remaining));
-  } catch { /* non-fatal */ }
+  } catch {
+    /* non-fatal */
+  }
 }

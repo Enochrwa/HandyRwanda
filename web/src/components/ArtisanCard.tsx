@@ -1,80 +1,116 @@
 // File: web/src/components/ArtisanCard.tsx
-import { Link } from "@tanstack/react-router";
 import { Star, MapPin, ShieldCheck, Zap, Circle } from "lucide-react";
-import { categoryTint, formatRWF } from "@/services/artisanService";
-import type { Artisan } from "@/types/artisan";
+import { Link } from "@tanstack/react-router";
 
-export function ArtisanCard({ a }: { a: Artisan }) {
+export interface ArtisanCardData {
+  id: string;
+  full_name: string;
+  avatar_url?: string | null;
+  district?: string | null;
+  sector?: string | null;
+  average_rating?: number;
+  total_reviews?: number;
+  hourly_rate?: number | null;
+  fixed_rate?: number | null;
+  is_available?: boolean;
+  verification_status?: string | null;
+  // legacy fields kept for backwards compat
+  verified?: boolean;
+  pro?: boolean;
+  categories?: { name_en: string; icon_emoji?: string }[];
+}
+
+interface Props {
+  a: ArtisanCardData;
+}
+
+export function ArtisanCard({ a }: Props) {
+  const rating = a.average_rating ?? 0;
+  const reviews = a.total_reviews ?? 0;
+  const isVerified = a.verification_status === "id_verified" || a.verified;
+  const isPro = a.verification_status === "pro_verified" || a.pro;
+  const location = [a.sector, a.district].filter(Boolean).join(", ") || a.district || "Rwanda";
+
   return (
     <Link
       to="/artisan/$id"
       params={{ id: a.id }}
-      className={[
-        "group relative block overflow-hidden rounded-2xl border border-border bg-card p-4 shadow-card transition-all hover:-translate-y-0.5 hover:shadow-lift",
-        a.pro ? "border-l-4" : "",
-      ].join(" ")}
-      style={
-        a.pro ? { backgroundColor: "var(--pro-tint)", borderLeftColor: "var(--accent)" } : undefined
-      }
+      className="group block rounded-3xl border border-border bg-card p-4 shadow-sm transition hover:shadow-md hover:-translate-y-0.5"
     >
-      <span
-        aria-hidden
-        className="absolute right-0 top-0 h-16 w-16 rounded-bl-3xl opacity-25"
-        style={{ background: categoryTint[a.category] ?? "var(--accent)" }}
-      />
-      <div className="flex gap-3">
-        <img
-          src={a.photo}
-          alt={a.name}
-          loading="lazy"
-          width={96}
-          height={96}
-          className="h-14 w-14 shrink-0 rounded-full object-cover ring-2 ring-background"
-        />
-        <div className="min-w-0 flex-1">
-          <div className="flex items-start justify-between gap-2">
-            <div className="min-w-0">
-              <h3 className="truncate font-semibold leading-tight text-foreground">{a.name}</h3>
-              <p className="mt-0.5 text-sm font-medium text-muted-foreground">
-                {a.category} · {a.distanceKm} km away
-              </p>
+      {/* Avatar + availability */}
+      <div className="relative mb-3">
+        <div className="mx-auto h-16 w-16 overflow-hidden rounded-full border-2 border-border bg-muted">
+          {a.avatar_url ? (
+            <img
+              src={a.avatar_url}
+              alt={`${a.full_name} avatar`}
+              className="h-full w-full object-cover"
+            />
+          ) : (
+            <div className="flex h-full w-full items-center justify-center text-2xl font-bold text-muted-foreground">
+              {a.full_name?.[0]?.toUpperCase() ?? "?"}
             </div>
-            <div className="shrink-0 text-right">
-              <div className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-                From
-              </div>
-              <div className="font-bold text-foreground">
-                {formatRWF(a.startingPrice ?? a.hourlyRate ?? 5000)}
-                <span className="ml-1 text-xs text-muted-foreground">RWF</span>
-              </div>
-            </div>
-          </div>
-          <div className="mt-1.5 flex items-center gap-1.5 text-sm">
-            <Star className="h-4 w-4 fill-accent text-accent" />
-            <span className="font-semibold">{a.rating}</span>
-            <span className="text-muted-foreground">({a.reviews})</span>
-          </div>
-          <div className="mt-2 flex flex-wrap gap-1.5">
-            {(a.verification_status === 'id_verified' || a.verified) && (
-              <span className="inline-flex items-center gap-1 rounded-full bg-[color:var(--verified)]/10 px-2 py-0.5 text-[11px] font-semibold text-[color:var(--verified)]">
-                <ShieldCheck className="h-3 w-3" /> Verified
-              </span>
-            )}
-            {(a.verification_status === 'pro_verified' || a.pro) && (
-              <span className="inline-flex items-center gap-1 rounded-full bg-amber-100 px-2 py-0.5 text-[11px] font-semibold text-amber-700">
-                <Zap className="h-3 w-3" /> Pro Verified
-              </span>
-            )}
-            {a.availableNow && (
-              <span className="inline-flex items-center gap-1 rounded-full bg-success/10 px-2 py-0.5 text-[11px] font-semibold text-success">
-                <Circle className="h-2 w-2 fill-success text-success" /> Available now
-              </span>
-            )}
-            <span className="inline-flex items-center gap-1 rounded-full bg-muted px-2 py-0.5 text-[11px] font-semibold text-muted-foreground">
-              <MapPin className="h-3 w-3" /> {a.district}
-            </span>
-          </div>
+          )}
         </div>
+        {/* Online / available dot */}
+        {a.is_available !== undefined && (
+          <span className="absolute bottom-0 right-1/2 translate-x-6 translate-y-1">
+            <Circle
+              className={`h-3 w-3 fill-current ${a.is_available ? "text-green-500" : "text-muted-foreground"}`}
+            />
+          </span>
+        )}
+      </div>
+
+      {/* Name */}
+      <p className="truncate text-center text-sm font-bold text-foreground">{a.full_name}</p>
+
+      {/* Location */}
+      {location && (
+        <p className="mt-0.5 flex items-center justify-center gap-1 truncate text-[11px] text-muted-foreground">
+          <MapPin className="h-3 w-3 shrink-0" />
+          {location}
+        </p>
+      )}
+
+      {/* Badges */}
+      <div className="mt-2 flex flex-wrap justify-center gap-1.5">
+        {isVerified && (
+          <span className="inline-flex items-center gap-1 rounded-full bg-[color:var(--verified)]/10 px-2 py-0.5 text-[11px] font-semibold text-[color:var(--verified)]">
+            <ShieldCheck className="h-3 w-3" /> Verified
+          </span>
+        )}
+        {isPro && (
+          <span className="inline-flex items-center gap-1 rounded-full bg-amber-100 px-2 py-0.5 text-[11px] font-semibold text-amber-700">
+            <Zap className="h-3 w-3" /> Pro Verified
+          </span>
+        )}
+      </div>
+
+      {/* Categories */}
+      {a.categories && a.categories.length > 0 && (
+        <p className="mt-2 truncate text-center text-[11px] text-muted-foreground">
+          {a.categories
+            .slice(0, 2)
+            .map((c) => `${c.icon_emoji ?? "🛠️"} ${c.name_en}`)
+            .join(" · ")}
+        </p>
+      )}
+
+      {/* Rating + rate */}
+      <div className="mt-3 flex items-center justify-between border-t border-border pt-2 text-[11px]">
+        <span className="flex items-center gap-0.5">
+          <Star className="h-3 w-3 fill-yellow-400 text-yellow-400" />
+          <span className="font-semibold">{rating > 0 ? rating.toFixed(1) : "New"}</span>
+          {reviews > 0 && <span className="text-muted-foreground">({reviews})</span>}
+        </span>
+        {(a.hourly_rate || a.fixed_rate) && (
+          <span className="font-semibold text-primary">
+            {a.hourly_rate
+              ? `${a.hourly_rate.toLocaleString()} RWF/hr`
+              : `${a.fixed_rate?.toLocaleString()} RWF`}
+          </span>
+        )}
       </div>
     </Link>
   );

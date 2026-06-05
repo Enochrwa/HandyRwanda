@@ -163,9 +163,7 @@ async def get_dispute_timeline(
         for e, u in evidence_result.all()
     ]
 
-    payment = await db.scalar(
-        select(Payment).where(Payment.booking_id == booking_id)  # type: ignore[arg-type]
-    )
+    payment = await db.scalar(select(Payment).where(Payment.booking_id == booking_id))
     client = await db.scalar(select(User).where(User.id == booking.client_id))
     artisan = await db.scalar(select(User).where(User.id == booking.artisan_id))
 

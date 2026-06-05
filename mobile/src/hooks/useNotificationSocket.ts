@@ -65,7 +65,7 @@ export function useNotificationSocket() {
           if (msg.type === 'notification' && msg.data) {
             const notif = msg.data;
             // Prepend to cache
-            qc.setQueryData(['notifications'], (old: typeof notif[] | undefined) => {
+            qc.setQueryData(['notifications'], (old: (typeof notif)[] | undefined) => {
               if (!old) return [notif];
               if (old.some((n: typeof notif) => n.id === notif.id)) return old;
               return [notif, ...old];
@@ -79,11 +79,16 @@ export function useNotificationSocket() {
               qc.invalidateQueries({ queryKey: ['bids'] });
             }
           }
-        } catch { /* ignore malformed messages */ }
+        } catch {
+          /* ignore malformed messages */
+        }
       };
 
       ws.onclose = (ev) => {
-        if (pingRef.current) { clearInterval(pingRef.current); pingRef.current = null; }
+        if (pingRef.current) {
+          clearInterval(pingRef.current);
+          pingRef.current = null;
+        }
         if (!unmountedRef.current && ev.code !== 1000) {
           // Exponential back-off: 1s, 2s, 4s, 8s … max 30s
           const delay = Math.min(1000 * 2 ** reconnectAttemptRef.current, MAX_RECONNECT_DELAY_MS);

@@ -20,23 +20,29 @@ const queryClient = new QueryClient({
   },
 });
 
-// ── Push token registration & deep-link notification handler ──────────────────
+// ── Push token registration & deep-link notification handler ─────────────────
 function PushTokenRegistrar() {
   const { isAuthenticated, user } = useAuthStore();
-  const notifListenerRef = useRef<any>(null);
-  const responseListenerRef = useRef<any>(null);
+  const notifListenerRef = useRef<{ remove: () => void } | null>(null);
+  const responseListenerRef = useRef<{ remove: () => void } | null>(null);
 
   useEffect(() => {
     if (!isAuthenticated) return;
 
+    let mounted = true;
+
     (async () => {
       try {
+        if (Platform.OS === 'web') return;
+
         const Notifications = await import('expo-notifications');
 
         // Set notification handler so foreground notifications show banners
         Notifications.setNotificationHandler({
           handleNotification: async () => ({
             shouldShowAlert: true,
+            shouldShowBanner: true,
+            shouldShowList: true,
             shouldPlaySound: true,
             shouldSetBadge: true,
           }),
@@ -50,7 +56,7 @@ function PushTokenRegistrar() {
         }
         if (finalStatus !== 'granted') return;
 
-        // Android: create default channel
+        // Android: create default notification channel
         if (Platform.OS === 'android') {
           await Notifications.setNotificationChannelAsync('default', {
             name: 'HandyRwanda',
@@ -60,59 +66,64 @@ function PushTokenRegistrar() {
           });
         }
 
-        // Get FCM token (preferred for native apps)
-        let token: string | null = null;
+        // Try FCM token first (preferred for native builds)
+        let fcmRegistered = false;
         try {
           const { getMessaging, getToken } = await import('@react-native-firebase/messaging');
-          token = await getToken(getMessaging());
-          if (token) {
-            await proService.registerFCMToken(token);
+          const fcmToken = await getToken(getMessaging());
+          if (fcmToken && mounted) {
+            await proService.registerFCMToken(fcmToken);
+            fcmRegistered = true;
           }
         } catch {
-          // Firebase not available — fallback to Expo push token
+          // Firebase not available in Expo Go — fall through to Expo push
+        }
+
+        // Fallback to Expo push token
+        if (!fcmRegistered && mounted) {
           try {
             const tokenData = await Notifications.getExpoPushTokenAsync({
-              projectId: 'YOUR_EAS_PROJECT_ID_HERE',
+              projectId: process.env.EXPO_PUBLIC_EAS_PROJECT_ID,
             });
-            if (tokenData?.data) {
+            if (tokenData?.data && mounted) {
               await proService.registerPushToken(tokenData.data);
             }
           } catch {
-            // Non-critical
+            // Non-critical — app works without push tokens
           }
         }
 
         // Handle notification taps when app is in background/closed
-        responseListenerRef.current =
-          Notifications.addNotificationResponseReceivedListener((response) => {
-            const data = response.notification.request.content.data as Record<string, string>;
-            handleNotificationDeepLink(data);
-          });
+        if (mounted) {
+          responseListenerRef.current = Notifications.addNotificationResponseReceivedListener(
+            (response) => {
+              const data = response.notification.request.content.data as Record<string, string>;
+              handleNotificationDeepLink(data);
+            },
+          );
 
-        // Handle foreground notifications
-        notifListenerRef.current =
-          Notifications.addNotificationReceivedListener((_notification) => {
-            // Refresh queries to reflect new data
+          // Refresh queries when a notification arrives in foreground
+          notifListenerRef.current = Notifications.addNotificationReceivedListener(() => {
             queryClient.invalidateQueries({ queryKey: ['notifications'] });
             queryClient.invalidateQueries({ queryKey: ['bookings'] });
           });
+        }
       } catch {
-        // Silently ignore
+        // Silently ignore — push is non-critical
       }
     })();
 
     return () => {
-      (async () => {
-        try {
-          const Notifications = await import('expo-notifications');
-          if (notifListenerRef.current) {
-            Notifications.removeNotificationSubscription(notifListenerRef.current);
-          }
-          if (responseListenerRef.current) {
-            Notifications.removeNotificationSubscription(responseListenerRef.current);
-          }
-        } catch {}
-      })();
+      mounted = false;
+      // Subscription objects have a .remove() method
+      if (notifListenerRef.current) {
+        notifListenerRef.current.remove();
+        notifListenerRef.current = null;
+      }
+      if (responseListenerRef.current) {
+        responseListenerRef.current.remove();
+        responseListenerRef.current = null;
+      }
     };
   }, [isAuthenticated, user?.role]);
 
@@ -120,13 +131,16 @@ function PushTokenRegistrar() {
 }
 
 /**
- * Deep-link router: when a user taps a push notification, navigate
- * to the correct screen based on the notification data payload.
+ * Deep-link router: navigate to the correct screen when a push notification
+ * is tapped (app in background or closed).
  */
 function handleNotificationDeepLink(data: Record<string, string>) {
   try {
-    const { router } = require('expo-router');
-    const screen = data?.screen || data?.event_type;
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
+    const { router } = require('expo-router') as {
+      router: { push: (path: string) => void; replace: (path: string) => void };
+    };
+    const screen = data?.screen ?? data?.event_type;
 
     if (data?.booking_id) {
       router.push(`/messages/${data.booking_id}`);
@@ -137,7 +151,7 @@ function handleNotificationDeepLink(data: Record<string, string>) {
         router.push(`/(client)/jobs/${data.job_id}`);
       }
     } else if (screen === 'artisan_earnings') {
-      router.push('/(tabs)/pro');
+      router.push('/(artisan)/earnings');
     } else if (screen === 'artisan_jobs') {
       router.push('/(artisan)/jobs');
     }
@@ -146,8 +160,8 @@ function handleNotificationDeepLink(data: Record<string, string>) {
   }
 }
 
-// ── Offline indicator ─────────────────────────────────────────────────────────
-function OfflineIndicator() {
+// ── Offline / foreground refresh ─────────────────────────────────────────────
+function AppStateRefresher() {
   const appState = useRef<AppStateStatus>(AppState.currentState);
 
   useEffect(() => {
@@ -170,7 +184,7 @@ export default function RootLayout() {
     <GestureHandlerRootView style={{ flex: 1 }}>
       <QueryClientProvider client={queryClient}>
         <PushTokenRegistrar />
-        <OfflineIndicator />
+        <AppStateRefresher />
         <Stack screenOptions={{ headerShown: false }}>
           <Stack.Screen
             name="auth"

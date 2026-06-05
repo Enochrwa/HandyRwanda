@@ -171,16 +171,22 @@ export default function SearchScreen() {
   const [searchQuery, setSearchQuery] = useState(params.q ?? '');
   const [showFilters, setShowFilters] = useState(false);
   const [debouncedQuery, setDebouncedQuery] = useState(searchQuery);
-  const [userCoords, setUserCoords] = useState<{ latitude: number; longitude: number } | null>(null);
+  const [userCoords, setUserCoords] = useState<{ latitude: number; longitude: number } | null>(
+    null,
+  );
 
   // Request location on mount — gracefully falls back to Kigali center
   useEffect(() => {
-    Location.requestForegroundPermissionsAsync().then(({ status }) => {
-      if (status !== 'granted') return;
-      Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.Balanced }).then((loc) => {
-        setUserCoords({ latitude: loc.coords.latitude, longitude: loc.coords.longitude });
-      }).catch(() => {});
-    }).catch(() => {});
+    Location.requestForegroundPermissionsAsync()
+      .then(({ status }) => {
+        if (status !== 'granted') return;
+        Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.Balanced })
+          .then((loc) => {
+            setUserCoords({ latitude: loc.coords.latitude, longitude: loc.coords.longitude });
+          })
+          .catch(() => {});
+      })
+      .catch(() => {});
   }, []);
 
   const [filters, setFilters] = useState({
@@ -200,10 +206,16 @@ export default function SearchScreen() {
 
   const { data: categories } = useQuery({
     queryKey: ['categories'],
-    queryFn: () => api.get<{ id: string; name_en: string; icon_emoji: string }[]>('/categories').then((r) => r.data),
+    queryFn: () =>
+      api
+        .get<{ id: string; name_en: string; icon_emoji: string }[]>('/categories')
+        .then((r) => r.data),
   });
 
-  const searchCoords = userCoords ?? { latitude: KIGALI_REGION.latitude, longitude: KIGALI_REGION.longitude };
+  const searchCoords = userCoords ?? {
+    latitude: KIGALI_REGION.latitude,
+    longitude: KIGALI_REGION.longitude,
+  };
 
   const { data: artisansData, isLoading } = useQuery<Artisan[]>({
     queryKey: ['artisans', debouncedQuery, filters, userCoords],

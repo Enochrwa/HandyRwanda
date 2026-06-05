@@ -3,7 +3,7 @@
  * Cascading Rwanda address picker: Province → District → Sector → Cell → Village → Street/Road.
  * Uses the /address/* API endpoints for dynamic loading.
  */
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import api from "@/services/api";
 import {
@@ -49,7 +49,9 @@ export function RwandaAddressPicker({ value, onChange, required }: Props) {
   const { data: districts } = useQuery<string[]>({
     queryKey: ["address-districts", province],
     queryFn: () =>
-      api.get(`/address/districts?province=${encodeURIComponent(province)}`).then((r) => r.data.districts),
+      api
+        .get(`/address/districts?province=${encodeURIComponent(province)}`)
+        .then((r) => r.data.districts),
     enabled: !!province,
     staleTime: Infinity,
   });
@@ -58,7 +60,9 @@ export function RwandaAddressPicker({ value, onChange, required }: Props) {
     queryKey: ["address-sectors", province, district],
     queryFn: () =>
       api
-        .get(`/address/sectors?province=${encodeURIComponent(province)}&district=${encodeURIComponent(district)}`)
+        .get(
+          `/address/sectors?province=${encodeURIComponent(province)}&district=${encodeURIComponent(district)}`,
+        )
         .then((r) => r.data.sectors),
     enabled: !!province && !!district,
     staleTime: Infinity,
@@ -76,7 +80,6 @@ export function RwandaAddressPicker({ value, onChange, required }: Props) {
     staleTime: Infinity,
   });
 
-  // Cascade resets
   const handleProvince = (val: string) => {
     setProvince(val);
     setDistrict("");
@@ -100,24 +103,29 @@ export function RwandaAddressPicker({ value, onChange, required }: Props) {
     setVillage("");
   };
 
-  // Notify parent whenever any field changes
+  const notify = useCallback(
+    (p: string, d: string, s: string, c: string, v: string, sr: string) => {
+      if (!d) return;
+      const parts = [sr, v, c, s, d, p, "Rwanda"].filter(Boolean);
+      onChange({
+        province: p,
+        district: d,
+        sector: s,
+        cell: c,
+        village: v,
+        street_road: sr,
+        formatted: parts.join(", "),
+      });
+    },
+    [onChange],
+  );
+
   useEffect(() => {
-    if (!district) return;
-    const parts = [streetRoad, village, cell, sector, district, "Rwanda"].filter(Boolean);
-    const formatted = parts.join(", ");
-    onChange({
-      province,
-      district,
-      sector,
-      cell,
-      village,
-      street_road: streetRoad,
-      formatted,
-    });
-  }, [province, district, sector, cell, village, streetRoad]);
+    notify(province, district, sector, cell, village, streetRoad);
+  }, [province, district, sector, cell, village, streetRoad, notify]);
 
   return (
-    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+    <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
       {/* Province */}
       <div className="space-y-1">
         <Label>Province {required && <span className="text-destructive">*</span>}</Label>
@@ -127,7 +135,9 @@ export function RwandaAddressPicker({ value, onChange, required }: Props) {
           </SelectTrigger>
           <SelectContent>
             {(provinces ?? []).map((p) => (
-              <SelectItem key={p} value={p}>{p}</SelectItem>
+              <SelectItem key={p} value={p}>
+                {p}
+              </SelectItem>
             ))}
           </SelectContent>
         </Select>
@@ -142,7 +152,9 @@ export function RwandaAddressPicker({ value, onChange, required }: Props) {
           </SelectTrigger>
           <SelectContent>
             {(districts ?? []).map((d) => (
-              <SelectItem key={d} value={d}>{d}</SelectItem>
+              <SelectItem key={d} value={d}>
+                {d}
+              </SelectItem>
             ))}
           </SelectContent>
         </Select>
@@ -157,7 +169,9 @@ export function RwandaAddressPicker({ value, onChange, required }: Props) {
           </SelectTrigger>
           <SelectContent>
             {(sectors ?? []).map((s) => (
-              <SelectItem key={s} value={s}>{s}</SelectItem>
+              <SelectItem key={s} value={s}>
+                {s}
+              </SelectItem>
             ))}
           </SelectContent>
         </Select>
@@ -172,13 +186,15 @@ export function RwandaAddressPicker({ value, onChange, required }: Props) {
           </SelectTrigger>
           <SelectContent>
             {(cells ?? []).map((c) => (
-              <SelectItem key={c} value={c}>{c}</SelectItem>
+              <SelectItem key={c} value={c}>
+                {c}
+              </SelectItem>
             ))}
           </SelectContent>
         </Select>
       </div>
 
-      {/* Village (free text since villages are hyperlocal) */}
+      {/* Village */}
       <div className="space-y-1">
         <Label>Village</Label>
         <Input
@@ -200,8 +216,11 @@ export function RwandaAddressPicker({ value, onChange, required }: Props) {
 
       {/* Preview */}
       {district && (
-        <div className="sm:col-span-2 rounded-lg bg-muted/50 px-3 py-2 text-sm text-muted-foreground">
-          📍 {[streetRoad, village, cell, sector, district, province, "Rwanda"].filter(Boolean).join(", ")}
+        <div className="rounded-lg bg-muted/50 px-3 py-2 text-sm text-muted-foreground sm:col-span-2">
+          {"📍 "}
+          {[streetRoad, village, cell, sector, district, province, "Rwanda"]
+            .filter(Boolean)
+            .join(", ")}
         </div>
       )}
     </div>

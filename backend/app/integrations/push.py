@@ -67,7 +67,7 @@ async def send_push_notification(
             if expo_token:
                 from app.integrations.expo_push import send_push  # noqa: PLC0415
 
-                sent = await send_push(expo_token, title, body, data)  # type: ignore[arg-type]
+                sent = bool(await send_push(expo_token, title, body, data or {}))
 
         return sent
     except Exception:

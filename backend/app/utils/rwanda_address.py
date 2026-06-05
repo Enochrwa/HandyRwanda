@@ -420,7 +420,7 @@ def get_provinces() -> list[str]:
 def get_districts(province: str | None = None) -> list[str]:
     if province:
         return sorted(RWANDA_ADDRESSES.get(province, {}).keys())
-    districts = []
+    districts: list[str] = []
     for prov_data in RWANDA_ADDRESSES.values():
         districts.extend(prov_data.keys())
     return sorted(set(districts))

@@ -4,14 +4,13 @@ Supabase Storage integration.
 
 Supports two upload modes:
 1. Presigned URL (preferred): client uploads directly to Supabase Storage,
-   bypassing the API server. Use generate_presigned_url() + confirm_upload().
+   bypassing the API server.  Use generate_presigned_url().
 2. Legacy base64 (fallback): backend receives base64, decodes and uploads.
    Use upload_image() for backwards compat.
-
-Bucket policies expected:
-  - READ:  public (anon can read)
-  - WRITE: authenticated only (service-role key used server-side)
 """
+
+from __future__ import annotations
+
 import base64
 import os
 import uuid
@@ -22,7 +21,7 @@ SUPABASE_URL = os.getenv("SUPABASE_URL", "")
 SUPABASE_KEY = os.getenv("SUPABASE_SERVICE_ROLE_KEY", "")
 BUCKET = "artisan-media"
 
-MAX_FILE_SIZE_BYTES = 5 * 1024 * 1024  # 5 MB hard cap
+MAX_FILE_SIZE_BYTES = 5 * 1024 * 1024  # 5 MB
 
 
 def _public_url(path: str) -> str:
@@ -33,18 +32,11 @@ async def generate_presigned_url(
     folder: str,
     content_type: str = "image/jpeg",
     filename: str | None = None,
-) -> dict:
+) -> dict[str, str]:
     """
     Ask Supabase to return a presigned upload URL.
-    The client then uploads the file directly from the device.
-
     Returns:
-      {
-        "upload_url": "<presigned URL>",
-        "path":       "<storage path>",
-        "public_url": "<final public URL after upload>",
-        "token":      "<upload token for confirmation>",
-      }
+      { "upload_url": ..., "path": ..., "public_url": ..., "token": ... }
     """
     if not filename:
         filename = f"{uuid.uuid4()}.jpg"
@@ -61,30 +53,38 @@ async def generate_presigned_url(
             json={"upsert": True},
         )
         if resp.status_code not in (200, 201):
-            # Fallback: construct a signed URL manually via the standard method
+            # Fallback: use standard signed URL
             resp2 = await client.post(
                 f"{SUPABASE_URL}/storage/v1/object/sign/{BUCKET}/{path}",
                 headers=headers,
-                json={"expiresIn": 300},  # 5 minutes
+                json={"expiresIn": 300},
             )
             if resp2.status_code in (200, 201):
-                data = resp2.json()
+                data: dict[str, str] = resp2.json()
+                signed = data.get("signedURL", "")
                 return {
-                    "upload_url": f"{SUPABASE_URL}/storage/v1{data.get('signedURL', '')}",
+                    "upload_url": (
+                        f"{SUPABASE_URL}/storage/v1{signed}"
+                        if signed.startswith("/")
+                        else signed
+                    ),
                     "path": path,
                     "public_url": _public_url(path),
                     "token": data.get("token", ""),
                 }
             resp.raise_for_status()
 
-        data = resp.json()
-        signed_url = data.get("url", data.get("signedURL", ""))
-        token = data.get("token", "")
+        result: dict[str, str] = resp.json()
+        signed_url = result.get("url", result.get("signedURL", ""))
         return {
-            "upload_url": f"{SUPABASE_URL}/storage/v1{signed_url}" if signed_url.startswith("/") else signed_url,
+            "upload_url": (
+                f"{SUPABASE_URL}/storage/v1{signed_url}"
+                if signed_url.startswith("/")
+                else signed_url
+            ),
             "path": path,
             "public_url": _public_url(path),
-            "token": token,
+            "token": result.get("token", ""),
         }
 
 
@@ -95,9 +95,6 @@ async def upload_image(
     Upload base64-encoded image to Supabase Storage.
     Validates size before uploading (rejects > 5 MB).
     Returns public URL.
-
-    NOTE: Prefer presigned URL flow for production. This exists for
-    backwards compatibility and small payloads.
     """
     if not filename:
         filename = f"{uuid.uuid4()}.jpg"
@@ -130,7 +127,7 @@ async def upload_image(
 
 
 async def delete_image(path: str) -> bool:
-    """Delete an image from storage by its path. Returns True on success."""
+    """Delete an image from storage by its path."""
     headers = {
         "Authorization": f"Bearer {SUPABASE_KEY}",
         "Content-Type": "application/json",

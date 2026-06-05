@@ -13,7 +13,7 @@ When a job is posted:
 from __future__ import annotations
 
 import asyncio
-from datetime import timedelta
+from datetime import datetime, timedelta
 from typing import Any
 from uuid import UUID
 
@@ -50,13 +50,16 @@ async def find_matching_artisans(
         district = job.location_label.split(",")[0].strip()
         base_q = base_q.where(User.district.ilike(f"%{district}%"))
 
-    if job.scheduled_time:
+    if job.scheduled_time is not None:
         scheduled_date = job.scheduled_time.date()
         blocked_subq = select(BlockedDate.artisan_id).where(
             BlockedDate.blocked_date == scheduled_date
         )
         base_q = base_q.where(not_(ArtisanProfile.user_id.in_(blocked_subq)))
 
+        scheduled_dt: datetime = job.scheduled_time  # type: ignore[assignment]
+        window_start = scheduled_dt - timedelta(hours=4)
+        window_end = scheduled_dt + timedelta(hours=4)
         booked_subq = (
             select(Booking.artisan_id)
             .join(Job, Booking.job_id == Job.id)
@@ -64,10 +67,7 @@ async def find_matching_artisans(
                 Booking.status.in_(
                     [BookingStatus.confirmed, BookingStatus.in_progress]
                 ),
-                Job.scheduled_time.between(
-                    job.scheduled_time - timedelta(hours=4),
-                    job.scheduled_time + timedelta(hours=4),
-                ),
+                Job.scheduled_time.between(window_start, window_end),
             )
         )
         base_q = base_q.where(not_(ArtisanProfile.user_id.in_(booked_subq)))

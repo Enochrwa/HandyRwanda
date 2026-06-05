@@ -3,8 +3,15 @@ import * as ImagePicker from 'expo-image-picker';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import React, { useState, useEffect } from 'react';
 import {
-  View, Text, ScrollView, TouchableOpacity, TextInput,
-  ActivityIndicator, KeyboardAvoidingView, Platform, Alert,
+  View,
+  Text,
+  ScrollView,
+  TouchableOpacity,
+  TextInput,
+  ActivityIndicator,
+  KeyboardAvoidingView,
+  Platform,
+  Alert,
   Clipboard,
 } from 'react-native';
 import Toast from 'react-native-toast-message';
@@ -37,7 +44,10 @@ function formatRWF(n: number) {
 
 export default function PaymentScreen() {
   const router = useRouter();
-  const { bookingId, amount: amountStr } = useLocalSearchParams<{ bookingId: string; amount: string }>();
+  const { bookingId, amount: amountStr } = useLocalSearchParams<{
+    bookingId: string;
+    amount: string;
+  }>();
 
   const [step, setStep] = useState<PaymentStep>('select');
   const [method, setMethod] = useState<PaymentMethod>('mtn_momo');
@@ -49,15 +59,18 @@ export default function PaymentScreen() {
   // Check for an existing payment on mount (idempotent re-entry)
   useEffect(() => {
     if (!bookingId) return;
-    api.get(`/payments/booking/${bookingId}`).then((r) => {
-      const s = r.data.status;
-      if (s === 'approved') setStep('done');
-      else if (s === 'pending_verification') setStep('pending');
-      else if (s && s !== 'not_initiated') {
-        setInstructions(r.data);
-        setStep('instructions');
-      }
-    }).catch(() => {});
+    api
+      .get(`/payments/booking/${bookingId}`)
+      .then((r) => {
+        const s = r.data.status;
+        if (s === 'approved') setStep('done');
+        else if (s === 'pending_verification') setStep('pending');
+        else if (s && s !== 'not_initiated') {
+          setInstructions(r.data);
+          setStep('instructions');
+        }
+      })
+      .catch(() => {});
   }, [bookingId]);
 
   const handleInitiate = async () => {
@@ -117,7 +130,10 @@ export default function PaymentScreen() {
   // ── SELECT METHOD ─────────────────────────────────────────────────────────
   if (step === 'select') {
     return (
-      <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} className="flex-1 bg-background">
+      <KeyboardAvoidingView
+        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+        className="flex-1 bg-background"
+      >
         <ScrollView className="flex-1 px-5 pt-6" contentContainerStyle={{ paddingBottom: 40 }}>
           <TouchableOpacity onPress={() => router.back()} className="mb-6">
             <Text className="text-primary font-semibold">← Back</Text>
@@ -125,7 +141,9 @@ export default function PaymentScreen() {
           <Text className="text-2xl font-extrabold text-foreground mb-1">Pay for Service</Text>
           <Text className="text-sm text-muted-foreground mb-6">
             Amount due:{' '}
-            <Text className="font-bold text-foreground text-lg">{formatRWF(parseInt(amountStr ?? '0'))} RWF</Text>
+            <Text className="font-bold text-foreground text-lg">
+              {formatRWF(parseInt(amountStr ?? '0'))} RWF
+            </Text>
           </Text>
           <Text className="text-xs font-bold uppercase tracking-wide text-muted-foreground mb-3">
             Select Payment Method
@@ -136,19 +154,24 @@ export default function PaymentScreen() {
               onPress={() => setMethod(m.key)}
               className={`flex-row items-center p-4 rounded-3xl border-2 mb-3 ${method === m.key ? 'border-primary bg-primary/5' : 'border-border bg-card'}`}
             >
-              <Text style={{ fontSize: 28 }} className="mr-4">{m.emoji}</Text>
+              <Text style={{ fontSize: 28 }} className="mr-4">
+                {m.emoji}
+              </Text>
               <View className="flex-1">
                 <Text className="font-bold text-base">{m.label}</Text>
                 <Text className="text-xs text-muted-foreground">Available across Rwanda</Text>
               </View>
-              <View className={`w-5 h-5 rounded-full border-2 items-center justify-center ${method === m.key ? 'border-primary bg-primary' : 'border-border'}`}>
+              <View
+                className={`w-5 h-5 rounded-full border-2 items-center justify-center ${method === m.key ? 'border-primary bg-primary' : 'border-border'}`}
+              >
                 {method === m.key && <View className="w-2 h-2 rounded-full bg-white" />}
               </View>
             </TouchableOpacity>
           ))}
           <View className="bg-amber-50 border border-amber-200 rounded-2xl p-4 mt-2 mb-6">
             <Text className="text-amber-800 text-sm font-medium">
-              💡 You'll send money directly via your mobile wallet. Verification takes under 5 minutes.
+              💡 You'll send money directly via your mobile wallet. Verification takes under 5
+              minutes.
             </Text>
           </View>
           <TouchableOpacity
@@ -172,7 +195,10 @@ export default function PaymentScreen() {
   // ── INSTRUCTIONS ──────────────────────────────────────────────────────────
   if (step === 'instructions' && instructions) {
     return (
-      <ScrollView className="flex-1 bg-background px-5 pt-6" contentContainerStyle={{ paddingBottom: 40 }}>
+      <ScrollView
+        className="flex-1 bg-background px-5 pt-6"
+        contentContainerStyle={{ paddingBottom: 40 }}
+      >
         <TouchableOpacity onPress={() => setStep('select')} className="mb-5">
           <Text className="text-primary font-semibold">← Change method</Text>
         </TouchableOpacity>
@@ -181,19 +207,29 @@ export default function PaymentScreen() {
 
         {/* Amount */}
         <View className="bg-primary/5 border border-primary/20 rounded-3xl p-5 mb-5 items-center">
-          <Text className="text-xs text-muted-foreground uppercase tracking-wide">Amount to Send</Text>
-          <Text className="text-4xl font-black text-primary mt-1">{formatRWF(instructions.amount)}</Text>
+          <Text className="text-xs text-muted-foreground uppercase tracking-wide">
+            Amount to Send
+          </Text>
+          <Text className="text-4xl font-black text-primary mt-1">
+            {formatRWF(instructions.amount)}
+          </Text>
           <Text className="text-sm text-muted-foreground">RWF</Text>
         </View>
 
         {/* Copy pills */}
         <View className="flex-row gap-3 mb-5">
-          <TouchableOpacity onPress={() => copy(instructions.receiver_phone, 'Phone number')} className="flex-1 bg-card border border-border rounded-2xl p-3 items-center">
+          <TouchableOpacity
+            onPress={() => copy(instructions.receiver_phone, 'Phone number')}
+            className="flex-1 bg-card border border-border rounded-2xl p-3 items-center"
+          >
             <Text className="text-[10px] text-muted-foreground uppercase mb-1">Send To</Text>
             <Text className="font-bold text-foreground">{instructions.receiver_phone}</Text>
             <Text className="text-[10px] text-muted-foreground mt-1">📋 Tap to copy</Text>
           </TouchableOpacity>
-          <TouchableOpacity onPress={() => copy(instructions.reference_code, 'Reference')} className="flex-1 bg-card border border-border rounded-2xl p-3 items-center">
+          <TouchableOpacity
+            onPress={() => copy(instructions.reference_code, 'Reference')}
+            className="flex-1 bg-card border border-border rounded-2xl p-3 items-center"
+          >
             <Text className="text-[10px] text-muted-foreground uppercase mb-1">Reference</Text>
             <Text className="font-bold text-foreground">{instructions.reference_code}</Text>
             <Text className="text-[10px] text-muted-foreground mt-1">📋 Tap to copy</Text>
@@ -208,7 +244,9 @@ export default function PaymentScreen() {
               <View className="w-6 h-6 rounded-full bg-primary/10 items-center justify-center mr-3 mt-0.5 shrink-0">
                 <Text className="text-primary text-[11px] font-bold">{i + 1}</Text>
               </View>
-              <Text className="text-sm text-foreground leading-5 flex-1">{s.replace(/^\d+\.\s/, '')}</Text>
+              <Text className="text-sm text-foreground leading-5 flex-1">
+                {s.replace(/^\d+\.\s/, '')}
+              </Text>
             </View>
           ))}
         </View>
@@ -217,7 +255,10 @@ export default function PaymentScreen() {
           <Text className="text-blue-800 text-sm">{instructions.note}</Text>
         </View>
 
-        <TouchableOpacity onPress={() => setStep('proof')} className="bg-primary rounded-2xl py-4 items-center">
+        <TouchableOpacity
+          onPress={() => setStep('proof')}
+          className="bg-primary rounded-2xl py-4 items-center"
+        >
           <Text className="text-white font-extrabold text-base">I've Sent the Payment →</Text>
         </TouchableOpacity>
       </ScrollView>
@@ -227,7 +268,10 @@ export default function PaymentScreen() {
   // ── PROOF SUBMISSION ──────────────────────────────────────────────────────
   if (step === 'proof') {
     return (
-      <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} className="flex-1 bg-background">
+      <KeyboardAvoidingView
+        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+        className="flex-1 bg-background"
+      >
         <ScrollView className="flex-1 px-5 pt-6" contentContainerStyle={{ paddingBottom: 40 }}>
           <TouchableOpacity onPress={() => setStep('instructions')} className="mb-6">
             <Text className="text-primary font-semibold">← Back to instructions</Text>
@@ -250,7 +294,10 @@ export default function PaymentScreen() {
           />
 
           <Text className="text-xs font-bold uppercase tracking-wide text-muted-foreground mb-1.5">
-            Screenshot <Text className="text-muted-foreground font-normal">(optional, speeds up verification)</Text>
+            Screenshot{' '}
+            <Text className="text-muted-foreground font-normal">
+              (optional, speeds up verification)
+            </Text>
           </Text>
           <TouchableOpacity
             onPress={pickScreenshot}
@@ -265,8 +312,12 @@ export default function PaymentScreen() {
             ) : (
               <>
                 <Text style={{ fontSize: 28 }}>📎</Text>
-                <Text className="text-muted-foreground mt-2 font-medium">Attach confirmation screenshot</Text>
-                <Text className="text-xs text-muted-foreground mt-0.5">From your photo gallery</Text>
+                <Text className="text-muted-foreground mt-2 font-medium">
+                  Attach confirmation screenshot
+                </Text>
+                <Text className="text-xs text-muted-foreground mt-0.5">
+                  From your photo gallery
+                </Text>
               </>
             )}
           </TouchableOpacity>
@@ -276,7 +327,11 @@ export default function PaymentScreen() {
             disabled={loading || transactionId.trim().length < 3}
             className={`bg-primary rounded-2xl py-4 items-center ${loading || transactionId.trim().length < 3 ? 'opacity-50' : ''}`}
           >
-            {loading ? <ActivityIndicator color="white" /> : <Text className="text-white font-extrabold text-base">Submit Proof</Text>}
+            {loading ? (
+              <ActivityIndicator color="white" />
+            ) : (
+              <Text className="text-white font-extrabold text-base">Submit Proof</Text>
+            )}
           </TouchableOpacity>
         </ScrollView>
       </KeyboardAvoidingView>
@@ -287,7 +342,9 @@ export default function PaymentScreen() {
   if (step === 'pending') {
     return (
       <View className="flex-1 bg-background items-center justify-center px-8">
-        <Text style={{ fontSize: 56 }} className="mb-6">⏳</Text>
+        <Text style={{ fontSize: 56 }} className="mb-6">
+          ⏳
+        </Text>
         <Text className="text-2xl font-extrabold text-center mb-2">Verifying Payment</Text>
         <Text className="text-sm text-muted-foreground text-center mb-6">
           We're checking your payment. This usually takes{' '}
@@ -300,7 +357,9 @@ export default function PaymentScreen() {
             { label: 'Booking confirmed', done: false },
           ].map((item, i) => (
             <View key={i} className="flex-row items-center mb-2">
-              <View className={`w-2 h-2 rounded-full mr-2 ${item.done ? 'bg-amber-400' : 'bg-muted'}`} />
+              <View
+                className={`w-2 h-2 rounded-full mr-2 ${item.done ? 'bg-amber-400' : 'bg-muted'}`}
+              />
               <Text className="text-sm text-muted-foreground">{item.label}</Text>
             </View>
           ))}
@@ -308,7 +367,10 @@ export default function PaymentScreen() {
         <Text className="text-xs text-muted-foreground text-center mb-6">
           You'll receive a notification when verified. You can safely close this screen.
         </Text>
-        <TouchableOpacity onPress={() => router.replace('/(tabs)')} className="bg-primary rounded-2xl py-3 px-8">
+        <TouchableOpacity
+          onPress={() => router.replace('/(tabs)')}
+          className="bg-primary rounded-2xl py-3 px-8"
+        >
           <Text className="text-white font-bold">Go to Home</Text>
         </TouchableOpacity>
       </View>
@@ -318,12 +380,17 @@ export default function PaymentScreen() {
   // ── DONE ──────────────────────────────────────────────────────────────────
   return (
     <View className="flex-1 bg-background items-center justify-center px-8">
-      <Text style={{ fontSize: 56 }} className="mb-6">✅</Text>
+      <Text style={{ fontSize: 56 }} className="mb-6">
+        ✅
+      </Text>
       <Text className="text-2xl font-extrabold text-center mb-2">Payment Confirmed!</Text>
       <Text className="text-sm text-muted-foreground text-center mb-8">
         Your payment has been verified. Your artisan has been notified and your booking is active.
       </Text>
-      <TouchableOpacity onPress={() => router.replace(`/messages/${bookingId}`)} className="bg-primary rounded-2xl py-3 px-8 mb-3">
+      <TouchableOpacity
+        onPress={() => router.replace(`/messages/${bookingId}`)}
+        className="bg-primary rounded-2xl py-3 px-8 mb-3"
+      >
         <Text className="text-white font-bold">Open Chat with Artisan</Text>
       </TouchableOpacity>
       <TouchableOpacity onPress={() => router.replace('/(tabs)')}>

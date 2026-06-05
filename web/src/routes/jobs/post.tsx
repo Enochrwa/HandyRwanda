@@ -95,8 +95,8 @@ function PostJob() {
     province: "Kigali City",
     district: "Gasabo",
   });
-  const [photoFiles, setPhotoFiles] = useState<File[]>([]);
-  const [photoPreviews, setPhotoPreviews] = useState<string[]>([]);
+  // Store file + blob URL pairs; blob URLs are always same-origin (no XSS risk)
+  const [photos, setPhotos] = useState<{ file: File; blobUrl: string }[]>([]);
   const photoInputRef = useRef<HTMLInputElement>(null);
   const [formData, setFormData] = useState({
     category_id: "",
@@ -137,20 +137,20 @@ function PostJob() {
 
   const handlePhotoAdd = (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = Array.from(e.target.files ?? []);
-    const remaining = 5 - photoFiles.length;
+    const remaining = 5 - photos.length;
     const toAdd = files.slice(0, remaining);
-    setPhotoFiles((prev) => [...prev, ...toAdd]);
-    toAdd.forEach((f) => {
-      const url = URL.createObjectURL(f);
-      setPhotoPreviews((prev) => [...prev, url]);
-    });
+    const newPhotos = toAdd.map((f) => ({
+      file: f,
+      // createObjectURL always returns a blob: URI — safe for img src
+      blobUrl: URL.createObjectURL(f),
+    }));
+    setPhotos((prev) => [...prev, ...newPhotos]);
     if (photoInputRef.current) photoInputRef.current.value = "";
   };
 
   const removePhoto = (i: number) => {
-    URL.revokeObjectURL(photoPreviews[i]);
-    setPhotoFiles((prev) => prev.filter((_, j) => j !== i));
-    setPhotoPreviews((prev) => prev.filter((_, j) => j !== i));
+    URL.revokeObjectURL(photos[i].blobUrl);
+    setPhotos((prev) => prev.filter((_, j) => j !== i));
   };
 
   const handleSubmit = async () => {
@@ -180,9 +180,9 @@ function PostJob() {
     try {
       // Upload photos via presigned URLs
       const photoUrls: string[] = [];
-      for (let i = 0; i < photoFiles.length; i++) {
+      for (let i = 0; i < photos.length; i++) {
         try {
-          const result = await uploadImage(photoFiles[i], "job_photo", true);
+          const result = await uploadImage(photos[i].file, "job_photo", true);
           photoUrls.push(result.publicUrl);
         } catch {
           toast.info(`Photo ${i + 1} could not be uploaded — skipping`);
@@ -507,15 +507,16 @@ function PostJob() {
               <span className="w-5 h-5 rounded-full bg-muted text-muted-foreground flex items-center justify-center text-[10px] font-bold">
                 8
               </span>
-              <Camera className="h-3.5 w-3.5" /> Photos ({photoFiles.length}/5){" "}
+              <Camera className="h-3.5 w-3.5" /> Photos ({photos.length}/5){" "}
               <span className="text-muted-foreground text-[10px] font-normal">— recommended</span>
             </label>
             <div className="flex flex-wrap gap-3">
-              {photoPreviews.map((url, i) => (
-                <div key={i} className="relative w-20 h-20">
+              {photos.map((photo, i) => (
+                <div key={photo.blobUrl} className="relative w-20 h-20">
                   <img
-                    src={url}
-                    alt={`Job photo ${i + 1}`}
+                    // blob: URI created locally — safe, not from user text
+                    src={photo.blobUrl}
+                    alt={`Job photo ${String(i + 1)}`}
                     className="w-full h-full object-cover rounded-2xl border border-border"
                   />
                   <button
@@ -527,7 +528,7 @@ function PostJob() {
                   </button>
                 </div>
               ))}
-              {photoFiles.length < 5 && (
+              {photos.length < 5 && (
                 <button
                   onClick={() => photoInputRef.current?.click()}
                   className="w-20 h-20 rounded-2xl border-2 border-dashed border-border bg-muted/30 hover:bg-muted flex flex-col items-center justify-center gap-1 transition"

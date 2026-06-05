@@ -111,7 +111,13 @@ export default function TabsLayout() {
                 <TouchableOpacity
                   accessibilityLabel="Log in"
                   onPress={() => router.push('/auth')}
-                  style={{ marginRight: 16, paddingHorizontal: 12, paddingVertical: 6, backgroundColor: '#1B5E3B', borderRadius: 20 }}
+                  style={{
+                    marginRight: 16,
+                    paddingHorizontal: 12,
+                    paddingVertical: 6,
+                    backgroundColor: '#1B5E3B',
+                    borderRadius: 20,
+                  }}
                 >
                   <Text style={{ color: '#fff', fontSize: 12, fontWeight: '700' }}>Log in</Text>
                 </TouchableOpacity>
@@ -125,11 +131,19 @@ export default function TabsLayout() {
                   <View>
                     <Bell size={22} color="#1A1A1A" />
                     {unreadCount > 0 && (
-                      <View style={{
-                        position: 'absolute', top: -4, right: -6,
-                        backgroundColor: '#EF4444', borderRadius: 8,
-                        minWidth: 16, height: 16, alignItems: 'center', justifyContent: 'center',
-                      }}>
+                      <View
+                        style={{
+                          position: 'absolute',
+                          top: -4,
+                          right: -6,
+                          backgroundColor: '#EF4444',
+                          borderRadius: 8,
+                          minWidth: 16,
+                          height: 16,
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                        }}
+                      >
                         <Text style={{ color: '#fff', fontSize: 9, fontWeight: '800' }}>
                           {unreadCount > 9 ? '9+' : unreadCount}
                         </Text>

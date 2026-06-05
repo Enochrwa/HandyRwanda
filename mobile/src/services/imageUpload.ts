@@ -39,11 +39,10 @@ export interface UploadResult {
 async function compressImage(uri: string): Promise<string> {
   try {
     const { manipulateAsync, SaveFormat } = await import('expo-image-manipulator');
-    const result = await manipulateAsync(
-      uri,
-      [{ resize: { width: MAX_DIMENSION } }],
-      { compress: COMPRESS_QUALITY, format: SaveFormat.JPEG },
-    );
+    const result = await manipulateAsync(uri, [{ resize: { width: MAX_DIMENSION } }], {
+      compress: COMPRESS_QUALITY,
+      format: SaveFormat.JPEG,
+    });
     return result.uri;
   } catch {
     // Compression unavailable — return original
@@ -67,9 +66,7 @@ export async function uploadImage(
   // 1. Validate file size
   const info = await FileSystem.getInfoAsync(uri, { size: true });
   if (info.exists && 'size' in info && info.size && info.size > MAX_BYTES) {
-    throw new Error(
-      `Image too large (${(info.size / 1024 / 1024).toFixed(1)} MB). Maximum 5 MB.`,
-    );
+    throw new Error(`Image too large (${(info.size / 1024 / 1024).toFixed(1)} MB). Maximum 5 MB.`);
   }
 
   // 2. Compress (skip for documents)

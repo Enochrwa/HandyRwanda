@@ -34,7 +34,6 @@ export function useNotificationSocket() {
     const userId = user.id;
 
     const connect = () => {
-      // Build ws:// URL from the API base
       const apiBase = getApiBaseUrl() || "http://localhost:8000";
       const wsBase = apiBase.replace(/^http/, "ws");
       const wsUrl = `${wsBase}/ws/notifications/${userId}`;
@@ -43,8 +42,6 @@ export function useNotificationSocket() {
       wsRef.current = ws;
 
       ws.onopen = () => {
-        console.debug("[NotifWS] Connected");
-        // Start keepalive ping every 25 seconds
         pingTimerRef.current = setInterval(() => {
           if (ws.readyState === WebSocket.OPEN) {
             ws.send(JSON.stringify({ type: "ping" }));
@@ -54,29 +51,22 @@ export function useNotificationSocket() {
 
       ws.onmessage = (event) => {
         try {
-          const msg = JSON.parse(event.data);
+          const msg = JSON.parse(event.data as string) as { type: string; data: WsNotification };
           if (msg.type === "notification") {
-            const notif: WsNotification = msg.data;
-            // Prepend to the cached notifications list
-            qc.setQueryData(
-              ["notifications"],
-              (old: WsNotification[] | undefined) => {
-                if (!old) return [notif];
-                // Avoid duplicates
-                if (old.some((n) => n.id === notif.id)) return old;
-                return [notif, ...old];
-              },
-            );
+            const notif = msg.data;
+            qc.setQueryData(["notifications"], (old: WsNotification[] | undefined) => {
+              if (!old) return [notif];
+              if (old.some((n) => n.id === notif.id)) return old;
+              return [notif, ...old];
+            });
           }
         } catch {
-          // Ignore malformed messages
+          // ignore malformed messages
         }
       };
 
       ws.onclose = (ev) => {
-        console.debug("[NotifWS] Closed", ev.code);
         if (pingTimerRef.current) clearInterval(pingTimerRef.current);
-        // Reconnect after 3s unless it was a clean close (code 1000)
         if (ev.code !== 1000) {
           reconnectTimerRef.current = setTimeout(connect, 3000);
         }

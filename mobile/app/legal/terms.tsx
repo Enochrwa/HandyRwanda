@@ -20,13 +20,20 @@ export default function TermsScreen() {
     onError: () => Toast.show({ type: 'error', text1: 'Failed to accept terms' }),
   });
 
-  if (isLoading) return <View style={styles.center}><Text>Loading…</Text></View>;
+  if (isLoading)
+    return (
+      <View style={styles.center}>
+        <Text>Loading…</Text>
+      </View>
+    );
 
   return (
     <SafeAreaView style={{ flex: 1, backgroundColor: '#F9FAFB' }} edges={['bottom']}>
       <ScrollView contentContainerStyle={styles.content}>
         <Text style={styles.title}>{data?.title}</Text>
-        <Text style={styles.meta}>Version {data?.version} · {data?.last_updated}</Text>
+        <Text style={styles.meta}>
+          Version {data?.version} · {data?.last_updated}
+        </Text>
         {(data?.sections ?? []).map((s: any) => (
           <View key={s.heading} style={styles.section}>
             <Text style={styles.heading}>{s.heading}</Text>
@@ -34,8 +41,14 @@ export default function TermsScreen() {
           </View>
         ))}
         {isAuthenticated && (
-          <TouchableOpacity style={styles.btn} onPress={() => accept.mutate()} disabled={accept.isPending}>
-            <Text style={styles.btnText}>{accept.isPending ? 'Saving…' : 'I Accept These Terms'}</Text>
+          <TouchableOpacity
+            style={styles.btn}
+            onPress={() => accept.mutate()}
+            disabled={accept.isPending}
+          >
+            <Text style={styles.btnText}>
+              {accept.isPending ? 'Saving…' : 'I Accept These Terms'}
+            </Text>
           </TouchableOpacity>
         )}
       </ScrollView>
@@ -51,6 +64,12 @@ const styles = StyleSheet.create({
   section: { gap: 6 },
   heading: { fontSize: 15, fontWeight: '700', color: '#374151' },
   body: { fontSize: 14, color: '#6B7280', lineHeight: 22 },
-  btn: { backgroundColor: '#1B5E3B', borderRadius: 10, paddingVertical: 14, alignItems: 'center', marginTop: 16 },
+  btn: {
+    backgroundColor: '#1B5E3B',
+    borderRadius: 10,
+    paddingVertical: 14,
+    alignItems: 'center',
+    marginTop: 16,
+  },
   btnText: { color: '#fff', fontWeight: '700', fontSize: 15 },
 });

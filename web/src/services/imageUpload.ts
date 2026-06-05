@@ -1,12 +1,10 @@
 // File: web/src/services/imageUpload.ts
 /**
- * Client-side image upload utilities.
+ * Client-side image upload utilities using presigned URLs.
  *
- * Uses presigned URLs to upload directly from browser to Supabase Storage,
- * bypassing the API server entirely. Includes:
- *   - Client-side compression via canvas (reduces 3MB → ~300KB for portfolios)
- *   - File size validation gate (5 MB hard limit)
- *   - Progress callback support
+ * Uploads directly from the browser to Supabase Storage, bypassing the API server.
+ * Includes client-side compression via canvas (reduces 3 MB → ~300 KB),
+ * file size validation (5 MB hard limit), and progress callback support.
  */
 import api from "./api";
 
@@ -31,9 +29,8 @@ export interface UploadResult {
 }
 
 /**
- * Compress an image file using canvas before upload.
+ * Compress an image file using canvas.
  * Resizes to at most TARGET_DIMENSION on longest side, JPEG quality JPEG_QUALITY.
- * Returns a Blob ready for upload.
  */
 async function compressImage(file: File): Promise<Blob> {
   return new Promise((resolve, reject) => {
@@ -51,18 +48,27 @@ async function compressImage(file: File): Promise<Blob> {
       canvas.width = width;
       canvas.height = height;
       const ctx = canvas.getContext("2d");
-      if (!ctx) { reject(new Error("Canvas 2D not available")); return; }
+      if (!ctx) {
+        reject(new Error("Canvas 2D not available"));
+        return;
+      }
       ctx.drawImage(img, 0, 0, width, height);
       canvas.toBlob(
         (blob) => {
-          if (!blob) { reject(new Error("Canvas toBlob failed")); return; }
+          if (!blob) {
+            reject(new Error("Canvas toBlob failed"));
+            return;
+          }
           resolve(blob);
         },
         "image/jpeg",
         JPEG_QUALITY,
       );
     };
-    img.onerror = () => { URL.revokeObjectURL(objectUrl); reject(new Error("Image load failed")); };
+    img.onerror = () => {
+      URL.revokeObjectURL(objectUrl);
+      reject(new Error("Image load failed"));
+    };
     img.src = objectUrl;
   });
 }
@@ -81,29 +87,25 @@ export async function uploadImage(
   compress = true,
   onProgress?: (pct: number) => void,
 ): Promise<UploadResult> {
-  // 1. Validate file size before compression
   if (file.size > MAX_BYTES) {
     throw new Error(`File too large (${(file.size / 1024 / 1024).toFixed(1)} MB). Maximum 5 MB.`);
   }
 
-  // 2. Compress (skip for documents)
   const skipCompress = ["id_document", "payment_proof", "dispute_evidence"].includes(uploadType);
   let uploadBlob: Blob = file;
   if (compress && !skipCompress) {
     uploadBlob = await compressImage(file);
   }
 
-  // 3. Get presigned URL from backend
   const { data: presign } = await api.post("/uploads/presign", {
     upload_type: uploadType,
     content_type: "image/jpeg",
     filename: file.name,
   });
 
-  // 4. Upload directly to Supabase Storage
-  await uploadDirectly(presign.upload_url, uploadBlob, onProgress);
+  await uploadDirectly(presign.upload_url as string, uploadBlob, onProgress);
 
-  return { publicUrl: presign.public_url, path: presign.path };
+  return { publicUrl: presign.public_url as string, path: presign.path as string };
 }
 
 async function uploadDirectly(

@@ -779,13 +779,11 @@ async def admin_create_escrow(
     from app.services.escrow_service import create_escrow_hold  # noqa: PLC0415
 
     bid = _UUID(booking_id)
-    booking = await db.scalar(select(Booking).where(Booking.id == bid))  # type: ignore
+    booking = await db.scalar(select(Booking).where(Booking.id == bid))
     if not booking:
         raise HTTPException(status_code=404, detail="Booking not found")
 
-    payment = await db.scalar(
-        select(Payment).where(Payment.booking_id == bid)  # type: ignore
-    )
+    payment = await db.scalar(select(Payment).where(Payment.booking_id == bid))
     if not payment:
         raise HTTPException(status_code=404, detail="Payment not found")
 

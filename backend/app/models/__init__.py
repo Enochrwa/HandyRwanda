@@ -2,12 +2,14 @@
 from . import (
     artisan,
     booking,
+    escrow,
     job,
     message,
     notification,
     payment,
     referral,
     review,
+    schedule,
     transaction,
     user,
 )
@@ -15,12 +17,14 @@ from . import (
 __all__ = [
     "artisan",
     "booking",
+    "escrow",
     "job",
     "message",
     "notification",
     "payment",
     "referral",
     "review",
+    "schedule",
     "transaction",
     "user",
 ]

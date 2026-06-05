@@ -6,6 +6,7 @@ import { View, Text, TouchableOpacity, ScrollView, ActivityIndicator } from 'rea
 import Toast from 'react-native-toast-message';
 
 import api from '../../../src/services/api';
+import { uploadImage } from '../../../src/services/imageUpload';
 
 function formatRWF(n: number) {
   return new Intl.NumberFormat('rw-RW').format(n);
@@ -24,9 +25,8 @@ export default function ConfirmJob() {
   const qc = useQueryClient();
   const params = useLocalSearchParams<Record<string, string>>();
   const [loading, setLoading] = useState(false);
+  const [uploadProgress, setUploadProgress] = useState('');
 
-  // Fetch the full category list (already cached by React Query from the previous screen)
-  // and derive the selected category from it — avoids a non-existent /categories/:id endpoint.
   const { data: allCategories = [] } = useQuery<
     { id: string; name_en: string; icon_emoji?: string }[]
   >({
@@ -36,11 +36,33 @@ export default function ConfirmJob() {
   const category = allCategories.find((c) => c.id === params.categoryId) ?? null;
 
   const budget = params.budget ? parseInt(params.budget, 10) : null;
-  const photos = JSON.parse(params.photos ?? '[]') as string[];
+  // photos are now stored as local file URIs (not base64)
+  const photoUris: string[] = JSON.parse(params.photos ?? '[]');
 
   const handleSubmit = async () => {
     setLoading(true);
     try {
+      // Upload photos via presigned URLs (not base64 in body)
+      const uploadedPhotoUrls: string[] = [];
+      if (photoUris.length > 0) {
+        setUploadProgress('Uploading photos…');
+        for (let i = 0; i < photoUris.length; i++) {
+          const uri = photoUris[i];
+          setUploadProgress(`Uploading photo ${i + 1} of ${photoUris.length}…`);
+          try {
+            const result = await uploadImage(uri, 'job_photo', true, `job_photo_${i}.jpg`);
+            uploadedPhotoUrls.push(result.publicUrl);
+          } catch {
+            Toast.show({
+              type: 'info',
+              text1: `Photo ${i + 1} skipped`,
+              text2: 'Continuing without it',
+            });
+          }
+        }
+      }
+
+      setUploadProgress('Posting job…');
       const jobData: Record<string, unknown> = {
         category_id: params.categoryId,
         title: params.title,
@@ -53,11 +75,12 @@ export default function ConfirmJob() {
         budget_negotiable: params.budgetNegotiable === '1',
         ...(params.scheduledTime ? { scheduled_time: params.scheduledTime } : {}),
         ...(budget ? { budget } : {}),
-        ...(photos.length > 0 ? { photos_base64: photos } : {}),
+        ...(uploadedPhotoUrls.length > 0 ? { photos_urls: uploadedPhotoUrls } : {}),
       };
 
       await api.post('/jobs', jobData);
       await qc.invalidateQueries({ queryKey: ['my-jobs'] });
+
       Toast.show({
         type: 'success',
         text1: '🎉 Job Posted!',
@@ -73,6 +96,7 @@ export default function ConfirmJob() {
       });
     } finally {
       setLoading(false);
+      setUploadProgress('');
     }
   };
 
@@ -113,97 +137,186 @@ export default function ConfirmJob() {
     {
       label: 'Photos',
       value:
-        photos.length > 0
-          ? `${photos.length} photo${photos.length > 1 ? 's' : ''} attached`
+        photoUris.length > 0
+          ? `${photoUris.length} photo${photoUris.length > 1 ? 's' : ''} attached`
           : 'None',
     },
   ];
 
   return (
-    <View className="flex-1 bg-background">
-      <View className="pt-14 pb-4 px-5 bg-card border-b border-border">
-        <Text className="text-xl font-extrabold">Review & Post</Text>
-        <Text className="text-xs text-muted-foreground mt-0.5">
+    <View style={{ flex: 1, backgroundColor: '#F9FAFB' }}>
+      <View
+        style={{
+          paddingTop: 56,
+          paddingBottom: 16,
+          paddingHorizontal: 20,
+          backgroundColor: '#fff',
+          borderBottomWidth: 1,
+          borderBottomColor: '#E5E7EB',
+        }}
+      >
+        <Text style={{ fontSize: 20, fontWeight: '800', color: '#111827' }}>Review & Post</Text>
+        <Text style={{ fontSize: 12, color: '#6B7280', marginTop: 2 }}>
           Step 3 of 3 — Confirm your job details
         </Text>
-        <View className="flex-row mt-2">
+        <View style={{ flexDirection: 'row', marginTop: 8, gap: 4 }}>
           {[1, 2, 3].map((s) => (
-            <View key={s} className="h-1 flex-1 rounded-full mr-1 bg-primary" />
+            <View
+              key={s}
+              style={{
+                flex: 1,
+                height: 4,
+                borderRadius: 2,
+                backgroundColor: '#1B5E3B',
+                marginRight: 4,
+              }}
+            />
           ))}
         </View>
       </View>
 
-      <ScrollView className="flex-1 px-5 pt-5" showsVerticalScrollIndicator={false}>
-        {/* Summary table */}
-        <View className="bg-card rounded-3xl border border-border overflow-hidden mb-5">
+      <ScrollView
+        style={{ flex: 1, paddingHorizontal: 20, paddingTop: 20 }}
+        showsVerticalScrollIndicator={false}
+      >
+        <View
+          style={{
+            backgroundColor: '#fff',
+            borderRadius: 16,
+            borderWidth: 1,
+            borderColor: '#E5E7EB',
+            overflow: 'hidden',
+            marginBottom: 16,
+          }}
+        >
           {summaryRows.map(({ label, value, icon }, i) => (
             <View
               key={label}
-              className={`px-5 py-4 ${i < summaryRows.length - 1 ? 'border-b border-border' : ''}`}
+              style={{
+                paddingHorizontal: 20,
+                paddingVertical: 14,
+                borderBottomWidth: i < summaryRows.length - 1 ? 1 : 0,
+                borderBottomColor: '#F3F4F6',
+              }}
             >
-              <View className="flex-row items-center gap-2 mb-0.5">
-                {icon && <Text style={{ fontSize: 16 }}>{icon}</Text>}
-                <Text className="text-xs font-bold uppercase tracking-wide text-muted-foreground">
-                  {label}
-                </Text>
-              </View>
-              <Text className="font-semibold text-foreground text-sm">{value}</Text>
+              <Text
+                style={{
+                  fontSize: 11,
+                  fontWeight: '700',
+                  color: '#9CA3AF',
+                  textTransform: 'uppercase',
+                  letterSpacing: 0.5,
+                  marginBottom: 2,
+                }}
+              >
+                {icon ? `${icon}  ` : ''}
+                {label}
+              </Text>
+              <Text style={{ fontSize: 14, fontWeight: '600', color: '#111827' }}>{value}</Text>
             </View>
           ))}
         </View>
 
-        {/* Description */}
         {params.description ? (
-          <View className="bg-card rounded-3xl border border-border p-5 mb-5">
-            <Text className="text-xs font-bold uppercase tracking-wide text-muted-foreground mb-2">
+          <View
+            style={{
+              backgroundColor: '#fff',
+              borderRadius: 16,
+              borderWidth: 1,
+              borderColor: '#E5E7EB',
+              padding: 16,
+              marginBottom: 16,
+            }}
+          >
+            <Text
+              style={{
+                fontSize: 11,
+                fontWeight: '700',
+                color: '#9CA3AF',
+                textTransform: 'uppercase',
+                marginBottom: 8,
+              }}
+            >
               Description
             </Text>
-            <Text className="text-foreground text-sm leading-5">{params.description}</Text>
-          </View>
-        ) : null}
-
-        {/* Additional Notes */}
-        {params.additionalNotes ? (
-          <View className="bg-card rounded-3xl border border-border p-5 mb-5">
-            <Text className="text-xs font-bold uppercase tracking-wide text-muted-foreground mb-2">
-              Additional Notes
-            </Text>
-            <Text className="text-muted-foreground text-sm leading-5">
-              {params.additionalNotes}
+            <Text style={{ fontSize: 14, color: '#374151', lineHeight: 20 }}>
+              {params.description}
             </Text>
           </View>
         ) : null}
 
-        <View className="bg-primary/5 border border-primary/20 rounded-2xl p-4 mb-8">
-          <Text className="text-xs font-bold text-primary mb-1">📋 What happens next?</Text>
-          <Text className="text-xs text-muted-foreground leading-5">
-            Verified artisans matching your job category will see this posting and submit
-            competitive bids. You can compare their profiles, ratings, and prices before accepting
-            any bid.
+        <View
+          style={{
+            backgroundColor: '#F0FDF4',
+            borderRadius: 12,
+            borderWidth: 1,
+            borderColor: '#BBF7D0',
+            padding: 14,
+            marginBottom: 32,
+          }}
+        >
+          <Text style={{ fontSize: 12, fontWeight: '700', color: '#15803D', marginBottom: 4 }}>
+            📋 What happens next?
+          </Text>
+          <Text style={{ fontSize: 12, color: '#4B7C5A', lineHeight: 18 }}>
+            Verified artisans matching your category will be notified and submit bids. Compare
+            profiles, ratings, and prices before accepting.
           </Text>
         </View>
       </ScrollView>
 
-      <View className="px-5 pb-8 pt-3 bg-card border-t border-border flex-row gap-3">
-        <TouchableOpacity
-          onPress={() => router.back()}
-          accessibilityLabel="Go back"
-          className="flex-1 bg-muted rounded-2xl py-4 items-center border border-border"
-        >
-          <Text className="font-bold text-foreground">← Edit</Text>
-        </TouchableOpacity>
-        <TouchableOpacity
-          onPress={handleSubmit}
-          disabled={loading}
-          accessibilityLabel="Post job"
-          className={`flex-[2] bg-primary rounded-2xl py-4 items-center ${loading ? 'opacity-60' : ''}`}
-        >
-          {loading ? (
-            <ActivityIndicator color="white" />
-          ) : (
-            <Text className="text-white font-extrabold text-base">Post Job — Free ✓</Text>
-          )}
-        </TouchableOpacity>
+      <View
+        style={{
+          paddingHorizontal: 20,
+          paddingBottom: 32,
+          paddingTop: 12,
+          backgroundColor: '#fff',
+          borderTopWidth: 1,
+          borderTopColor: '#E5E7EB',
+          gap: 10,
+        }}
+      >
+        {uploadProgress ? (
+          <Text style={{ fontSize: 12, color: '#6B7280', textAlign: 'center' }}>
+            {uploadProgress}
+          </Text>
+        ) : null}
+        <View style={{ flexDirection: 'row', gap: 12 }}>
+          <TouchableOpacity
+            onPress={() => router.back()}
+            style={{
+              flex: 1,
+              backgroundColor: '#F3F4F6',
+              borderRadius: 12,
+              paddingVertical: 14,
+              alignItems: 'center',
+              borderWidth: 1,
+              borderColor: '#E5E7EB',
+            }}
+          >
+            <Text style={{ fontWeight: '700', color: '#374151' }}>← Edit</Text>
+          </TouchableOpacity>
+          <TouchableOpacity
+            onPress={handleSubmit}
+            disabled={loading}
+            style={{
+              flex: 2,
+              backgroundColor: '#1B5E3B',
+              borderRadius: 12,
+              paddingVertical: 14,
+              alignItems: 'center',
+              opacity: loading ? 0.6 : 1,
+            }}
+          >
+            {loading ? (
+              <ActivityIndicator color="white" />
+            ) : (
+              <Text style={{ color: '#fff', fontWeight: '800', fontSize: 15 }}>
+                Post Job — Free ✓
+              </Text>
+            )}
+          </TouchableOpacity>
+        </View>
       </View>
     </View>
   );

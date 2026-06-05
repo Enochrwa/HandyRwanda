@@ -27,4 +27,6 @@ export const proService = {
       .then((r) => r.data),
   registerPushToken: (token: string) =>
     api.post('/artisans/push-token', { expo_push_token: token }).then((r) => r.data),
+  registerFCMToken: (token: string) =>
+    api.post('/artisans/push-token', { fcm_push_token: token }).then((r) => r.data),
 };

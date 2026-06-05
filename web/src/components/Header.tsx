@@ -29,6 +29,7 @@ import { Button } from "@/components/ui/button";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import api from "@/services/api";
 import { formatDistanceToNow } from "date-fns";
+import { useNotificationSocket } from "@/hooks/useNotificationSocket";
 
 export function Header() {
   const { user, isAuthenticated, logout } = useAuthStore();
@@ -39,6 +40,9 @@ export function Header() {
   const [notifOpen, setNotifOpen] = useState(false);
   const notifRef = useRef<HTMLDivElement>(null);
 
+  // Connect real-time WebSocket for notifications (replaces 30s polling)
+  useNotificationSocket();
+
   const { data: conversations } = useQuery({
     queryKey: ["conversations"],
     queryFn: () => api.get("/messages/conversations").then((r) => r.data),
@@ -46,11 +50,12 @@ export function Header() {
     refetchInterval: 30000,
   });
 
+  // Initial fetch only — WebSocket keeps this fresh after initial load
   const { data: notifications = [] } = useQuery({
     queryKey: ["notifications"],
     queryFn: () => api.get("/notifications").then((r) => r.data),
     enabled: isAuthenticated,
-    refetchInterval: 30000,
+    staleTime: 60000, // Consider fresh for 60s; WS updates will still come through
   });
 
   const markAllRead = useMutation({

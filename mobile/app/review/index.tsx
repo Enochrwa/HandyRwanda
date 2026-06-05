@@ -3,8 +3,14 @@ import { Star } from '@icons';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import React, { useState } from 'react';
 import {
-  View, Text, TextInput, TouchableOpacity,
-  ActivityIndicator, KeyboardAvoidingView, Platform, ScrollView,
+  View,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  ActivityIndicator,
+  KeyboardAvoidingView,
+  Platform,
+  ScrollView,
 } from 'react-native';
 import Toast from 'react-native-toast-message';
 
@@ -12,8 +18,13 @@ import api from '../../src/services/api';
 
 const LABELS = ['Terrible', 'Poor', 'Okay', 'Good', 'Excellent'];
 const QUICK_TAGS = [
-  'On time', 'Professional', 'Great quality',
-  'Good communication', 'Exceeded expectations', 'Fair price', 'Would hire again',
+  'On time',
+  'Professional',
+  'Great quality',
+  'Good communication',
+  'Exceeded expectations',
+  'Fair price',
+  'Would hire again',
 ];
 
 export default function ReviewScreen() {
@@ -66,17 +77,25 @@ export default function ReviewScreen() {
       behavior={Platform.OS === 'ios' ? 'padding' : undefined}
       className="flex-1 bg-background"
     >
-      <ScrollView className="flex-1 px-5 pt-6" contentContainerStyle={{ paddingBottom: 40 }} keyboardShouldPersistTaps="handled">
+      <ScrollView
+        className="flex-1 px-5 pt-6"
+        contentContainerStyle={{ paddingBottom: 40 }}
+        keyboardShouldPersistTaps="handled"
+      >
         <TouchableOpacity onPress={() => router.replace('/(tabs)')} className="self-end mb-4">
           <Text className="text-muted-foreground text-sm">Skip</Text>
         </TouchableOpacity>
 
         <View className="items-center mb-8">
-          <Text style={{ fontSize: 48 }} className="mb-3">🎉</Text>
+          <Text style={{ fontSize: 48 }} className="mb-3">
+            🎉
+          </Text>
           <Text className="text-2xl font-extrabold text-center">Job Complete!</Text>
           <Text className="text-muted-foreground text-sm text-center mt-1">
             How was your experience with{' '}
-            <Text className="font-bold text-foreground">{artisanName?.split(' ')[0] ?? 'the artisan'}?</Text>
+            <Text className="font-bold text-foreground">
+              {artisanName?.split(' ')[0] ?? 'the artisan'}?
+            </Text>
           </Text>
         </View>
 
@@ -99,7 +118,9 @@ export default function ReviewScreen() {
           ))}
         </View>
         {displayRating > 0 && (
-          <Text className="text-center text-muted-foreground text-sm mb-5">{LABELS[displayRating - 1]}</Text>
+          <Text className="text-center text-muted-foreground text-sm mb-5">
+            {LABELS[displayRating - 1]}
+          </Text>
         )}
 
         {/* Quick tags */}
@@ -115,7 +136,9 @@ export default function ReviewScreen() {
                 selectedTags.includes(tag) ? 'bg-primary border-primary' : 'bg-card border-border'
               }`}
             >
-              <Text className={`text-xs font-semibold ${selectedTags.includes(tag) ? 'text-white' : 'text-foreground'}`}>
+              <Text
+                className={`text-xs font-semibold ${selectedTags.includes(tag) ? 'text-white' : 'text-foreground'}`}
+              >
                 {tag}
               </Text>
             </TouchableOpacity>
@@ -136,7 +159,9 @@ export default function ReviewScreen() {
           className="bg-card border border-border rounded-2xl px-4 py-3 text-foreground text-sm mb-1"
           style={{ textAlignVertical: 'top', minHeight: 80 }}
         />
-        <Text className="text-[10px] text-muted-foreground text-right mb-6">{comment.length}/500</Text>
+        <Text className="text-[10px] text-muted-foreground text-right mb-6">
+          {comment.length}/500
+        </Text>
 
         <TouchableOpacity
           onPress={handleSubmit}

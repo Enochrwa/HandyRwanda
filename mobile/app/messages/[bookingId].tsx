@@ -77,9 +77,7 @@ export default function ChatThread() {
   const messages = [
     ...rawMessages,
     ...wsMessages.filter((wm: any) => !rawMessages.find((m: any) => m.id === wm.id)),
-  ].sort(
-    (a: any, b: any) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime(),
-  );
+  ].sort((a: any, b: any) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime());
 
   const { data: booking } = useQuery({
     queryKey: ['booking-detail', bookingId],

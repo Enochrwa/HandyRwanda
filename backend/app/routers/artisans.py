@@ -8,7 +8,7 @@ from sqlalchemy import delete, func, select, text, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.database import get_db
-from app.dependencies.jwt_auth import require_role
+from app.dependencies.jwt_auth import get_current_user, require_role
 from app.integrations.supabase_storage import upload_image
 from app.models.artisan import (
     ArtisanProfile,
@@ -486,23 +486,27 @@ async def search_artisans(
 
 
 class PushTokenUpdate(BaseModel):
-    expo_push_token: str
+    expo_push_token: str | None = None
+    fcm_push_token: str | None = None
 
 
 @router.post("/push-token")
 async def register_push_token(
     payload: PushTokenUpdate,
     db: AsyncSession = Depends(get_db),
-    current_user: dict[str, Any] = Depends(require_role(UserRole.artisan)),
+    current_user: dict[str, Any] = Depends(get_current_user),
 ) -> Any:
-    """Register or update Expo push notification token for the artisan."""
+    """Register or update push notification token(s). Accepts both Expo and FCM tokens."""
     user_id = UUID(current_user["sub"])
-    await db.execute(
-        update(User)
-        .where(User.id == user_id)
-        .values(expo_push_token=payload.expo_push_token)
-    )
-    await db.commit()
+    update_values: dict[str, Any] = {}
+    if payload.expo_push_token is not None:
+        update_values["expo_push_token"] = payload.expo_push_token
+    if payload.fcm_push_token is not None:
+        update_values["fcm_push_token"] = payload.fcm_push_token
+
+    if update_values:
+        await db.execute(update(User).where(User.id == user_id).values(**update_values))
+        await db.commit()
     return {"message": "Push token registered."}
 
 

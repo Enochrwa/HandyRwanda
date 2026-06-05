@@ -58,15 +58,15 @@ export default function JobDetails() {
     const result = await ImagePicker.launchImageLibraryAsync({
       mediaTypes: ImagePicker.MediaTypeOptions.Images,
       allowsEditing: true,
-      quality: 0.5,
-      base64: true,
+      quality: 0.8,
+      base64: false, // Store URI only — presigned upload handles the actual upload
     });
-    if (!result.canceled && result.assets[0].base64) {
+    if (!result.canceled && result.assets[0].uri) {
       if (photos.length >= 5) {
         Toast.show({ type: 'info', text1: 'Max 5 photos', text2: 'Remove a photo first' });
         return;
       }
-      setPhotos([...photos, result.assets[0].base64]);
+      setPhotos([...photos, result.assets[0].uri]);
     }
   };
 
@@ -336,10 +336,7 @@ export default function JobDetails() {
           <View className="flex-row flex-wrap gap-3">
             {photos.map((p, i) => (
               <View key={i} className="relative w-20 h-20">
-                <Image
-                  source={{ uri: `data:image/jpeg;base64,${p}` }}
-                  className="w-full h-full rounded-2xl"
-                />
+                <Image source={{ uri: p }} className="w-full h-full rounded-2xl" />
                 <TouchableOpacity
                   onPress={() => setPhotos(photos.filter((_, j) => j !== i))}
                   accessibilityLabel="Remove photo"

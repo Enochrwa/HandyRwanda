@@ -1,9 +1,8 @@
 // File: web/src/routes/jobs/post.tsx
-import { useState } from "react";
+import { useState, useRef } from "react";
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { Header } from "@/components/Header";
 import {
-  MapPin,
   Loader2,
   CheckCircle,
   ArrowRight,
@@ -12,6 +11,7 @@ import {
   DollarSign,
   FileText,
   Camera,
+  X,
 } from "lucide-react";
 import api from "@/services/api";
 import { useQuery } from "@tanstack/react-query";
@@ -19,6 +19,8 @@ import { useAuthStore } from "@/store/authStore";
 import { toast } from "sonner";
 import { AuthModal } from "@/components/AuthModal";
 import { formatRWF } from "@/services/artisanService";
+import { uploadImage } from "@/services/imageUpload";
+import { RwandaAddressPicker, type RwandaAddress } from "@/components/RwandaAddressPicker";
 
 // District → approximate center coordinates (WGS-84)
 const DISTRICT_COORDS: Record<string, [number, number]> = {
@@ -89,7 +91,13 @@ function PostJob() {
   const [done, setDone] = useState(false);
   const [authOpen, setAuthOpen] = useState(false);
   const [selectedUrgency, setSelectedUrgency] = useState("flexible");
-  const [selectedDistrict, setSelectedDistrict] = useState("Gasabo");
+  const [jobAddress, setJobAddress] = useState<Partial<RwandaAddress>>({
+    province: "Kigali City",
+    district: "Gasabo",
+  });
+  // Store file + blob URL pairs; blob URLs are always same-origin (no XSS risk)
+  const [photos, setPhotos] = useState<{ file: File; blobUrl: string }[]>([]);
+  const photoInputRef = useRef<HTMLInputElement>(null);
   const [formData, setFormData] = useState({
     category_id: "",
     title: "",
@@ -127,6 +135,24 @@ function PostJob() {
     return new Date(`${formData.scheduled_date}T${time}:00`).toISOString();
   };
 
+  const handlePhotoAdd = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = Array.from(e.target.files ?? []);
+    const remaining = 5 - photos.length;
+    const toAdd = files.slice(0, remaining);
+    const newPhotos = toAdd.map((f) => ({
+      file: f,
+      // createObjectURL always returns a blob: URI — safe for img src
+      blobUrl: URL.createObjectURL(f),
+    }));
+    setPhotos((prev) => [...prev, ...newPhotos]);
+    if (photoInputRef.current) photoInputRef.current.value = "";
+  };
+
+  const removePhoto = (i: number) => {
+    URL.revokeObjectURL(photos[i].blobUrl);
+    setPhotos((prev) => prev.filter((_, j) => j !== i));
+  };
+
   const handleSubmit = async () => {
     if (!isAuthenticated) {
       setAuthOpen(true);
@@ -152,19 +178,33 @@ function PostJob() {
 
     setLoading(true);
     try {
-      const [lat, lng] = DISTRICT_COORDS[selectedDistrict] ?? [-1.9441, 30.0619];
+      // Upload photos via presigned URLs
+      const photoUrls: string[] = [];
+      for (let i = 0; i < photos.length; i++) {
+        try {
+          const result = await uploadImage(photos[i].file, "job_photo", true);
+          photoUrls.push(result.publicUrl);
+        } catch {
+          toast.info(`Photo ${i + 1} could not be uploaded — skipping`);
+        }
+      }
+
+      const district = jobAddress.district ?? "Gasabo";
+      const [lat, lng] = DISTRICT_COORDS[district] ?? [-1.9441, 30.0619];
+      const locationLabel = jobAddress.formatted ?? district;
       await api.post("/jobs", {
         category_id: formData.category_id,
         title: formData.title.trim(),
         description: formData.description.trim(),
         additional_notes: formData.additional_notes.trim() || undefined,
-        location_label: `${formData.location_label.trim() || selectedDistrict}, ${selectedDistrict}`,
+        location_label: locationLabel,
         latitude: lat,
         longitude: lng,
         urgency: selectedUrgency,
         scheduled_time: buildScheduledTime(),
         budget_negotiable: formData.budget_negotiable,
         ...(formData.budget && { budget: parseInt(formData.budget) }),
+        ...(photoUrls.length > 0 && { photos_urls: photoUrls }),
       });
       setDone(true);
     } catch (err: unknown) {
@@ -392,76 +432,56 @@ function PostJob() {
             </div>
           </section>
 
-          {/* 7. Budget & Location */}
+          {/* 7. Budget */}
           <section>
             <label className="flex items-center gap-2 text-xs font-bold uppercase tracking-wider text-muted-foreground mb-1.5">
               <span className="w-5 h-5 rounded-full bg-primary text-primary-foreground flex items-center justify-center text-[10px] font-bold">
                 7
               </span>
-              Budget & Location
+              <DollarSign className="h-3.5 w-3.5" /> Budget{" "}
+              <span className="text-muted-foreground text-[10px] font-normal">
+                (optional — leave blank for open bids)
+              </span>
             </label>
-            <div className="grid grid-cols-2 gap-4">
-              <div>
-                <label className="text-[10px] font-semibold text-muted-foreground mb-1 block">
-                  <DollarSign className="inline h-3 w-3 mr-0.5" /> Budget (RWF) — optional
-                </label>
-                <input
-                  type="number"
-                  value={formData.budget}
-                  onChange={(e) => set("budget", e.target.value)}
-                  placeholder="e.g. 15000"
-                  min={500}
-                  className="w-full rounded-2xl border border-border bg-muted/30 px-4 py-3 text-sm outline-none focus:ring-2 focus:ring-primary/40"
-                />
-                {formData.budget && (
-                  <p className="text-[10px] text-primary mt-0.5">
-                    ≈ {formatRWF(parseInt(formData.budget))} RWF
-                  </p>
-                )}
-              </div>
-              <div>
-                <label className="text-[10px] font-semibold text-muted-foreground mb-1 block">
-                  <MapPin className="inline h-3 w-3 mr-0.5" /> District{" "}
-                  <span className="text-destructive">*</span>
-                </label>
-                <select
-                  value={selectedDistrict}
-                  onChange={(e) => setSelectedDistrict(e.target.value)}
-                  className="w-full rounded-2xl border border-border bg-muted/30 px-4 py-3 text-sm outline-none focus:ring-2 focus:ring-primary/40 mb-2"
-                >
-                  {Object.keys(DISTRICT_COORDS)
-                    .sort()
-                    .map((d) => (
-                      <option key={d} value={d}>
-                        {d}
-                      </option>
-                    ))}
-                </select>
-                <label className="text-[10px] font-semibold text-muted-foreground mb-1 block">
-                  Neighbourhood / street{" "}
-                  <span className="text-muted-foreground font-normal">(optional)</span>
-                </label>
-                <input
-                  value={formData.location_label}
-                  onChange={(e) => set("location_label", e.target.value)}
-                  placeholder="e.g. Kiyovu, near Chez Lando Hotel"
-                  className="w-full rounded-2xl border border-border bg-muted/30 px-4 py-3 text-sm outline-none focus:ring-2 focus:ring-primary/40"
-                />
-              </div>
-            </div>
+            <input
+              type="number"
+              value={formData.budget}
+              onChange={(e) => set("budget", e.target.value)}
+              placeholder="e.g. 15000"
+              min={500}
+              className="w-full rounded-2xl border border-border bg-muted/30 px-4 py-3 text-sm outline-none focus:ring-2 focus:ring-primary/40"
+            />
             {formData.budget && (
-              <label className="flex items-center gap-2 mt-2 cursor-pointer">
-                <input
-                  type="checkbox"
-                  checked={formData.budget_negotiable}
-                  onChange={(e) => set("budget_negotiable", e.target.checked)}
-                  className="rounded"
-                />
-                <span className="text-xs text-muted-foreground">
-                  I'm open to negotiate if needed
-                </span>
-              </label>
+              <div className="flex items-center gap-4 mt-1.5">
+                <p className="text-[10px] text-primary">
+                  ≈ {formatRWF(parseInt(formData.budget))} RWF
+                </p>
+                <label className="flex items-center gap-1.5 cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={formData.budget_negotiable}
+                    onChange={(e) => set("budget_negotiable", e.target.checked)}
+                    className="rounded"
+                  />
+                  <span className="text-[10px] text-muted-foreground">Open to negotiate</span>
+                </label>
+              </div>
             )}
+          </section>
+
+          {/* 7b. Location — full Rwanda address */}
+          <section>
+            <label className="flex items-center gap-2 text-xs font-bold uppercase tracking-wider text-muted-foreground mb-3">
+              <span className="w-5 h-5 rounded-full bg-primary text-primary-foreground flex items-center justify-center text-[10px] font-bold">
+                📍
+              </span>
+              Job Location <span className="text-destructive">*</span>
+            </label>
+            <RwandaAddressPicker
+              value={jobAddress}
+              onChange={(addr) => setJobAddress(addr)}
+              required
+            />
           </section>
 
           <div className="bg-primary/5 border border-primary/20 rounded-2xl p-4">
@@ -480,6 +500,57 @@ function PostJob() {
               </div>
             </div>
           </div>
+
+          {/* 8. Photos */}
+          <section>
+            <label className="flex items-center gap-2 text-xs font-bold uppercase tracking-wider text-muted-foreground mb-1.5">
+              <span className="w-5 h-5 rounded-full bg-muted text-muted-foreground flex items-center justify-center text-[10px] font-bold">
+                8
+              </span>
+              <Camera className="h-3.5 w-3.5" /> Photos ({photos.length}/5){" "}
+              <span className="text-muted-foreground text-[10px] font-normal">— recommended</span>
+            </label>
+            <div className="flex flex-wrap gap-3">
+              {photos.map((photo, i) => (
+                <div key={photo.blobUrl} className="relative w-20 h-20">
+                  <img
+                    // blob: URI created locally — safe, not from user text
+                    src={photo.blobUrl}
+                    alt={`Job photo ${String(i + 1)}`}
+                    className="w-full h-full object-cover rounded-2xl border border-border"
+                  />
+                  <button
+                    onClick={() => removePhoto(i)}
+                    className="absolute -top-1.5 -right-1.5 w-5 h-5 bg-destructive rounded-full flex items-center justify-center hover:brightness-90 transition"
+                    aria-label="Remove photo"
+                  >
+                    <X className="h-3 w-3 text-white" />
+                  </button>
+                </div>
+              ))}
+              {photos.length < 5 && (
+                <button
+                  onClick={() => photoInputRef.current?.click()}
+                  className="w-20 h-20 rounded-2xl border-2 border-dashed border-border bg-muted/30 hover:bg-muted flex flex-col items-center justify-center gap-1 transition"
+                  aria-label="Add photo"
+                >
+                  <Camera className="h-5 w-5 text-muted-foreground" />
+                  <span className="text-[9px] text-muted-foreground">Add photo</span>
+                </button>
+              )}
+            </div>
+            <input
+              ref={photoInputRef}
+              type="file"
+              accept="image/*"
+              multiple
+              className="hidden"
+              onChange={handlePhotoAdd}
+            />
+            <p className="text-[10px] text-muted-foreground mt-1">
+              Photos are compressed and uploaded directly — max 5 MB each
+            </p>
+          </section>
 
           <button
             onClick={handleSubmit}

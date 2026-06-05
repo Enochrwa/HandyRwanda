@@ -16,6 +16,10 @@ pytest-asyncio
 ruff
 mypy
 geoalchemy2
-# psycopg2-binary
+aiosqlite
+apscheduler
+# google-auth — for Firebase FCM HTTP v1 API server-side token generation
+google-auth
+# psycopg2-binary  -- uncomment for direct psycopg2 usage
 # upstash-redis
 # resend

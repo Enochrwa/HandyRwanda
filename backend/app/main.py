@@ -1,3 +1,5 @@
+# File: backend/app/main.py
+import asyncio
 import os
 from collections.abc import AsyncGenerator
 from contextlib import asynccontextmanager
@@ -10,26 +12,35 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.database import get_db, init_db
+from app.dependencies.jwt_auth import get_current_user
+from app.integrations.ws_manager import notification_manager
 from app.models.artisan import ArtisanProfile, Category, PortfolioPhoto, artisan_skills
 from app.models.review import Review
 from app.models.user import User, UserRole
 from app.routers import (
+    address,
     admin,
+    analytics,
     artisans,
     auth,
     bids,
     bookings,
+    disputes,
+    escrow,
     jobs,
+    legal,
     messages,
     notifications,
     payments,
     reviews,
+    schedule,
+    uploads,
 )
 
-# ── WebSocket connection manager ──────────────────────────────────────────────
+# ── Message WebSocket connection manager ──────────────────────────────────────
 
 
-class ConnectionManager:
+class MessageConnectionManager:
     def __init__(self) -> None:
         self._connections: dict[str, list[WebSocket]] = {}
 
@@ -50,53 +61,84 @@ class ConnectionManager:
                 self.disconnect(booking_id, ws)
 
 
-manager = ConnectionManager()
+message_manager = MessageConnectionManager()
+
+
+# ── Background task: auto-release escrow every 30 minutes ────────────────────
+
+async def _auto_release_loop() -> None:
+    """Background task that auto-releases overdue escrow holds every 30 minutes."""
+    from app.database import AsyncSessionLocal  # noqa: PLC0415
+    from app.services.escrow_service import process_auto_releases  # noqa: PLC0415
+
+    await asyncio.sleep(60)  # Initial delay to let app fully start
+    while True:
+        try:
+            async with AsyncSessionLocal() as session:
+                released = await process_auto_releases(session)
+                if released:
+                    print(f"[AutoRelease] Released {released} escrow(s)")
+        except Exception as e:
+            print(f"[AutoRelease] Error: {e}")
+        await asyncio.sleep(1800)  # Run every 30 minutes
 
 
 @asynccontextmanager
 async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
-    # Always create tables (no-op if they exist) and seed categories if empty.
-    # In production, Alembic migrations handle schema changes; seeding is safe to always run.
     await init_db()
+    # Start background escrow auto-release task
+    bg_task = asyncio.create_task(_auto_release_loop())
     yield
+    bg_task.cancel()
+    try:
+        await bg_task
+    except asyncio.CancelledError:
+        pass
 
 
-app = FastAPI(title="HandyRwanda API", version="2.0.0", lifespan=lifespan)
+app = FastAPI(title="HandyRwanda API", version="2.1.0", lifespan=lifespan)
 
 _CORS_ORIGINS = os.getenv("CORS_ORIGINS", "").split(",")
 _EXTRA_ORIGINS = [o.strip() for o in _CORS_ORIGINS if o.strip()]
 
-# NOTE: allow_credentials=True is incompatible with allow_origins=["*"] per the
-# CORS spec (browsers reject such responses). We therefore list known origins
-# explicitly and fall back to env-injected extras for production deployments.
 _ALLOW_ORIGINS = [
-    "http://localhost:5173",    # Vite web dev
-    "http://localhost:8081",    # Expo web / Metro
-    "http://localhost:19006",   # Expo web (older port)
-    "http://10.0.2.2:5173",    # Android emulator → host Vite
-    "http://10.0.2.2:8081",    # Android emulator → host Metro
+    "http://localhost:5173",
+    "http://localhost:8081",
+    "http://localhost:19006",
+    "http://10.0.2.2:5173",
+    "http://10.0.2.2:8081",
     *_EXTRA_ORIGINS,
 ]
 
 app.add_middleware(
     CORSMiddleware,
     allow_origins=_ALLOW_ORIGINS,
-    allow_origin_regex=r"http://192\.168\.\d+\.\d+(:\d+)?",  # LAN (Expo Go physical device)
+    allow_origin_regex=r"http://192\.168\.\d+\.\d+(:\d+)?",
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
 
+# ── Routers ───────────────────────────────────────────────────────────────────
+app.include_router(address.router)
 app.include_router(admin.router)
+app.include_router(analytics.router)
 app.include_router(artisans.router)
 app.include_router(auth.router)
 app.include_router(bids.router)
 app.include_router(bookings.router)
+app.include_router(disputes.router)
+app.include_router(escrow.router)
 app.include_router(jobs.router)
+app.include_router(legal.router)
 app.include_router(messages.router)
 app.include_router(notifications.router)
 app.include_router(payments.router)
 app.include_router(reviews.router)
+app.include_router(schedule.router)
+app.include_router(uploads.router)
+
+# ── Public categories endpoint ────────────────────────────────────────────────
 
 
 @app.get(
@@ -105,15 +147,9 @@ app.include_router(reviews.router)
     summary="List all active service categories (public)",
 )
 async def list_categories_public(db: AsyncSession = Depends(get_db)) -> Any:
-    """
-    Public endpoint — no authentication required.
-
-    Returns every active service category.  Both the web job-posting form
-    and the mobile category-picker call this endpoint.  It mirrors
-    GET /artisans/categories but lives at the root so clients don't need to
-    know which sub-router owns categories.
-    """
-    result = await db.execute(select(Category).where(Category.is_active).order_by(Category.name_en))
+    result = await db.execute(
+        select(Category).where(Category.is_active).order_by(Category.name_en)
+    )
     cats = result.scalars().all()
     return [
         {
@@ -128,15 +164,7 @@ async def list_categories_public(db: AsyncSession = Depends(get_db)) -> Any:
     ]
 
 
-@app.websocket("/ws/messages/{booking_id}")
-async def websocket_messages(websocket: WebSocket, booking_id: str) -> None:
-    await manager.connect(booking_id, websocket)
-    try:
-        while True:
-            data = await websocket.receive_json()
-            await manager.broadcast(booking_id, data)
-    except WebSocketDisconnect:
-        manager.disconnect(booking_id, websocket)
+# ── Artisan public profile ─────────────────────────────────────────────────────
 
 
 @app.get("/artisans/{artisan_id}/public")
@@ -147,7 +175,7 @@ async def get_artisan_public(
         select(User).where(
             User.id == artisan_id, User.role == UserRole.artisan, User.is_active
         )
-    )  # noqa
+    )
     if not user:
         raise HTTPException(status_code=404, detail="Artisan not found.")
 
@@ -171,12 +199,14 @@ async def get_artisan_public(
     ]
 
     portfolio_result = await db.execute(
-        select(PortfolioPhoto).where(PortfolioPhoto.artisan_id == artisan_id).limit(12)
+        select(PortfolioPhoto)
+        .where(PortfolioPhoto.artisan_id == artisan_id)
+        .limit(12)
     )
     portfolio = [
         {
             "id": str(p.id),
-            "photo_url": p.photo_url,
+            "image_url": p.image_url,
             "job_type": p.job_type,
             "description": p.description,
         }
@@ -190,7 +220,7 @@ async def get_artisan_public(
             User.avatar_url.label("client_avatar"),
         )
         .join(User, Review.client_id == User.id)
-        .where(Review.artisan_id == artisan_id, Review.is_flagged.is_(False))  # noqa
+        .where(Review.artisan_id == artisan_id, Review.is_flagged.is_(False))
         .order_by(Review.created_at.desc())
         .limit(10)
     )
@@ -207,6 +237,16 @@ async def get_artisan_public(
         for r in reviews_result
     ]
 
+    # Full formatted address
+    from app.utils.rwanda_address import format_address  # noqa: PLC0415
+    full_address = format_address(
+        district=user.district,
+        sector=user.sector,
+        cell=getattr(user, "cell", None),
+        village=getattr(user, "village", None),
+        street_road=getattr(user, "street_road", None),
+    )
+
     return {
         "id": str(user.id),
         "full_name": user.full_name,
@@ -214,6 +254,11 @@ async def get_artisan_public(
         "email": user.email,
         "avatar_url": user.avatar_url,
         "district": user.district,
+        "sector": getattr(user, "sector", None),
+        "cell": getattr(user, "cell", None),
+        "village": getattr(user, "village", None),
+        "street_road": getattr(user, "street_road", None),
+        "full_address": full_address,
         "preferred_lang": user.preferred_lang,
         "profile": {
             "bio": profile.bio if profile else None,
@@ -222,9 +267,7 @@ async def get_artisan_public(
             "hourly_rate": profile.hourly_rate if profile else None,
             "fixed_rate": profile.fixed_rate if profile else None,
             "spoken_languages": profile.spoken_languages if profile else None,
-            "verification_status": profile.verification_status
-            if profile
-            else "unverified",
+            "verification_status": profile.verification_status if profile else "unverified",
             "is_available": profile.is_available if profile else False,
             "average_rating": profile.average_rating if profile else 0.0,
             "total_reviews": profile.total_reviews if profile else 0,
@@ -238,11 +281,70 @@ async def get_artisan_public(
     }
 
 
+# ── Recommended artisans (client home screen) ─────────────────────────────────
+
+
+@app.get("/recommended-artisans")
+async def get_recommended(
+    db: AsyncSession = Depends(get_db),
+    current_user: dict[str, Any] = Depends(get_current_user),
+) -> Any:
+    """Client home screen: recommended artisans based on recent job category."""
+    from app.services.matching_service import get_recommended_artisans  # noqa: PLC0415
+
+    client_id = UUID(current_user["sub"])
+    return await get_recommended_artisans(db, client_id)
+
+
+# ── WebSockets ────────────────────────────────────────────────────────────────
+
+
+@app.websocket("/ws/messages/{booking_id}")
+async def websocket_messages(websocket: WebSocket, booking_id: str) -> None:
+    """Real-time messaging for a booking conversation."""
+    await message_manager.connect(booking_id, websocket)
+    try:
+        while True:
+            data = await websocket.receive_json()
+            await message_manager.broadcast(booking_id, data)
+    except WebSocketDisconnect:
+        message_manager.disconnect(booking_id, websocket)
+
+
+@app.websocket("/ws/notifications/{user_id}")
+async def websocket_notifications(websocket: WebSocket, user_id: str) -> None:
+    """
+    Real-time notification push for a user.
+
+    Client connects here after auth. Server pushes notification payloads
+    as JSON whenever a new notification is created for this user.
+
+    Message format:
+      { "type": "notification", "data": { id, event_type, title, body, payload, created_at } }
+    """
+    await notification_manager.connect(user_id, websocket)
+    try:
+        while True:
+            # Keep connection alive — client sends {"type": "ping"} every 30s
+            msg = await websocket.receive_json()
+            if msg.get("type") == "ping":
+                await websocket.send_json({"type": "pong"})
+    except WebSocketDisconnect:
+        await notification_manager.disconnect(user_id, websocket)
+
+
+# ── Health ────────────────────────────────────────────────────────────────────
+
+
 @app.get("/")
 async def root() -> dict[str, str]:
-    return {"message": "Welcome to HandyRwanda API v2.0"}
+    return {"message": "Welcome to HandyRwanda API v2.1"}
 
 
 @app.get("/health")
 async def health() -> dict[str, str]:
-    return {"status": "ok", "version": "2.0.0"}
+    return {
+        "status": "ok",
+        "version": "2.1.0",
+        "ws_users": str(notification_manager.active_user_count()),
+    }

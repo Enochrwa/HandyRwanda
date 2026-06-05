@@ -1,4 +1,40 @@
 # File: backend/app/routers/__init__.py
+from . import (
+    address,
+    admin,
+    analytics,
+    artisans,
+    auth,
+    bids,
+    bookings,
+    disputes,
+    escrow,
+    jobs,
+    legal,
+    messages,
+    notifications,
+    payments,
+    reviews,
+    schedule,
+    uploads,
+)
 
-from . import notifications as notifications
-from . import reviews as reviews
+__all__ = [
+    "address",
+    "admin",
+    "analytics",
+    "artisans",
+    "auth",
+    "bids",
+    "bookings",
+    "disputes",
+    "escrow",
+    "jobs",
+    "legal",
+    "messages",
+    "notifications",
+    "payments",
+    "reviews",
+    "schedule",
+    "uploads",
+]

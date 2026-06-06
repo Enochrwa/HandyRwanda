@@ -1,7 +1,15 @@
-// File: mobile/app/(client)/post-job/location.tsx
+/**
+ * Job Location screen (Step 2 of 3).
+ *
+ * Uses the new <LocationPicker> which:
+ *  - Is offline-first (no API calls for Rwanda hierarchy)
+ *  - Supports both Rwanda and international addresses
+ *  - Reverse-geocodes map taps via OSM Nominatim
+ *  - Has zero re-render-loop issues
+ */
 import * as Location from 'expo-location';
 import { useRouter, useLocalSearchParams } from 'expo-router';
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import {
   View,
   Text,
@@ -11,46 +19,24 @@ import {
   KeyboardAvoidingView,
   Platform,
 } from 'react-native';
-import MapView, { Marker, UrlTile, Region } from 'react-native-maps';
 import Toast from 'react-native-toast-message';
-
-import {
-  RwandaAddressPicker,
-  type RwandaAddress,
-} from '../../../src/components/RwandaAddressPicker';
-
-const KIGALI: Region = {
-  latitude: -1.9441,
-  longitude: 30.0619,
-  latitudeDelta: 0.015,
-  longitudeDelta: 0.015,
-};
-
-// District approximate centers for map zoom
-const DISTRICT_CENTERS: Record<string, { latitude: number; longitude: number }> = {
-  Gasabo: { latitude: -1.8845, longitude: 30.1167 },
-  Kicukiro: { latitude: -1.9769, longitude: 30.0985 },
-  Nyarugenge: { latitude: -1.95, longitude: 30.0588 },
-  Musanze: { latitude: -1.4991, longitude: 29.6346 },
-  Huye: { latitude: -2.5967, longitude: 29.7397 },
-  Rubavu: { latitude: -1.6812, longitude: 29.35 },
-  Nyagatare: { latitude: -1.2985, longitude: 30.3263 },
-};
+import { LocationPicker, type LocationResult } from 'src/components/LocationPicker';
 
 export default function JobLocation() {
   const router = useRouter();
   const params = useLocalSearchParams<Record<string, string>>();
-  const mapRef = useRef<MapView>(null);
 
-  const [region, setRegion] = useState<Region>(KIGALI);
-  const [marker, setMarker] = useState({ latitude: KIGALI.latitude, longitude: KIGALI.longitude });
   const [gettingLocation, setGettingLocation] = useState(true);
-  const [address, setAddress] = useState<Partial<RwandaAddress>>({
-    province: 'Kigali City',
-    district: 'Gasabo',
-  });
+  const [initialCoords, setInitialCoords] = useState<
+    { latitude: number; longitude: number } | undefined
+  >(undefined);
 
+  // Store latest picker result in a ref to avoid re-renders on every change
+  const resultRef = useRef<LocationResult | null>(null);
+
+  // Get GPS on mount once
   useEffect(() => {
+    let mounted = true;
     (async () => {
       try {
         const { status } = await Location.requestForegroundPermissionsAsync();
@@ -58,40 +44,39 @@ export default function JobLocation() {
           const loc = await Location.getCurrentPositionAsync({
             accuracy: Location.Accuracy.Balanced,
           });
-          const coords = { latitude: loc.coords.latitude, longitude: loc.coords.longitude };
-          setMarker(coords);
-          const newRegion = { ...KIGALI, ...coords };
-          setRegion(newRegion);
-          mapRef.current?.animateToRegion(newRegion, 800);
+          if (mounted) {
+            setInitialCoords({
+              latitude: loc.coords.latitude,
+              longitude: loc.coords.longitude,
+            });
+          }
         }
       } catch {
-        /* fall back to Kigali */
+        // Fall back to Kigali default inside LocationPicker
       } finally {
-        setGettingLocation(false);
+        if (mounted) setGettingLocation(false);
       }
     })();
+    return () => {
+      mounted = false;
+    };
   }, []);
 
-  // Zoom map when district changes
-  useEffect(() => {
-    if (address.district && DISTRICT_CENTERS[address.district]) {
-      const center = DISTRICT_CENTERS[address.district];
-      const newRegion = { ...center, latitudeDelta: 0.06, longitudeDelta: 0.06 };
-      setRegion(newRegion);
-      setMarker(center);
-      mapRef.current?.animateToRegion(newRegion, 600);
-    }
-  }, [address.district]);
-
-  const handleMapPress = async (e: {
-    nativeEvent: { coordinate: { latitude: number; longitude: number } };
-  }) => {
-    const coords = e.nativeEvent.coordinate;
-    setMarker(coords);
-  };
+  const handleLocationChange = useCallback((result: LocationResult) => {
+    resultRef.current = result;
+  }, []);
 
   const handleConfirm = () => {
-    if (!address.district) {
+    const result = resultRef.current;
+    if (!result) {
+      Toast.show({
+        type: 'error',
+        text1: 'Select a location',
+        text2: 'Pin the map or fill in the address',
+      });
+      return;
+    }
+    if (result.rwanda && !result.rwanda.district) {
       Toast.show({ type: 'error', text1: 'Select a district', text2: 'Required to post the job' });
       return;
     }
@@ -99,9 +84,9 @@ export default function JobLocation() {
       pathname: '/(client)/post-job/confirm',
       params: {
         ...params,
-        latitude: marker.latitude.toString(),
-        longitude: marker.longitude.toString(),
-        locationLabel: address.formatted ?? address.district,
+        latitude: result.latitude.toString(),
+        longitude: result.longitude.toString(),
+        locationLabel: result.formatted,
       },
     });
   };
@@ -126,7 +111,7 @@ export default function JobLocation() {
         <Text style={{ fontSize: 12, color: '#6B7280', marginTop: 2 }}>
           Step 2 of 3 — Set the location
         </Text>
-        <View style={{ flexDirection: 'row', marginTop: 8, gap: 4 }}>
+        <View style={{ flexDirection: 'row', marginTop: 8 }}>
           {[1, 2, 3].map((s) => (
             <View
               key={s}
@@ -142,103 +127,56 @@ export default function JobLocation() {
         </View>
       </View>
 
-      <ScrollView
-        style={{ flex: 1 }}
-        contentContainerStyle={{ paddingBottom: 120 }}
-        keyboardShouldPersistTaps="handled"
-      >
-        {/* Map */}
-        <View style={{ height: 220, position: 'relative' }}>
-          {gettingLocation && (
-            <View
-              style={{
-                position: 'absolute',
-                inset: 0,
-                zIndex: 10,
-                alignItems: 'center',
-                justifyContent: 'center',
-                backgroundColor: 'rgba(249,250,251,0.8)',
-              }}
-            >
-              <ActivityIndicator color="#1B5E3B" size="large" />
-              <Text style={{ fontSize: 12, color: '#6B7280', marginTop: 8 }}>
-                Getting your location…
-              </Text>
-            </View>
-          )}
-          <MapView
-            ref={mapRef}
-            style={{ flex: 1 }}
-            initialRegion={KIGALI}
-            region={region}
-            onRegionChangeComplete={setRegion}
-            onPress={handleMapPress}
-            accessibilityLabel="Map — tap to pin the exact job location"
-          >
-            <UrlTile
-              urlTemplate="https://tile.openstreetmap.org/{z}/{x}/{y}.png"
-              maximumZ={19}
-              flipY={false}
-            />
-            <Marker coordinate={marker} title="Job location" pinColor="#1B5E3B" />
-          </MapView>
-          <View
-            style={{
-              position: 'absolute',
-              top: 12,
-              left: 12,
-              right: 12,
-              backgroundColor: 'rgba(255,255,255,0.95)',
-              borderRadius: 12,
-              paddingHorizontal: 14,
-              paddingVertical: 8,
-              borderWidth: 1,
-              borderColor: '#E5E7EB',
-            }}
-          >
-            <Text
-              style={{ fontSize: 11, color: '#6B7280', textAlign: 'center', fontWeight: '500' }}
-            >
-              📍 Tap on the map to pin the exact spot
-            </Text>
-          </View>
-        </View>
-
-        {/* Address picker */}
-        <View style={{ paddingHorizontal: 20, paddingTop: 20 }}>
-          <Text style={{ fontSize: 13, fontWeight: '700', color: '#374151', marginBottom: 12 }}>
-            Full Address <Text style={{ color: '#EF4444' }}>*</Text>
+      {gettingLocation ? (
+        <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center' }}>
+          <ActivityIndicator color="#1B5E3B" size="large" />
+          <Text style={{ fontSize: 13, color: '#6B7280', marginTop: 10 }}>
+            Getting your location…
           </Text>
-          <RwandaAddressPicker value={address} onChange={(addr) => setAddress(addr)} />
         </View>
-      </ScrollView>
+      ) : (
+        <ScrollView
+          style={{ flex: 1 }}
+          contentContainerStyle={{ paddingHorizontal: 20, paddingBottom: 120 }}
+          keyboardShouldPersistTaps="handled"
+        >
+          <View style={{ marginTop: 16 }}>
+            <LocationPicker initialCoords={initialCoords} onChange={handleLocationChange} />
+          </View>
+        </ScrollView>
+      )}
 
-      <View
-        style={{
-          position: 'absolute',
-          bottom: 0,
-          left: 0,
-          right: 0,
-          paddingHorizontal: 20,
-          paddingBottom: 32,
-          paddingTop: 12,
-          backgroundColor: '#fff',
-          borderTopWidth: 1,
-          borderTopColor: '#E5E7EB',
-        }}
-      >
-        <TouchableOpacity
-          onPress={handleConfirm}
+      {/* Footer CTA */}
+      {!gettingLocation && (
+        <View
           style={{
-            backgroundColor: '#1B5E3B',
-            borderRadius: 12,
-            paddingVertical: 14,
-            alignItems: 'center',
+            position: 'absolute',
+            bottom: 0,
+            left: 0,
+            right: 0,
+            paddingHorizontal: 20,
+            paddingBottom: 32,
+            paddingTop: 12,
+            backgroundColor: '#fff',
+            borderTopWidth: 1,
+            borderTopColor: '#E5E7EB',
           }}
         >
-          <Text style={{ color: '#fff', fontWeight: '800', fontSize: 15 }}>Confirm Location ✓</Text>
-        </TouchableOpacity>
-      </View>
+          <TouchableOpacity
+            onPress={handleConfirm}
+            style={{
+              backgroundColor: '#1B5E3B',
+              borderRadius: 12,
+              paddingVertical: 14,
+              alignItems: 'center',
+            }}
+          >
+            <Text style={{ color: '#fff', fontWeight: '800', fontSize: 15 }}>
+              Confirm Location ✓
+            </Text>
+          </TouchableOpacity>
+        </View>
+      )}
     </KeyboardAvoidingView>
   );
 }

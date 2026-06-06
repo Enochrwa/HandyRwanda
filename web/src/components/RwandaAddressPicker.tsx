@@ -1,13 +1,13 @@
 // File: web/src/components/RwandaAddressPicker.tsx
 /**
  * Cascading Rwanda address picker:
- *   Province → District → Sector → Cell → Village (free-text)
+ *   Province → District → Sector → Cell → Village (all dropdowns, offline)
  *   → Street/Road → House/Plot Number → Landmark
  *
  * Features:
  *  - Offline-first: uses bundled RWANDA_ADDRESSES — zero API calls for hierarchy
  *  - Interactive Leaflet map (react-leaflet + OSM tiles): click or drag pin
- *  - Reverse-geocode via OSM Nominatim on pin drop
+ *  - Reverse-geocode via OSM Nominatim on pin drop (fills street/house only)
  *  - House number & landmark fields for door-step precision
  *  - Emits full RwandaAddress (with lat/lng) via onChange
  */
@@ -65,16 +65,22 @@ interface Props {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Offline hierarchy helpers
+// Offline hierarchy helpers — 5-level: Province→District→Sector→Cell→Village
 // ─────────────────────────────────────────────────────────────────────────────
 
 const getProvinces = (): string[] => Object.keys(RWANDA_ADDRESSES).sort();
+
 const getDistricts = (province: string): string[] =>
   Object.keys(RWANDA_ADDRESSES[province] ?? {}).sort();
+
 const getSectors = (province: string, district: string): string[] =>
   Object.keys(RWANDA_ADDRESSES[province]?.[district] ?? {}).sort();
+
 const getCells = (province: string, district: string, sector: string): string[] =>
-  [...(RWANDA_ADDRESSES[province]?.[district]?.[sector] ?? [])].sort();
+  Object.keys(RWANDA_ADDRESSES[province]?.[district]?.[sector] ?? {}).sort();
+
+const getVillages = (province: string, district: string, sector: string, cell: string): string[] =>
+  [...(RWANDA_ADDRESSES[province]?.[district]?.[sector]?.[cell] ?? [])].sort();
 
 // ─────────────────────────────────────────────────────────────────────────────
 // District centre coordinates for map auto-zoom
@@ -145,7 +151,8 @@ function buildFormatted(f: {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Nominatim reverse geocode
+// Nominatim reverse geocode — used ONLY to fill street/house, NOT province/district
+// (province names from Nominatim don't match our data keys, causing crashes)
 // ─────────────────────────────────────────────────────────────────────────────
 
 interface NominatimAddress {
@@ -176,7 +183,9 @@ async function reverseGeocode(
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Inner map component (must live inside <MapContainer>)
+// Inner map component — click anywhere to move pin
+// IMPORTANT: this component must be a stable reference; do NOT inline it
+// inside the parent render or it will remount on every state change (crash).
 // ─────────────────────────────────────────────────────────────────────────────
 
 function DraggableMarker({
@@ -186,7 +195,6 @@ function DraggableMarker({
   position: [number, number];
   onMove: (lat: number, lng: number) => void;
 }) {
-  // Click anywhere on the map to move pin
   useMapEvents({
     click(e) {
       onMove(e.latlng.lat, e.latlng.lng);
@@ -208,15 +216,15 @@ function DraggableMarker({
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// MapView wrapper — re-centres when centre prop changes
+// MapRecenter — re-centres map when centre prop changes (stable ref required)
 // ─────────────────────────────────────────────────────────────────────────────
 
 function MapRecenter({ centre }: { centre: [number, number] }) {
   const map = useMapEvents({});
-  const prevCentreRef = useRef<[number, number]>(centre);
+  const prevRef = useRef<[number, number]>(centre);
   useEffect(() => {
-    if (prevCentreRef.current[0] !== centre[0] || prevCentreRef.current[1] !== centre[1]) {
-      prevCentreRef.current = centre;
+    if (prevRef.current[0] !== centre[0] || prevRef.current[1] !== centre[1]) {
+      prevRef.current = centre;
       map.flyTo(centre, Math.max(map.getZoom(), 13), { duration: 0.8 });
     }
   }, [centre, map]);
@@ -246,11 +254,12 @@ export function RwandaAddressPicker({ value, onChange, required }: Props) {
   const [mapCentre, setMapCentre] = useState<[number, number]>(pinPos);
   const [geocoding, setGeocoding] = useState(false);
 
-  // Derived lists
+  // Derived option lists
   const provinces = getProvinces();
   const districts = getDistricts(province);
   const sectors = getSectors(province, district);
   const cells = getCells(province, district, sector);
+  const villages = getVillages(province, district, sector, cell);
 
   const onChangeRef = useRef(onChange);
   useEffect(() => {
@@ -336,7 +345,11 @@ export function RwandaAddressPicker({ value, onChange, required }: Props) {
     }
   }, [district]);
 
-  // Handle map pin drop → reverse-geocode
+  // Handle map pin drop → fill street/house only from Nominatim.
+  // We intentionally do NOT update province/district from Nominatim because
+  // Nominatim returns different name formats that don't match our data keys,
+  // which previously caused a crash (blank province → blank district array →
+  // SelectItem key crash + infinite re-render).
   const handlePinMove = useCallback(async (lat: number, lng: number) => {
     setPinPos([lat, lng]);
     setGeocoding(true);
@@ -344,33 +357,9 @@ export function RwandaAddressPicker({ value, onChange, required }: Props) {
       const result = await reverseGeocode(lat, lng);
       if (!result?.address) return;
       const addr = result.address;
-
-      // Fill street
       const detectedRoad = addr.road ?? addr.pedestrian ?? addr.neighbourhood ?? "";
       if (detectedRoad) setStreetRoad(detectedRoad);
-
-      // Fill house number
       if (addr.house_number) setHouseNumber(addr.house_number);
-
-      // Try to match a district from Nominatim county/suburb
-      const returnedCounty = addr.county ?? addr.suburb ?? "";
-      if (returnedCounty) {
-        const allDistricts = Object.entries(RWANDA_ADDRESSES).flatMap(([p, dm]) =>
-          Object.keys(dm).map((d) => ({ province: p, district: d })),
-        );
-        const match = allDistricts.find(
-          ({ district: d }) =>
-            d.toLowerCase() === returnedCounty.toLowerCase() ||
-            returnedCounty.toLowerCase().includes(d.toLowerCase()),
-        );
-        if (match) {
-          setProvince(match.province);
-          setDistrict(match.district);
-          setSector("");
-          setCell("");
-          setVillage("");
-        }
-      }
     } finally {
       setGeocoding(false);
     }
@@ -515,14 +504,21 @@ export function RwandaAddressPicker({ value, onChange, required }: Props) {
           </Select>
         </div>
 
-        {/* Village — free text */}
+        {/* Village — real dropdown from data */}
         <div className="space-y-1">
           <Label>Village</Label>
-          <Input
-            placeholder="Village name (e.g. Kimisagara)"
-            value={village}
-            onChange={(e) => setVillage(e.target.value)}
-          />
+          <Select value={village} onValueChange={setVillage} disabled={!cell}>
+            <SelectTrigger>
+              <SelectValue placeholder={cell ? "Select village" : "Select cell first"} />
+            </SelectTrigger>
+            <SelectContent>
+              {villages.map((v) => (
+                <SelectItem key={v} value={v}>
+                  {v}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
         </div>
 
         {/* Street / Road */}

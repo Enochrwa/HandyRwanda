@@ -15,9 +15,10 @@ RW_PHONE_RE = re.compile(r"^\+2507[2-9]\d{7}$")
 RW_NID_RE = re.compile(r"^\d{16}$")
 
 # ── Rwanda districts ────────────────────────────────────────────────────────
+# Province names match the authoritative JSON and frontend TS data exactly.
 RWANDA_DISTRICTS = {
-    "Kigali": ["Gasabo", "Kicukiro", "Nyarugenge"],
-    "Eastern": [
+    "Kigali City": ["Gasabo", "Kicukiro", "Nyarugenge"],
+    "Eastern Province": [
         "Bugesera",
         "Gatsibo",
         "Kayonza",
@@ -26,8 +27,8 @@ RWANDA_DISTRICTS = {
         "Nyagatare",
         "Rwamagana",
     ],
-    "Northern": ["Burera", "Gakenke", "Gicumbi", "Musanze", "Rulindo"],
-    "Southern": [
+    "Northern Province": ["Burera", "Gakenke", "Gicumbi", "Musanze", "Rulindo"],
+    "Southern Province": [
         "Gisagara",
         "Huye",
         "Kamonyi",
@@ -38,7 +39,7 @@ RWANDA_DISTRICTS = {
         "Nyaruguru",
         "Ruhango",
     ],
-    "Western": [
+    "Western Province": [
         "Karongi",
         "Ngororero",
         "Nyabihu",

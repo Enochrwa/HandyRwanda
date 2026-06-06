@@ -106,3 +106,67 @@ async def format_address_endpoint(
         landmark=landmark,
     )
     return {"formatted": label}
+
+@router.get("/validate")
+async def validate_address(
+    province: str = Query(...),
+    district: str = Query(...),
+    sector: str | None = Query(None),
+    cell: str | None = Query(None),
+    village: str | None = Query(None),
+) -> Any:
+    """
+    Validate that an address selection is internally consistent.
+    Returns {valid: bool, errors: list[str]}.
+    """
+    errors: list[str] = []
+
+    provinces = get_provinces()
+    if province not in provinces:
+        errors.append(f"Unknown province: '{province}'. Valid: {provinces}")
+        return {"valid": False, "errors": errors}
+
+    districts = get_districts(province)
+    if district not in districts:
+        errors.append(f"District '{district}' not found in province '{province}'")
+        return {"valid": False, "errors": errors}
+
+    if sector:
+        sectors = get_sectors(province, district)
+        if sector not in sectors:
+            errors.append(f"Sector '{sector}' not found in district '{district}'")
+            return {"valid": False, "errors": errors}
+
+        if cell:
+            cells = get_cells(province, district, sector)
+            if cell not in cells:
+                errors.append(f"Cell '{cell}' not found in sector '{sector}'")
+                return {"valid": False, "errors": errors}
+
+            if village:
+                villages = get_villages(province, district, sector, cell)
+                if village not in villages:
+                    errors.append(f"Village '{village}' not found in cell '{cell}'")
+                    return {"valid": False, "errors": errors}
+
+    return {"valid": True, "errors": []}
+
+
+@router.get("/hierarchy")
+async def get_full_hierarchy(
+    province: str = Query(...),
+    district: str = Query(...),
+    sector: str | None = Query(None),
+    cell: str | None = Query(None),
+) -> Any:
+    """
+    Returns available options at each level given the current selections.
+    Useful for initialising all dropdowns in a single API call.
+    """
+    result: dict[str, Any] = {
+        "districts": get_districts(province),
+        "sectors": get_sectors(province, district) if district else [],
+        "cells": get_cells(province, district, sector) if sector else [],
+        "villages": get_villages(province, district, sector, cell) if cell else [],
+    }
+    return result

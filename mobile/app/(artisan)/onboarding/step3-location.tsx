@@ -88,29 +88,32 @@ export default function LocationStep() {
     }
     setLoading(true);
     try {
-      // Save artisan profile (service area GPS + radius)
+      // Save artisan profile (service area GPS + radius + full structured address)
       await api.post('/artisans/profile', {
         latitude: marker.latitude,
         longitude: marker.longitude,
         service_radius_km: radiusKm,
         location_label: address.formatted,
-      });
-
-      // Save structured address to user profile
-      await api.patch('/auth/profile', {
-        province: address.province,
-        district: address.district,
+        province: address.province || undefined,
+        district: address.district || undefined,
         sector: address.sector || undefined,
         cell: address.cell || undefined,
         village: address.village || undefined,
-        address_detail:
-          [
-            address.house_number,
-            address.street_road,
-            address.landmark ? `Near ${address.landmark}` : '',
-          ]
-            .filter(Boolean)
-            .join(', ') || undefined,
+        street_road: address.street_road || undefined,
+        house_number: address.house_number || undefined,
+        landmark: address.landmark || undefined,
+      });
+
+      // Mirror full address to the user profile record
+      await api.patch('/auth/profile', {
+        province: address.province || undefined,
+        district: address.district || undefined,
+        sector: address.sector || undefined,
+        cell: address.cell || undefined,
+        village: address.village || undefined,
+        street_road: address.street_road || undefined,
+        house_number: address.house_number || undefined,
+        landmark: address.landmark || undefined,
       });
 
       router.push('/(artisan)/onboarding/step4-id');

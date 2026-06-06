@@ -270,7 +270,13 @@ export function LocationPicker({ initialCoords, onChange }: Props) {
     }
   }, [district]);
 
+  // Keep a stable ref to the hook so reverseGeocodeCoords deps stay empty
+  const rwandaHookRef = useRef(rwandaHook);
+  useEffect(() => { rwandaHookRef.current = rwandaHook; });
+
   // ── Reverse-geocode when pin moves ────────────────────────────────────────
+  // IMPORTANT: empty dep array → stable callback → no re-render loops.
+  // Reads hook methods via ref so we always have the latest version.
   const reverseGeocodeCoords = useCallback(
     async (lat: number, lon: number) => {
       setGeocoding(true);
@@ -285,18 +291,20 @@ export function LocationPicker({ initialCoords, onChange }: Props) {
         setIsRwanda(rwandaDetected);
         setCountry(detectedCountry || 'Rwanda');
         setCity(addr.city ?? addr.town ?? addr.suburb ?? addr.village ?? '');
-        setStreetRoad(addr.road ?? addr.pedestrian ?? addr.neighbourhood ?? '');
-        if ((addr as Record<string, string>).house_number) {
-          setHouseNumber((addr as Record<string, string>).house_number);
-        }
+        const detectedRoad = addr.road ?? addr.pedestrian ?? addr.neighbourhood ?? '';
+        if (detectedRoad) setStreetRoad(detectedRoad);
+        const hn = (addr as Record<string, string>).house_number;
+        if (hn) setHouseNumber(hn);
 
         if (rwandaDetected) {
           // Try to match returned state/county to our Rwanda data
           const returnedDistrict = addr.county ?? addr.suburb ?? '';
-          const matchedProvince = provinces.find((p) =>
+          const hook = rwandaHookRef.current;
+          const allProvinces = hook.getProvinces();
+          const matchedProvince = allProvinces.find((p) =>
             p.toLowerCase().includes((addr.state ?? '').toLowerCase()),
           );
-          const matchedDistrict = rwandaHook
+          const matchedDistrict = hook
             .getAllDistricts()
             .find(
               (d) =>
@@ -312,15 +320,21 @@ export function LocationPicker({ initialCoords, onChange }: Props) {
         setGeocoding(false);
       }
     },
-    [provinces, rwandaHook],
+    [], // stable — reads hook methods via rwandaHookRef
   );
 
   // ── Handle map tap ────────────────────────────────────────────────────────
+  // Guard: ignore taps while a geocode is already in flight to prevent stacking
+  const geocodingRef = useRef(false);
   const handleMapPress = useCallback(
     (e: { nativeEvent: { coordinate: { latitude: number; longitude: number } } }) => {
+      if (geocodingRef.current) return; // drop tap if already geocoding
       const newCoords = e.nativeEvent.coordinate;
       setCoords(newCoords);
-      reverseGeocodeCoords(newCoords.latitude, newCoords.longitude);
+      geocodingRef.current = true;
+      reverseGeocodeCoords(newCoords.latitude, newCoords.longitude).finally(() => {
+        geocodingRef.current = false;
+      });
     },
     [reverseGeocodeCoords],
   );
@@ -457,17 +471,15 @@ export function LocationPicker({ initialCoords, onChange }: Props) {
               />
             ) : null}
 
-            {/* Village — free text */}
+            {/* Village — dropdown from offline data */}
             {cell ? (
-              <View style={styles.field}>
-                <Text style={styles.label}>Village</Text>
-                <TextInput
-                  style={styles.input}
-                  value={village}
-                  onChangeText={setVillage}
-                  placeholder="Village name (optional)"
-                />
-              </View>
+              <PickerRow
+                label="Village"
+                value={village}
+                items={rwandaHookRef.current.getVillages(province, district, sector, cell)}
+                pickerItemStyle={pickerItemStyle}
+                onValueChange={setVillage}
+              />
             ) : null}
           </>
         ) : (

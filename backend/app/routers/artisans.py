@@ -32,6 +32,15 @@ class ArtisanProfileUpdate(BaseModel):
     latitude: float | None = None
     longitude: float | None = None
     location_label: str | None = None
+    # Structured Rwanda address
+    province: str | None = None
+    district: str | None = None
+    sector: str | None = None
+    cell: str | None = None
+    village: str | None = None
+    street_road: str | None = None
+    house_number: str | None = None
+    landmark: str | None = None
     hourly_rate: int | None = None
     fixed_rate: int | None = None
     spoken_languages: str | None = None
@@ -72,6 +81,14 @@ async def update_profile(
             years_experience=payload.years_experience or 0,
             service_radius_km=payload.service_radius_km or 10,
             location_label=payload.location_label,
+            province=payload.province,
+            district=payload.district,
+            sector=payload.sector,
+            cell=payload.cell,
+            village=payload.village,
+            street_road=payload.street_road,
+            house_number=payload.house_number,
+            landmark=payload.landmark,
             hourly_rate=payload.hourly_rate,
             fixed_rate=payload.fixed_rate,
             spoken_languages=payload.spoken_languages,
@@ -82,8 +99,9 @@ async def update_profile(
             profile.location = cast(Any, location_wkt)
         db.add(profile)
     else:
+        skip_keys = {"latitude", "longitude"}
         for key, value in payload.dict(exclude_unset=True).items():
-            if key not in ["latitude", "longitude"]:
+            if key not in skip_keys:
                 setattr(profile, key, value)
         if payload.latitude is not None:
             profile.latitude = payload.latitude
@@ -141,9 +159,19 @@ async def get_my_profile(
         "years_experience": profile.years_experience,
         "hourly_rate": profile.hourly_rate,
         "fixed_rate": profile.fixed_rate,
-        "district": user.district,  # district is on users table
-        "spoken_languages": profile.spoken_languages,
+        # Address from artisan_profiles (preferred) — falls back to users table
+        "province": profile.province or user.province,
+        "district": profile.district or user.district,
+        "sector": profile.sector or user.sector,
+        "cell": profile.cell or user.cell,
+        "village": profile.village or user.village,
+        "street_road": profile.street_road or user.street_road,
+        "house_number": getattr(profile, "house_number", None) or getattr(user, "house_number", None),
+        "landmark": getattr(profile, "landmark", None) or getattr(user, "landmark", None),
         "location_label": profile.location_label,
+        "latitude": profile.latitude,
+        "longitude": profile.longitude,
+        "spoken_languages": profile.spoken_languages,
         "service_radius_km": profile.service_radius_km,
         "is_available": profile.is_available,
         "verification_status": profile.verification_status,

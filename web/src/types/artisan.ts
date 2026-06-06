@@ -14,7 +14,12 @@ export type Artisan = {
   verified: boolean;
   pro: boolean;
   availableNow: boolean;
+  // Full Rwanda address hierarchy
+  province?: string;
   district: string;
+  sector?: string;
+  cell?: string;
+  village?: string;
   languages: string[];
   experienceYears: number;
   bio: string;

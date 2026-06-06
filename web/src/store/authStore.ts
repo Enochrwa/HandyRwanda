@@ -12,7 +12,16 @@ export interface User {
   avatarUrl?: string;
   accountStatus?: "pending_verification" | "active" | "suspended" | "deactivated";
   emailVerified?: boolean;
+  // Full Rwanda address hierarchy
+  province?: string | null;
   district?: string | null;
+  sector?: string | null;
+  cell?: string | null;
+  village?: string | null;
+  streetRoad?: string | null;
+  houseNumber?: string | null;
+  landmark?: string | null;
+  addressDetail?: string | null;
   preferredLang?: string;
 }
 

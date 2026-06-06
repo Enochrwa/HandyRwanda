@@ -350,8 +350,12 @@ export function RwandaAddressPicker({ value, onChange, required }: Props) {
   // Nominatim returns different name formats that don't match our data keys,
   // which previously caused a crash (blank province → blank district array →
   // SelectItem key crash + infinite re-render).
+  // Guard: ignore rapid successive pin drops while geocode is in flight
+  const geocodingRef = useRef(false);
   const handlePinMove = useCallback(async (lat: number, lng: number) => {
     setPinPos([lat, lng]);
+    if (geocodingRef.current) return; // drop if already geocoding
+    geocodingRef.current = true;
     setGeocoding(true);
     try {
       const result = await reverseGeocode(lat, lng);
@@ -362,6 +366,7 @@ export function RwandaAddressPicker({ value, onChange, required }: Props) {
       if (addr.house_number) setHouseNumber(addr.house_number);
     } finally {
       setGeocoding(false);
+      geocodingRef.current = false;
     }
   }, []);
 

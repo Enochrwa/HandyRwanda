@@ -90,12 +90,12 @@ class ArtisanProfile(Base):
     repeat_client_rate: Mapped[float] = mapped_column(Float, default=0.0)
     completion_rate: Mapped[float] = mapped_column(Float, default=0.0)
     community_score: Mapped[int] = mapped_column(Integer, default=0)
-    created_at: Mapped[datetime] = mapped_column(
+    created_at: Mapped[datetime | None] = mapped_column(
         DateTime(timezone=True),
         server_default=func.now(),
         nullable=False,
     )
-    updated_at: Mapped[str | None] = mapped_column(
+    updated_at: Mapped[datetime | None] = mapped_column(
         DateTime(timezone=True), onupdate=func.now()
     )
 

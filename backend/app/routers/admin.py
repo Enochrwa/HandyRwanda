@@ -723,11 +723,8 @@ async def cron_pro_upgrade(
     eligible = await db.execute(
         select(ArtisanProfile).where(
             ArtisanProfile.verification_status == VerificationStatus.id_verified,
-            ArtisanProfile.total_reviews.isnot(None),
             ArtisanProfile.total_reviews >= 10,  # type: ignore[operator]
-            ArtisanProfile.average_rating.isnot(None),
             ArtisanProfile.average_rating >= 4.0,  # type: ignore[operator]
-            ArtisanProfile.completion_rate.isnot(None),
             ArtisanProfile.completion_rate >= 0.8,  # type: ignore[operator]
         )
     )

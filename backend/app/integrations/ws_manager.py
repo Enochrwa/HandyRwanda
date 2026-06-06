@@ -12,6 +12,7 @@ Usage:
     # When creating a notification anywhere:
     await notification_manager.push(user_id, notification_dict)
 """
+
 from __future__ import annotations
 
 import asyncio

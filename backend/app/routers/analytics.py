@@ -64,18 +64,17 @@ async def get_overview(
         )
     )
 
-    # This month
-    month_start = datetime.now(timezone.utc).replace(
-        day=1, hour=0, minute=0, second=0, microsecond=0
-    )
+    # This month — built directly so mypy sees a concrete datetime, not datetime | None
+    now = datetime.now(timezone.utc)
+    month_start = datetime(now.year, now.month, 1, tzinfo=timezone.utc)
     month_revenue = await db.scalar(
         select(func.sum(Payment.amount)).where(
             Payment.status.in_([PaymentStatus.approved, PaymentStatus.auto_verified]),
-            Payment.created_at >= month_start,
+            Payment.created_at >= month_start,  # type: ignore[operator]
         )
     )
     month_bookings = await db.scalar(
-        select(func.count(Booking.id)).where(Booking.created_at >= month_start)
+        select(func.count(Booking.id)).where(Booking.created_at >= month_start)  # type: ignore[operator]
     )
 
     return {

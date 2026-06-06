@@ -66,6 +66,7 @@ message_manager = MessageConnectionManager()
 
 # ── Background task: auto-release escrow every 30 minutes ────────────────────
 
+
 async def _auto_release_loop() -> None:
     """Background task that auto-releases overdue escrow holds every 30 minutes."""
     from app.database import AsyncSessionLocal  # noqa: PLC0415
@@ -199,9 +200,7 @@ async def get_artisan_public(
     ]
 
     portfolio_result = await db.execute(
-        select(PortfolioPhoto)
-        .where(PortfolioPhoto.artisan_id == artisan_id)
-        .limit(12)
+        select(PortfolioPhoto).where(PortfolioPhoto.artisan_id == artisan_id).limit(12)
     )
     portfolio = [
         {
@@ -239,6 +238,7 @@ async def get_artisan_public(
 
     # Full formatted address
     from app.utils.rwanda_address import format_address  # noqa: PLC0415
+
     full_address = format_address(
         district=user.district,
         sector=user.sector,
@@ -267,7 +267,9 @@ async def get_artisan_public(
             "hourly_rate": profile.hourly_rate if profile else None,
             "fixed_rate": profile.fixed_rate if profile else None,
             "spoken_languages": profile.spoken_languages if profile else None,
-            "verification_status": profile.verification_status if profile else "unverified",
+            "verification_status": profile.verification_status
+            if profile
+            else "unverified",
             "is_available": profile.is_available if profile else False,
             "average_rating": profile.average_rating if profile else 0.0,
             "total_reviews": profile.total_reviews if profile else 0,

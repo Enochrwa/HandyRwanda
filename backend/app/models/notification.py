@@ -1,5 +1,6 @@
 # File: backend/app/models/notification.py
 import uuid
+from datetime import datetime
 from typing import Any
 
 from sqlalchemy import Boolean, DateTime, ForeignKey, String, func
@@ -22,6 +23,8 @@ class Notification(Base):
     body: Mapped[str] = mapped_column(String, nullable=False)
     payload: Mapped[Any | None] = mapped_column(JSONB, nullable=True)
     is_read: Mapped[bool] = mapped_column(Boolean, default=False)
-    created_at: Mapped[str | None] = mapped_column(
-        DateTime(timezone=True), server_default=func.now()
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        server_default=func.now(),
+        nullable=False,
     )

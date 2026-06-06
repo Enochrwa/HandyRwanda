@@ -58,11 +58,11 @@ async def create_review(
         )
 
     # Check not already reviewed
-    existing = await db.scalar(
-        select(Review).where(Review.booking_id == booking_id)
-    )
+    existing = await db.scalar(select(Review).where(Review.booking_id == booking_id))
     if existing:
-        raise HTTPException(status_code=409, detail="You have already reviewed this booking.")
+        raise HTTPException(
+            status_code=409, detail="You have already reviewed this booking."
+        )
 
     review = Review(
         booking_id=booking_id,
@@ -108,7 +108,11 @@ async def get_artisan_reviews(
     db: AsyncSession = Depends(get_db),
 ) -> Any:
     result = await db.execute(
-        select(Review, User.full_name.label("client_name"), User.avatar_url.label("client_avatar"))
+        select(
+            Review,
+            User.full_name.label("client_name"),
+            User.avatar_url.label("client_avatar"),
+        )
         .join(User, Review.client_id == User.id)
         .where(Review.artisan_id == artisan_id, Review.is_flagged.is_(False))
         .order_by(Review.created_at.desc())
@@ -116,16 +120,18 @@ async def get_artisan_reviews(
     )
     reviews = []
     for rev, client_name, client_avatar in result:
-        reviews.append({
-            "id": str(rev.id),
-            "booking_id": str(rev.booking_id),
-            "rating": rev.rating,
-            "comment": rev.comment,
-            "artisan_reply": rev.artisan_reply,
-            "client_name": client_name,
-            "client_avatar": client_avatar,
-            "created_at": rev.created_at,
-        })
+        reviews.append(
+            {
+                "id": str(rev.id),
+                "booking_id": str(rev.booking_id),
+                "rating": rev.rating,
+                "comment": rev.comment,
+                "artisan_reply": rev.artisan_reply,
+                "client_name": client_name,
+                "client_avatar": client_avatar,
+                "created_at": rev.created_at,
+            }
+        )
     return reviews
 
 
@@ -143,7 +149,9 @@ async def reply_to_review(
     if not review:
         raise HTTPException(status_code=404, detail="Review not found.")
     if review.artisan_reply:
-        raise HTTPException(status_code=409, detail="You have already replied to this review.")
+        raise HTTPException(
+            status_code=409, detail="You have already replied to this review."
+        )
 
     await db.execute(
         update(Review).where(Review.id == review_id).values(artisan_reply=payload.reply)

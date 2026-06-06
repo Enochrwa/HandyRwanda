@@ -57,7 +57,7 @@ async def find_matching_artisans(
         )
         base_q = base_q.where(not_(ArtisanProfile.user_id.in_(blocked_subq)))
 
-        scheduled_dt: datetime = job.scheduled_time  # type: ignore[assignment]
+        scheduled_dt: datetime = job.scheduled_time
         window_start = scheduled_dt - timedelta(hours=4)
         window_end = scheduled_dt + timedelta(hours=4)
         booked_subq = (

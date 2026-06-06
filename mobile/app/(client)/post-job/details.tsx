@@ -59,7 +59,7 @@ export default function JobDetails() {
       mediaTypes: ImagePicker.MediaTypeOptions.Images,
       allowsEditing: true,
       quality: 0.8,
-      base64: false, // Store URI only — presigned upload handles the actual upload
+      base64: false,
     });
     if (!result.canceled && result.assets[0].uri) {
       if (photos.length >= 5) {
@@ -105,164 +105,292 @@ export default function JobDetails() {
 
   return (
     <KeyboardAvoidingView
-      behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-      className="flex-1 bg-background"
+      behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+      style={{ flex: 1, backgroundColor: '#F9FAFB' }}
+      keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : 20}
     >
-      {/* Header */}
-      <View className="pt-14 pb-4 px-5 bg-card border-b border-border">
-        <Text className="text-xl font-extrabold">Job Details</Text>
-        <Text className="text-xs text-muted-foreground mt-0.5">
+      {/* ── Fixed Header ─────────────────────────────────────────────── */}
+      <View
+        style={{
+          paddingTop: 56,
+          paddingBottom: 16,
+          paddingHorizontal: 20,
+          backgroundColor: '#fff',
+          borderBottomWidth: 1,
+          borderBottomColor: '#E5E7EB',
+        }}
+      >
+        <Text style={{ fontSize: 20, fontWeight: '800', color: '#111827' }}>Job Details</Text>
+        <Text style={{ fontSize: 12, color: '#6B7280', marginTop: 2 }}>
           Step 1 of 3 — Describe what you need
         </Text>
-        <View className="flex-row mt-2">
+        <View style={{ flexDirection: 'row', marginTop: 8, gap: 4 }}>
           {[1, 2, 3].map((s) => (
             <View
               key={s}
-              className={`h-1 flex-1 rounded-full mr-1 ${s <= 1 ? 'bg-primary' : 'bg-muted'}`}
+              style={{
+                flex: 1,
+                height: 4,
+                borderRadius: 2,
+                backgroundColor: s <= 1 ? '#1B5E3B' : '#E5E7EB',
+                marginRight: 4,
+              }}
             />
           ))}
         </View>
       </View>
 
-      {/* Service Category Selection */}
-      <View className="px-5 pt-5 pb-3">
-        <Text className="text-xs font-bold uppercase tracking-wide text-muted-foreground mb-3">
-          Service Category <Text className="text-destructive">*</Text>
-        </Text>
-        <View className="flex-row flex-wrap gap-2">
-          {allCategories.map((cat: { id: string; name_en: string; icon_emoji?: string }) => (
-            <TouchableOpacity
-              key={cat.id}
-              onPress={() => setSelectedCategoryId(cat.id)}
-              className={`flex-1 min-w-[30%] aspect-square rounded-2xl border-2 items-center justify-center p-2 ${
-                selectedCategoryId === cat.id
-                  ? 'border-primary bg-primary/10'
-                  : 'border-border bg-card'
-              }`}
-            >
-              <Text style={{ fontSize: 28 }} className="mb-1">
-                {cat.icon_emoji ?? '🛠️'}
-              </Text>
-              <Text
-                className={`text-[10px] font-bold text-center ${
-                  selectedCategoryId === cat.id ? 'text-primary' : 'text-foreground'
-                }`}
-              >
-                {cat.name_en}
-              </Text>
-            </TouchableOpacity>
-          ))}
-        </View>
-        {!selectedCategoryId && (
-          <Text className="text-xs text-destructive mt-2">Please select a category</Text>
-        )}
-      </View>
-
+      {/* ── Scrollable body — ALL content including categories ────────── */}
       <ScrollView
-        className="flex-1 px-5 pt-5"
+        style={{ flex: 1 }}
+        contentContainerStyle={{ paddingHorizontal: 20, paddingTop: 20, paddingBottom: 24 }}
         showsVerticalScrollIndicator={false}
         keyboardShouldPersistTaps="handled"
       >
+        {/* Service Category */}
+        <Text
+          style={{
+            fontSize: 11,
+            fontWeight: '700',
+            color: '#9CA3AF',
+            textTransform: 'uppercase',
+            letterSpacing: 0.5,
+            marginBottom: 12,
+          }}
+        >
+          Service Category <Text style={{ color: '#EF4444' }}>*</Text>
+        </Text>
+        <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 10, marginBottom: 20 }}>
+          {allCategories.map((cat: { id: string; name_en: string; icon_emoji?: string }) => {
+            const selected = selectedCategoryId === cat.id;
+            return (
+              <TouchableOpacity
+                key={cat.id}
+                onPress={() => setSelectedCategoryId(cat.id)}
+                style={{
+                  width: '30%',
+                  aspectRatio: 1,
+                  borderRadius: 16,
+                  borderWidth: 2,
+                  borderColor: selected ? '#1B5E3B' : '#E5E7EB',
+                  backgroundColor: selected ? '#F0FDF4' : '#fff',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  padding: 8,
+                }}
+              >
+                <Text style={{ fontSize: 26, marginBottom: 4 }}>{cat.icon_emoji ?? '🛠️'}</Text>
+                <Text
+                  style={{
+                    fontSize: 10,
+                    fontWeight: '700',
+                    textAlign: 'center',
+                    color: selected ? '#1B5E3B' : '#374151',
+                  }}
+                  numberOfLines={2}
+                >
+                  {cat.name_en}
+                </Text>
+              </TouchableOpacity>
+            );
+          })}
+        </View>
+
         {/* Title */}
-        <View className="mb-5">
-          <Text className="text-xs font-bold uppercase tracking-wide text-muted-foreground mb-1.5">
-            Job Title <Text className="text-destructive">*</Text>
+        <View style={{ marginBottom: 20 }}>
+          <Text
+            style={{
+              fontSize: 11,
+              fontWeight: '700',
+              color: '#9CA3AF',
+              textTransform: 'uppercase',
+              letterSpacing: 0.5,
+              marginBottom: 6,
+            }}
+          >
+            Job Title <Text style={{ color: '#EF4444' }}>*</Text>
           </Text>
           <TextInput
             value={title}
             onChangeText={setTitle}
             placeholder="e.g. Fix leaking kitchen sink under the cabinet"
-            className="bg-card p-4 rounded-2xl border border-border text-foreground text-sm"
+            style={{
+              backgroundColor: '#fff',
+              padding: 14,
+              borderRadius: 14,
+              borderWidth: 1,
+              borderColor: '#E5E7EB',
+              fontSize: 14,
+              color: '#111827',
+            }}
             autoCapitalize="sentences"
             maxLength={200}
           />
-          <Text className="text-[10px] text-muted-foreground text-right mt-1">
+          <Text style={{ fontSize: 10, color: '#9CA3AF', textAlign: 'right', marginTop: 4 }}>
             {title.length}/200
           </Text>
         </View>
 
         {/* Description */}
-        <View className="mb-5">
-          <Text className="text-xs font-bold uppercase tracking-wide text-muted-foreground mb-1.5">
-            Describe the Problem <Text className="text-destructive">*</Text>
+        <View style={{ marginBottom: 20 }}>
+          <Text
+            style={{
+              fontSize: 11,
+              fontWeight: '700',
+              color: '#9CA3AF',
+              textTransform: 'uppercase',
+              letterSpacing: 0.5,
+              marginBottom: 6,
+            }}
+          >
+            Describe the Problem <Text style={{ color: '#EF4444' }}>*</Text>
           </Text>
           <TextInput
             value={description}
             onChangeText={setDescription}
-            placeholder="What happened? How long? What have you tried? Any special access requirements (floor number, gate code)?"
+            placeholder="What happened? How long? What have you tried? Any special access requirements?"
             multiline
             numberOfLines={5}
-            className="bg-card p-4 rounded-2xl border border-border text-foreground text-sm"
-            style={{ textAlignVertical: 'top', minHeight: 120 }}
+            style={{
+              backgroundColor: '#fff',
+              padding: 14,
+              borderRadius: 14,
+              borderWidth: 1,
+              borderColor: '#E5E7EB',
+              fontSize: 14,
+              color: '#111827',
+              textAlignVertical: 'top',
+              minHeight: 120,
+            }}
             autoCapitalize="sentences"
             maxLength={2000}
           />
-          <Text className="text-[10px] text-muted-foreground text-right mt-1">
+          <Text style={{ fontSize: 10, color: '#9CA3AF', textAlign: 'right', marginTop: 4 }}>
             {description.length}/2000 — more detail = better bids
           </Text>
         </View>
 
         {/* Additional Notes */}
-        <View className="mb-5">
-          <Text className="text-xs font-bold uppercase tracking-wide text-muted-foreground mb-1.5">
-            Additional Notes <Text className="text-[10px] font-normal">(optional)</Text>
+        <View style={{ marginBottom: 20 }}>
+          <Text
+            style={{
+              fontSize: 11,
+              fontWeight: '700',
+              color: '#9CA3AF',
+              textTransform: 'uppercase',
+              letterSpacing: 0.5,
+              marginBottom: 6,
+            }}
+          >
+            Additional Notes{' '}
+            <Text style={{ fontSize: 10, fontWeight: '400', textTransform: 'none' }}>
+              (optional)
+            </Text>
           </Text>
           <TextInput
             value={additionalNotes}
             onChangeText={setAdditionalNotes}
-            placeholder="Materials available on-site, preferred artisan qualities, parking info, etc."
+            placeholder="Materials on-site, parking info, preferred artisan qualities…"
             multiline
             numberOfLines={2}
-            className="bg-card p-4 rounded-2xl border border-border text-foreground text-sm"
-            style={{ textAlignVertical: 'top', minHeight: 70 }}
+            style={{
+              backgroundColor: '#fff',
+              padding: 14,
+              borderRadius: 14,
+              borderWidth: 1,
+              borderColor: '#E5E7EB',
+              fontSize: 14,
+              color: '#111827',
+              textAlignVertical: 'top',
+              minHeight: 70,
+            }}
             autoCapitalize="sentences"
             maxLength={1000}
           />
         </View>
 
         {/* Urgency */}
-        <View className="mb-5">
-          <Text className="text-xs font-bold uppercase tracking-wide text-muted-foreground mb-2">
-            How Urgent? <Text className="text-destructive">*</Text>
+        <View style={{ marginBottom: 20 }}>
+          <Text
+            style={{
+              fontSize: 11,
+              fontWeight: '700',
+              color: '#9CA3AF',
+              textTransform: 'uppercase',
+              letterSpacing: 0.5,
+              marginBottom: 8,
+            }}
+          >
+            How Urgent? <Text style={{ color: '#EF4444' }}>*</Text>
           </Text>
-          <View className="flex-row gap-1.5">
+          <View style={{ flexDirection: 'row', gap: 6 }}>
             {URGENCY_OPTIONS.map((u) => (
               <TouchableOpacity
                 key={u.value}
                 onPress={() => setUrgency(u.value)}
                 accessibilityLabel={`${u.label}: ${u.desc}`}
-                className={`flex-1 py-2 px-1 rounded-xl border-2 items-center ${
-                  urgency === u.value ? 'border-primary bg-primary/10' : 'border-border bg-card'
-                }`}
+                style={{
+                  flex: 1,
+                  paddingVertical: 8,
+                  paddingHorizontal: 4,
+                  borderRadius: 12,
+                  borderWidth: 2,
+                  borderColor: urgency === u.value ? '#1B5E3B' : '#E5E7EB',
+                  backgroundColor: urgency === u.value ? '#F0FDF4' : '#fff',
+                  alignItems: 'center',
+                }}
               >
                 <Text style={{ fontSize: 16 }}>{u.emoji}</Text>
                 <Text
-                  className={`text-[9px] font-bold mt-0.5 text-center ${
-                    urgency === u.value ? 'text-primary' : 'text-foreground'
-                  }`}
+                  style={{
+                    fontSize: 9,
+                    fontWeight: '700',
+                    marginTop: 2,
+                    textAlign: 'center',
+                    color: urgency === u.value ? '#1B5E3B' : '#374151',
+                  }}
                 >
                   {u.label}
                 </Text>
               </TouchableOpacity>
             ))}
           </View>
-          <Text className="text-[10px] text-muted-foreground mt-1">
+          <Text style={{ fontSize: 10, color: '#9CA3AF', marginTop: 4 }}>
             {URGENCY_OPTIONS.find((u) => u.value === urgency)?.desc}
           </Text>
         </View>
 
         {/* Scheduled Date */}
-        <View className="mb-5">
-          <Text className="text-xs font-bold uppercase tracking-wide text-muted-foreground mb-1.5">
-            Preferred Date/Time <Text className="text-[10px] font-normal">(optional)</Text>
+        <View style={{ marginBottom: 20 }}>
+          <Text
+            style={{
+              fontSize: 11,
+              fontWeight: '700',
+              color: '#9CA3AF',
+              textTransform: 'uppercase',
+              letterSpacing: 0.5,
+              marginBottom: 6,
+            }}
+          >
+            Preferred Date/Time{' '}
+            <Text style={{ fontSize: 10, fontWeight: '400', textTransform: 'none' }}>
+              (optional)
+            </Text>
           </Text>
           <TouchableOpacity
             onPress={() => setShowDatePicker(true)}
-            className="bg-card p-4 rounded-2xl border border-border flex-row items-center justify-between"
+            style={{
+              backgroundColor: '#fff',
+              padding: 14,
+              borderRadius: 14,
+              borderWidth: 1,
+              borderColor: '#E5E7EB',
+              flexDirection: 'row',
+              alignItems: 'center',
+              justifyContent: 'space-between',
+            }}
           >
-            <Text
-              className={`text-sm ${scheduledDate ? 'text-foreground' : 'text-muted-foreground'}`}
-            >
+            <Text style={{ fontSize: 14, color: scheduledDate ? '#111827' : '#9CA3AF' }}>
               {scheduledDate
                 ? scheduledDate.toLocaleString('en-RW', {
                     weekday: 'short',
@@ -273,11 +401,11 @@ export default function JobDetails() {
                   })
                 : 'Tap to pick a date and time'}
             </Text>
-            <Text className="text-lg">📅</Text>
+            <Text style={{ fontSize: 18 }}>📅</Text>
           </TouchableOpacity>
           {scheduledDate && (
-            <TouchableOpacity onPress={() => setScheduledDate(null)} className="mt-1">
-              <Text className="text-xs text-destructive">Clear date</Text>
+            <TouchableOpacity onPress={() => setScheduledDate(null)} style={{ marginTop: 4 }}>
+              <Text style={{ fontSize: 12, color: '#EF4444' }}>Clear date</Text>
             </TouchableOpacity>
           )}
         </View>
@@ -285,64 +413,111 @@ export default function JobDetails() {
         {showDatePicker && (
           <DateTimePicker
             value={scheduledDate ?? new Date()}
-            mode="datetime"
-            display={Platform.OS === 'ios' ? 'inline' : 'default'}
+            mode="date"
+            display="default"
             minimumDate={new Date()}
             onChange={(_: any, date: any) => {
-              setShowDatePicker(Platform.OS === 'ios');
-              if (date instanceof Date) {
-                setScheduledDate(date);
-              }
+              setShowDatePicker(false);
+              if (date instanceof Date) setScheduledDate(date);
             }}
           />
         )}
 
         {/* Budget */}
-        <View className="mb-5">
-          <Text className="text-xs font-bold uppercase tracking-wide text-muted-foreground mb-1.5">
+        <View style={{ marginBottom: 20 }}>
+          <Text
+            style={{
+              fontSize: 11,
+              fontWeight: '700',
+              color: '#9CA3AF',
+              textTransform: 'uppercase',
+              letterSpacing: 0.5,
+              marginBottom: 6,
+            }}
+          >
             Your Budget (RWF){' '}
-            <Text className="text-[10px] font-normal">— optional, leave blank for open bids</Text>
+            <Text style={{ fontSize: 10, fontWeight: '400', textTransform: 'none' }}>
+              — optional, leave blank for open bids
+            </Text>
           </Text>
           <TextInput
             value={budget}
             onChangeText={setBudget}
             placeholder="e.g. 15000"
             keyboardType="numeric"
-            className="bg-card p-4 rounded-2xl border border-border text-foreground text-sm"
+            style={{
+              backgroundColor: '#fff',
+              padding: 14,
+              borderRadius: 14,
+              borderWidth: 1,
+              borderColor: '#E5E7EB',
+              fontSize: 14,
+              color: '#111827',
+            }}
           />
           {budget ? (
             <TouchableOpacity
               onPress={() => setBudgetNegotiable(!budgetNegotiable)}
-              className="flex-row items-center mt-2 gap-2"
+              style={{ flexDirection: 'row', alignItems: 'center', marginTop: 8, gap: 8 }}
             >
               <View
-                className={`w-4 h-4 rounded border-2 items-center justify-center ${
-                  budgetNegotiable ? 'bg-primary border-primary' : 'border-border'
-                }`}
+                style={{
+                  width: 16,
+                  height: 16,
+                  borderRadius: 4,
+                  borderWidth: 2,
+                  borderColor: budgetNegotiable ? '#1B5E3B' : '#E5E7EB',
+                  backgroundColor: budgetNegotiable ? '#1B5E3B' : '#fff',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                }}
               >
-                {budgetNegotiable && <Text className="text-white text-[10px]">✓</Text>}
+                {/* Fix 1: inline single child, no wrapping fragment */}
+                {budgetNegotiable && <Text style={{ color: '#fff', fontSize: 10 }}>✓</Text>}
               </View>
-              <Text className="text-xs text-muted-foreground">Open to negotiate if needed</Text>
+              <Text style={{ fontSize: 12, color: '#6B7280' }}>Open to negotiate if needed</Text>
             </TouchableOpacity>
           ) : null}
         </View>
 
         {/* Photos */}
-        <View className="mb-8">
-          <Text className="text-xs font-bold uppercase tracking-wide text-muted-foreground mb-1.5">
+        <View style={{ marginBottom: 8 }}>
+          <Text
+            style={{
+              fontSize: 11,
+              fontWeight: '700',
+              color: '#9CA3AF',
+              textTransform: 'uppercase',
+              letterSpacing: 0.5,
+              marginBottom: 6,
+            }}
+          >
             Photos ({photos.length}/5){' '}
-            <Text className="text-[10px] font-normal">— recommended: artisans quote better</Text>
+            <Text style={{ fontSize: 10, fontWeight: '400', textTransform: 'none' }}>
+              — recommended
+            </Text>
           </Text>
-          <View className="flex-row flex-wrap gap-3">
+          <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 10 }}>
             {photos.map((p, i) => (
-              <View key={i} className="relative w-20 h-20">
-                <Image source={{ uri: p }} className="w-full h-full rounded-2xl" />
+              <View key={i} style={{ position: 'relative', width: 76, height: 76 }}>
+                {/* Fix 2: source and style on one line */}
+                <Image source={{ uri: p }} style={{ width: 76, height: 76, borderRadius: 14 }} />
                 <TouchableOpacity
                   onPress={() => setPhotos(photos.filter((_, j) => j !== i))}
                   accessibilityLabel="Remove photo"
-                  className="absolute -top-1.5 -right-1.5 w-5 h-5 bg-destructive rounded-full items-center justify-center"
+                  style={{
+                    position: 'absolute',
+                    top: -6,
+                    right: -6,
+                    width: 20,
+                    height: 20,
+                    backgroundColor: '#EF4444',
+                    borderRadius: 10,
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                  }}
                 >
-                  <Text className="text-white text-[10px] font-bold">✕</Text>
+                  <Text style={{ color: '#fff', fontSize: 10, fontWeight: '800' }}>✕</Text>
                 </TouchableOpacity>
               </View>
             ))}
@@ -350,23 +525,50 @@ export default function JobDetails() {
               <TouchableOpacity
                 onPress={pickImage}
                 accessibilityLabel="Add photo"
-                className="w-20 h-20 rounded-2xl border-2 border-dashed border-border bg-muted/30 items-center justify-center"
+                style={{
+                  width: 76,
+                  height: 76,
+                  borderRadius: 14,
+                  borderWidth: 2,
+                  borderStyle: 'dashed',
+                  borderColor: '#D1D5DB',
+                  backgroundColor: '#F9FAFB',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                }}
               >
-                <Text className="text-2xl text-muted-foreground">📷</Text>
-                <Text className="text-[9px] text-muted-foreground mt-0.5">Add photo</Text>
+                <Text style={{ fontSize: 22 }}>📷</Text>
+                <Text style={{ fontSize: 9, color: '#9CA3AF', marginTop: 2 }}>Add photo</Text>
               </TouchableOpacity>
             )}
           </View>
         </View>
       </ScrollView>
 
-      <View className="px-5 pb-8 pt-3 bg-card border-t border-border">
+      {/* ── Fixed footer with Continue button ────────────────────────── */}
+      <View
+        style={{
+          paddingHorizontal: 20,
+          paddingBottom: Platform.OS === 'ios' ? 32 : 20,
+          paddingTop: 12,
+          backgroundColor: '#fff',
+          borderTopWidth: 1,
+          borderTopColor: '#E5E7EB',
+        }}
+      >
         <TouchableOpacity
           onPress={handleNext}
           accessibilityLabel="Continue to location"
-          className="bg-primary rounded-2xl py-4 items-center"
+          style={{
+            backgroundColor: '#1B5E3B',
+            borderRadius: 14,
+            paddingVertical: 16,
+            alignItems: 'center',
+          }}
         >
-          <Text className="text-white font-extrabold text-base">Continue → Choose Location</Text>
+          <Text style={{ color: '#fff', fontWeight: '800', fontSize: 16 }}>
+            Continue → Choose Location
+          </Text>
         </TouchableOpacity>
       </View>
     </KeyboardAvoidingView>

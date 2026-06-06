@@ -95,7 +95,9 @@ class User(Base):
 
     # Notification preferences (JSON-encoded bitmask as string for SQLite compat)
     notification_prefs: Mapped[str | None] = mapped_column(
-        String(500), nullable=True, default='{"new_bid":true,"booking_update":true,"payment":true,"message":true,"promo":false}'
+        String(500),
+        nullable=True,
+        default='{"new_bid":true,"booking_update":true,"payment":true,"message":true,"promo":false}',
     )
 
     is_active: Mapped[bool] = mapped_column(Boolean, default=True)

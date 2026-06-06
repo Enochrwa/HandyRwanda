@@ -16,16 +16,46 @@ import os
 import uuid
 
 import httpx
+from dotenv import load_dotenv
 
-SUPABASE_URL = os.getenv("SUPABASE_URL", "")
-SUPABASE_KEY = os.getenv("SUPABASE_SERVICE_ROLE_KEY", "")
+load_dotenv()
+
 BUCKET = "artisan-media"
-
 MAX_FILE_SIZE_BYTES = 5 * 1024 * 1024  # 5 MB
 
 
+def _get_supabase_base_url() -> str:
+    """
+    Return the bare Supabase project URL (https://<ref>.supabase.co).
+
+    The env var SUPABASE_URL is sometimes set to the REST endpoint
+    (https://<ref>.supabase.co/rest/v1/) which breaks Storage API calls.
+    We normalise it here so both forms work.
+    """
+    raw = os.getenv("SUPABASE_URL", "").rstrip("/")
+    # Strip REST suffix if present
+    for suffix in ("/rest/v1",):
+        if raw.endswith(suffix):
+            raw = raw[: -len(suffix)].rstrip("/")
+            break
+    if not raw:
+        raise RuntimeError(
+            "SUPABASE_URL is not set. "
+            "Add it to your .env as: SUPABASE_URL=https://<ref>.supabase.co"
+        )
+    return raw
+
+
+def _get_supabase_key() -> str:
+    key = os.getenv("SUPABASE_SERVICE_ROLE_KEY", "")
+    if not key:
+        raise RuntimeError("SUPABASE_SERVICE_ROLE_KEY is not set in .env")
+    return key
+
+
 def _public_url(path: str) -> str:
-    return f"{SUPABASE_URL}/storage/v1/object/public/{BUCKET}/{path}"
+    base = _get_supabase_base_url()
+    return f"{base}/storage/v1/object/public/{BUCKET}/{path}"
 
 
 async def generate_presigned_url(
@@ -38,24 +68,27 @@ async def generate_presigned_url(
     Returns:
       { "upload_url": ..., "path": ..., "public_url": ..., "token": ... }
     """
+    base = _get_supabase_base_url()
+    key = _get_supabase_key()
+
     if not filename:
         filename = f"{uuid.uuid4()}.jpg"
     path = f"{folder}/{filename}"
 
     headers = {
-        "Authorization": f"Bearer {SUPABASE_KEY}",
+        "Authorization": f"Bearer {key}",
         "Content-Type": "application/json",
     }
     async with httpx.AsyncClient(timeout=10.0) as client:
         resp = await client.post(
-            f"{SUPABASE_URL}/storage/v1/object/upload/sign/{BUCKET}/{path}",
+            f"{base}/storage/v1/object/upload/sign/{BUCKET}/{path}",
             headers=headers,
             json={"upsert": True},
         )
         if resp.status_code not in (200, 201):
             # Fallback: use standard signed URL
             resp2 = await client.post(
-                f"{SUPABASE_URL}/storage/v1/object/sign/{BUCKET}/{path}",
+                f"{base}/storage/v1/object/sign/{BUCKET}/{path}",
                 headers=headers,
                 json={"expiresIn": 300},
             )
@@ -64,7 +97,7 @@ async def generate_presigned_url(
                 signed = data.get("signedURL", "")
                 return {
                     "upload_url": (
-                        f"{SUPABASE_URL}/storage/v1{signed}"
+                        f"{base}/storage/v1{signed}"
                         if signed.startswith("/")
                         else signed
                     ),
@@ -78,7 +111,7 @@ async def generate_presigned_url(
         signed_url = result.get("url", result.get("signedURL", ""))
         return {
             "upload_url": (
-                f"{SUPABASE_URL}/storage/v1{signed_url}"
+                f"{base}/storage/v1{signed_url}"
                 if signed_url.startswith("/")
                 else signed_url
             ),
@@ -96,6 +129,9 @@ async def upload_image(
     Validates size before uploading (rejects > 5 MB).
     Returns public URL.
     """
+    base = _get_supabase_base_url()
+    key = _get_supabase_key()
+
     if not filename:
         filename = f"{uuid.uuid4()}.jpg"
     path = f"{folder}/{filename}"
@@ -110,14 +146,20 @@ async def upload_image(
             f"Image too large: {len(image_bytes) / 1024 / 1024:.1f} MB. Max 5 MB."
         )
 
+    upload_url = f"{base}/storage/v1/object/{BUCKET}/{path}"
+
+    # Log the URL in dev to catch misconfiguration early
+    if os.getenv("ENV", "development") == "development":
+        print(f"[supabase_storage] uploading to: {upload_url}")
+
     headers = {
-        "Authorization": f"Bearer {SUPABASE_KEY}",
+        "Authorization": f"Bearer {key}",
         "Content-Type": "image/jpeg",
         "x-upsert": "true",
     }
     async with httpx.AsyncClient(timeout=30.0) as client:
         resp = await client.post(
-            f"{SUPABASE_URL}/storage/v1/object/{BUCKET}/{path}",
+            upload_url,
             headers=headers,
             content=image_bytes,
         )
@@ -128,13 +170,16 @@ async def upload_image(
 
 async def delete_image(path: str) -> bool:
     """Delete an image from storage by its path."""
+    base = _get_supabase_base_url()
+    key = _get_supabase_key()
+
     headers = {
-        "Authorization": f"Bearer {SUPABASE_KEY}",
+        "Authorization": f"Bearer {key}",
         "Content-Type": "application/json",
     }
     async with httpx.AsyncClient(timeout=10.0) as client:
         resp = await client.delete(
-            f"{SUPABASE_URL}/storage/v1/object/{BUCKET}/{path}",
+            f"{base}/storage/v1/object/{BUCKET}/{path}",
             headers=headers,
         )
         return resp.status_code in (200, 204)

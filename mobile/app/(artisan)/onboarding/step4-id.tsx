@@ -35,14 +35,14 @@ export default function IDStep() {
 
     const result = useCamera
       ? await ImagePicker.launchCameraAsync({
-          mediaTypes: ImagePicker.MediaTypeOptions.Images,
+          mediaTypes: 'images',
           allowsEditing: true,
           quality: 0.7,
           base64: true,
           cameraType: ImagePicker.CameraType.front,
         })
       : await ImagePicker.launchImageLibraryAsync({
-          mediaTypes: ImagePicker.MediaTypeOptions.Images,
+          mediaTypes: 'images',
           allowsEditing: true,
           quality: 0.7,
           base64: true,

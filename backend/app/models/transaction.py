@@ -1,6 +1,7 @@
 # File: backend/app/models/transaction.py
 import enum
 import uuid
+from datetime import datetime
 
 from sqlalchemy import DateTime, Enum, ForeignKey, Integer, String, func
 from sqlalchemy.orm import Mapped, mapped_column
@@ -39,6 +40,8 @@ class Transaction(Base):
         Enum(TransactionStatus), default=TransactionStatus.pending
     )
     momo_reference: Mapped[str | None] = mapped_column(String(100), nullable=True)
-    created_at: Mapped[str | None] = mapped_column(
-        DateTime(timezone=True), server_default=func.now()
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        server_default=func.now(),
+        nullable=False,
     )

@@ -40,6 +40,7 @@ router = APIRouter(prefix="/bookings", tags=["bookings"])
 class DirectBookingCreate(BaseModel):
     """Create a booking directly with a specific artisan (no bid flow).
     Used by web BookingSheet and mobile Quick-Book when client picks an artisan."""
+
     job_id: UUID
     artisan_id: UUID
     agreed_price: int

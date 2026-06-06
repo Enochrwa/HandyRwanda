@@ -1,6 +1,7 @@
 # File: backend/app/models/artisan.py
 import enum
 import uuid
+from datetime import datetime
 from typing import Any
 
 from sqlalchemy import (
@@ -54,8 +55,10 @@ class Category(Base):
     name_fr: Mapped[str] = mapped_column(String(100), nullable=False)
     icon_emoji: Mapped[str | None] = mapped_column(String(10), nullable=True)
     is_active: Mapped[bool] = mapped_column(Boolean, default=True)
-    created_at: Mapped[str | None] = mapped_column(
-        DateTime(timezone=True), server_default=func.now()
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        server_default=func.now(),
+        nullable=False,
     )
 
 
@@ -87,8 +90,10 @@ class ArtisanProfile(Base):
     repeat_client_rate: Mapped[float] = mapped_column(Float, default=0.0)
     completion_rate: Mapped[float] = mapped_column(Float, default=0.0)
     community_score: Mapped[int] = mapped_column(Integer, default=0)
-    created_at: Mapped[str | None] = mapped_column(
-        DateTime(timezone=True), server_default=func.now()
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        server_default=func.now(),
+        nullable=False,
     )
     updated_at: Mapped[str | None] = mapped_column(
         DateTime(timezone=True), onupdate=func.now()
@@ -111,6 +116,8 @@ class PortfolioPhoto(Base):
     image_url: Mapped[str] = mapped_column(String, nullable=False)
     job_type: Mapped[str | None] = mapped_column(String(100), nullable=True)
     description: Mapped[str | None] = mapped_column(String(500), nullable=True)
-    created_at: Mapped[str | None] = mapped_column(
-        DateTime(timezone=True), server_default=func.now()
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        server_default=func.now(),
+        nullable=False,
     )

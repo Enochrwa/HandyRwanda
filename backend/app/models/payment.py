@@ -12,8 +12,10 @@ Phase 2 (later): Automated — backend calls MTN/Airtel Collections API,
 Status machine:
   initiated → pending_verification → approved → failed/refunded
 """
+
 import enum
 import uuid
+from datetime import datetime
 
 from sqlalchemy import Boolean, DateTime, Enum, ForeignKey, Integer, String, func
 from sqlalchemy.orm import Mapped, mapped_column
@@ -28,12 +30,14 @@ class PaymentMethod(str, enum.Enum):
 
 
 class PaymentStatus(str, enum.Enum):
-    initiated = "initiated"            # payment screen shown, user hasn't acted yet
-    pending_verification = "pending_verification"  # user submitted proof, awaiting admin
-    approved = "approved"              # admin (or future API) confirmed receipt
-    rejected = "rejected"              # admin rejected proof
-    refunded = "refunded"              # money sent back
-    auto_verified = "auto_verified"    # future: API confirmed automatically
+    initiated = "initiated"  # payment screen shown, user hasn't acted yet
+    pending_verification = (
+        "pending_verification"  # user submitted proof, awaiting admin
+    )
+    approved = "approved"  # admin (or future API) confirmed receipt
+    rejected = "rejected"  # admin rejected proof
+    refunded = "refunded"  # money sent back
+    auto_verified = "auto_verified"  # future: API confirmed automatically
 
 
 class Payment(Base):
@@ -51,7 +55,7 @@ class Payment(Base):
     artisan_id: Mapped[uuid.UUID] = mapped_column(
         UUID(as_uuid=True), ForeignKey("users.id"), nullable=False
     )
-    amount: Mapped[int] = mapped_column(Integer, nullable=False)       # RWF
+    amount: Mapped[int] = mapped_column(Integer, nullable=False)  # RWF
     method: Mapped[PaymentMethod | None] = mapped_column(
         Enum(PaymentMethod), nullable=True
     )
@@ -66,7 +70,9 @@ class Payment(Base):
     receiver_phone: Mapped[str | None] = mapped_column(String(20), nullable=True)
 
     # Phase 1 — manual proof
-    client_transaction_id: Mapped[str | None] = mapped_column(String(100), nullable=True)
+    client_transaction_id: Mapped[str | None] = mapped_column(
+        String(100), nullable=True
+    )
     proof_screenshot_url: Mapped[str | None] = mapped_column(String(500), nullable=True)
     proof_submitted_at: Mapped[str | None] = mapped_column(
         DateTime(timezone=True), nullable=True
@@ -75,16 +81,20 @@ class Payment(Base):
     verified_by: Mapped[uuid.UUID | None] = mapped_column(
         UUID(as_uuid=True), ForeignKey("users.id"), nullable=True
     )
-    verified_at: Mapped[str | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    verified_at: Mapped[str | None] = mapped_column(
+        DateTime(timezone=True), nullable=True
+    )
 
     # Phase 2 — API (populated when MTN/Airtel API is integrated)
     api_request_id: Mapped[str | None] = mapped_column(String(100), nullable=True)
     api_reference: Mapped[str | None] = mapped_column(String(100), nullable=True)
     auto_verified: Mapped[bool] = mapped_column(Boolean, default=False)
 
-    created_at: Mapped[str | None] = mapped_column(
-        DateTime(timezone=True), server_default=func.now()
+    created_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True),
+        server_default=func.now(),
+        nullable=False,
     )
-    updated_at: Mapped[str | None] = mapped_column(
+    updated_at: Mapped[datetime | None] = mapped_column(
         DateTime(timezone=True), onupdate=func.now()
     )

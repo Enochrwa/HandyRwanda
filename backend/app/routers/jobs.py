@@ -145,6 +145,7 @@ async def create_job(
     await db.refresh(job)
 
     # Trigger smart matching: notify top-5 artisans in background
+    assert job.id is not None, "Job ID must be set after commit"
     asyncio.ensure_future(_notify_artisans_async(job.id, cat.name_en if cat else ""))
 
     return _serialize_job(job, cat, 0)

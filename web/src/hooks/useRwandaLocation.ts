@@ -52,12 +52,9 @@ export function useRwandaLocation(): RwandaLocationHook {
     return Object.keys(RWANDA_ADDRESSES[province]?.[district] ?? {}).sort();
   }, []);
 
-  const getCells = useCallback(
-    (province: string, district: string, sector: string): string[] => {
-      return Object.keys(RWANDA_ADDRESSES[province]?.[district]?.[sector] ?? {}).sort();
-    },
-    [],
-  );
+  const getCells = useCallback((province: string, district: string, sector: string): string[] => {
+    return Object.keys(RWANDA_ADDRESSES[province]?.[district]?.[sector] ?? {}).sort();
+  }, []);
 
   const getVillages = useCallback(
     (province: string, district: string, sector: string, cell: string): string[] => {

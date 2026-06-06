@@ -113,18 +113,20 @@ export function BookingSheet({
         additional_notes: additionalNotes.trim() || undefined,
         location_label: [user?.district, user?.province].filter(Boolean).join(", ") || "Kigali",
         // Pass structured address if available
-        ...(user?.district ? {
-          address: {
-            province: user.province ?? undefined,
-            district: user.district,
-            sector: user.sector ?? undefined,
-            cell: user.cell ?? undefined,
-            village: user.village ?? undefined,
-            street_road: user.streetRoad ?? undefined,
-            house_number: user.houseNumber ?? undefined,
-            landmark: user.landmark ?? undefined,
-          }
-        } : {}),
+        ...(user?.district
+          ? {
+              address: {
+                province: user.province ?? undefined,
+                district: user.district,
+                sector: user.sector ?? undefined,
+                cell: user.cell ?? undefined,
+                village: user.village ?? undefined,
+                street_road: user.streetRoad ?? undefined,
+                house_number: user.houseNumber ?? undefined,
+                landmark: user.landmark ?? undefined,
+              },
+            }
+          : {}),
         latitude: -1.9441,
         longitude: 30.0619,
         urgency,

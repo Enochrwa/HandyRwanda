@@ -166,7 +166,11 @@ async def get_full_hierarchy(
     result: dict[str, Any] = {
         "districts": get_districts(province),
         "sectors": get_sectors(province, district) if district else [],
-        "cells": get_cells(province, district, sector) if sector else [],
-        "villages": get_villages(province, district, sector, cell) if cell else [],
+        "cells": get_cells(province, district, sector) if sector is not None else [],
+        "villages": (
+            get_villages(province, district, sector, cell)
+            if sector is not None and cell is not None
+            else []
+        ),
     }
     return result

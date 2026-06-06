@@ -52,6 +52,8 @@ class User(Base):
     cell: Mapped[str | None] = mapped_column(String(100), nullable=True)
     village: Mapped[str | None] = mapped_column(String(100), nullable=True)
     street_road: Mapped[str | None] = mapped_column(String(200), nullable=True)
+    house_number: Mapped[str | None] = mapped_column(String(50), nullable=True)
+    landmark: Mapped[str | None] = mapped_column(String(200), nullable=True)
     address_detail: Mapped[str | None] = mapped_column(String(300), nullable=True)
 
     avatar_url: Mapped[str | None] = mapped_column(String, nullable=True)

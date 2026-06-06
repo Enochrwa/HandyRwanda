@@ -1,6 +1,8 @@
 // File: web/src/components/AuthModal.tsx
+// Updated: full cascading Rwanda address (Province→District→Sector→Cell→Village)
+// + house_number, landmark, street_road in registration step 2
 
-import React, { useState } from "react";
+import React, { useState, useMemo } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
@@ -15,10 +17,10 @@ import {
   ChevronRight,
   ChevronLeft,
   CheckCircle2,
-  Eye,
-  EyeOff,
   AlertCircle,
   Info,
+  Home,
+  Navigation,
 } from "lucide-react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -45,6 +47,18 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Badge } from "@/components/ui/badge";
 import { useAuthStore } from "@/store/authStore";
 import api from "@/services/api";
+import RWANDA_ADDRESSES from "@/data/rwanda-addresses";
+
+// ── Rwanda helpers ──────────────────────────────────────────────────────────
+
+const getProvinces = () => Object.keys(RWANDA_ADDRESSES).sort();
+const getDistricts = (province: string) => Object.keys(RWANDA_ADDRESSES[province] ?? {}).sort();
+const getSectors = (province: string, district: string) =>
+  Object.keys(RWANDA_ADDRESSES[province]?.[district] ?? {}).sort();
+const getCells = (province: string, district: string, sector: string) =>
+  Object.keys(RWANDA_ADDRESSES[province]?.[district]?.[sector] ?? {}).sort();
+const getVillages = (province: string, district: string, sector: string, cell: string) =>
+  [...(RWANDA_ADDRESSES[province]?.[district]?.[sector]?.[cell] ?? [])].sort();
 
 // ── Validation schemas ──────────────────────────────────────────────────────
 
@@ -74,8 +88,14 @@ const step2Schema = z.object({
     .string()
     .optional()
     .refine((v) => !v || /^\d{16}$/.test(v), "National ID must be exactly 16 digits"),
+  province: z.string().optional(),
   district: z.string().optional(),
   sector: z.string().optional(),
+  cell: z.string().optional(),
+  village: z.string().optional(),
+  street_road: z.string().max(200).optional(),
+  house_number: z.string().max(50).optional(),
+  landmark: z.string().max(200).optional(),
 });
 
 const step3Schema = z.object({
@@ -86,60 +106,34 @@ const step3Schema = z.object({
 
 const loginSchema = z.object({ email: z.string().email("Invalid email address") });
 
-// ── Rwanda data ─────────────────────────────────────────────────────────────
-
-const RWANDA_DISTRICTS = [
-  "Gasabo",
-  "Kicukiro",
-  "Nyarugenge",
-  "Bugesera",
-  "Gatsibo",
-  "Kayonza",
-  "Kirehe",
-  "Ngoma",
-  "Nyagatare",
-  "Rwamagana",
-  "Burera",
-  "Gakenke",
-  "Gicumbi",
-  "Musanze",
-  "Rulindo",
-  "Gisagara",
-  "Huye",
-  "Kamonyi",
-  "Muhanga",
-  "Nyamagabe",
-  "Nyanza",
-  "Nyaruguru",
-  "Ruhango",
-  "Karongi",
-  "Ngororero",
-  "Nyabihu",
-  "Rubavu",
-  "Rusizi",
-  "Rutsiro",
-].sort();
-
 // ── Step indicator ──────────────────────────────────────────────────────────
 
 function StepIndicator({ current, total }: { current: number; total: number }) {
+  const labels = ["Identity", "Location", "Confirm"];
   return (
     <div className="flex items-center gap-2 mb-6">
       {Array.from({ length: total }).map((_, i) => (
         <React.Fragment key={i}>
-          <div
-            className={`w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold transition-all ${
-              i < current
-                ? "bg-primary text-primary-foreground"
-                : i === current
-                  ? "bg-primary/20 text-primary border-2 border-primary"
-                  : "bg-muted text-muted-foreground"
-            }`}
-          >
-            {i < current ? <CheckCircle2 className="w-4 h-4" /> : i + 1}
+          <div className="flex flex-col items-center gap-1">
+            <div
+              className={`w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold transition-all ${
+                i < current
+                  ? "bg-primary text-primary-foreground"
+                  : i === current
+                    ? "bg-primary/20 text-primary border-2 border-primary"
+                    : "bg-muted text-muted-foreground"
+              }`}
+            >
+              {i < current ? <CheckCircle2 className="w-4 h-4" /> : i + 1}
+            </div>
+            <span
+              className={`text-[10px] font-medium ${i === current ? "text-primary" : "text-muted-foreground"}`}
+            >
+              {labels[i]}
+            </span>
           </div>
           {i < total - 1 && (
-            <div className={`flex-1 h-0.5 ${i < current ? "bg-primary" : "bg-muted"}`} />
+            <div className={`flex-1 h-0.5 mb-4 ${i < current ? "bg-primary" : "bg-muted"}`} />
           )}
         </React.Fragment>
       ))}
@@ -147,27 +141,279 @@ function StepIndicator({ current, total }: { current: number; total: number }) {
   );
 }
 
-// ── Password strength helper (visual only) ──────────────────────────────────
+// ── AddressSection — cascading dropdowns ────────────────────────────────────
 
-function FieldStrengthBar({ value, label }: { value: string; label: string }) {
-  const strength = value.length === 0 ? 0 : value.length >= 16 ? 3 : value.length >= 10 ? 2 : 1;
-  const colors = ["bg-muted", "bg-destructive", "bg-yellow-500", "bg-green-500"];
-  const labels = ["", "Weak", "Good", "Strong"];
-  return value.length > 0 ? (
-    <div className="mt-1 flex items-center gap-2">
-      <div className="flex gap-1 flex-1">
-        {[1, 2, 3].map((s) => (
-          <div
-            key={s}
-            className={`h-1 flex-1 rounded-full ${s <= strength ? colors[strength] : "bg-muted"}`}
-          />
-        ))}
+interface AddressValues {
+  province?: string;
+  district?: string;
+  sector?: string;
+  cell?: string;
+  village?: string;
+  street_road?: string;
+  house_number?: string;
+  landmark?: string;
+}
+
+function AddressSection({
+  form,
+}: {
+  form: ReturnType<typeof useForm<z.infer<typeof step2Schema>>>;
+}) {
+  const province = form.watch("province");
+  const district = form.watch("district");
+  const sector = form.watch("sector");
+  const cell = form.watch("cell");
+
+  const provinces = useMemo(() => getProvinces(), []);
+  const districts = useMemo(() => (province ? getDistricts(province) : []), [province]);
+  const sectors = useMemo(
+    () => (province && district ? getSectors(province, district) : []),
+    [province, district],
+  );
+  const cells = useMemo(
+    () => (province && district && sector ? getCells(province, district, sector) : []),
+    [province, district, sector],
+  );
+  const villages = useMemo(
+    () =>
+      province && district && sector && cell ? getVillages(province, district, sector, cell) : [],
+    [province, district, sector, cell],
+  );
+
+  return (
+    <div className="space-y-3">
+      <div className="flex items-center gap-2 text-sm font-semibold text-foreground mb-1">
+        <MapPin className="w-4 h-4 text-primary" />
+        Rwanda Administrative Address
       </div>
-      <span className="text-xs text-muted-foreground">
-        {labels[strength]} {label}
-      </span>
+
+      {/* Province + District */}
+      <div className="grid grid-cols-2 gap-3">
+        <FormField
+          control={form.control}
+          name="province"
+          render={({ field }) => (
+            <FormItem>
+              <FormLabel className="text-xs">Province</FormLabel>
+              <Select
+                onValueChange={(v) => {
+                  field.onChange(v);
+                  form.setValue("district", "");
+                  form.setValue("sector", "");
+                  form.setValue("cell", "");
+                  form.setValue("village", "");
+                }}
+                value={field.value}
+              >
+                <FormControl>
+                  <SelectTrigger className="h-9 text-xs">
+                    <SelectValue placeholder="Select province" />
+                  </SelectTrigger>
+                </FormControl>
+                <SelectContent>
+                  {provinces.map((p) => (
+                    <SelectItem key={p} value={p} className="text-xs">
+                      {p}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              <FormMessage />
+            </FormItem>
+          )}
+        />
+        <FormField
+          control={form.control}
+          name="district"
+          render={({ field }) => (
+            <FormItem>
+              <FormLabel className="text-xs">District</FormLabel>
+              <Select
+                onValueChange={(v) => {
+                  field.onChange(v);
+                  form.setValue("sector", "");
+                  form.setValue("cell", "");
+                  form.setValue("village", "");
+                }}
+                value={field.value}
+                disabled={!province}
+              >
+                <FormControl>
+                  <SelectTrigger className="h-9 text-xs">
+                    <SelectValue
+                      placeholder={province ? "Select district" : "Pick province first"}
+                    />
+                  </SelectTrigger>
+                </FormControl>
+                <SelectContent className="max-h-48">
+                  {districts.map((d) => (
+                    <SelectItem key={d} value={d} className="text-xs">
+                      {d}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              <FormMessage />
+            </FormItem>
+          )}
+        />
+      </div>
+
+      {/* Sector + Cell */}
+      <div className="grid grid-cols-2 gap-3">
+        <FormField
+          control={form.control}
+          name="sector"
+          render={({ field }) => (
+            <FormItem>
+              <FormLabel className="text-xs">Sector</FormLabel>
+              <Select
+                onValueChange={(v) => {
+                  field.onChange(v);
+                  form.setValue("cell", "");
+                  form.setValue("village", "");
+                }}
+                value={field.value}
+                disabled={!district}
+              >
+                <FormControl>
+                  <SelectTrigger className="h-9 text-xs">
+                    <SelectValue placeholder={district ? "Select sector" : "Pick district first"} />
+                  </SelectTrigger>
+                </FormControl>
+                <SelectContent className="max-h-48">
+                  {sectors.map((s) => (
+                    <SelectItem key={s} value={s} className="text-xs">
+                      {s}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              <FormMessage />
+            </FormItem>
+          )}
+        />
+        <FormField
+          control={form.control}
+          name="cell"
+          render={({ field }) => (
+            <FormItem>
+              <FormLabel className="text-xs">Cell</FormLabel>
+              <Select
+                onValueChange={(v) => {
+                  field.onChange(v);
+                  form.setValue("village", "");
+                }}
+                value={field.value}
+                disabled={!sector}
+              >
+                <FormControl>
+                  <SelectTrigger className="h-9 text-xs">
+                    <SelectValue placeholder={sector ? "Select cell" : "Pick sector first"} />
+                  </SelectTrigger>
+                </FormControl>
+                <SelectContent className="max-h-48">
+                  {cells.map((c) => (
+                    <SelectItem key={c} value={c} className="text-xs">
+                      {c}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              <FormMessage />
+            </FormItem>
+          )}
+        />
+      </div>
+
+      {/* Village */}
+      <FormField
+        control={form.control}
+        name="village"
+        render={({ field }) => (
+          <FormItem>
+            <FormLabel className="text-xs">Village</FormLabel>
+            <Select onValueChange={field.onChange} value={field.value} disabled={!cell}>
+              <FormControl>
+                <SelectTrigger className="h-9 text-xs">
+                  <SelectValue placeholder={cell ? "Select village" : "Pick cell first"} />
+                </SelectTrigger>
+              </FormControl>
+              <SelectContent className="max-h-48">
+                {villages.map((v) => (
+                  <SelectItem key={v} value={v} className="text-xs">
+                    {v}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            <FormMessage />
+          </FormItem>
+        )}
+      />
+
+      {/* Street + House */}
+      <div className="grid grid-cols-2 gap-3">
+        <FormField
+          control={form.control}
+          name="street_road"
+          render={({ field }) => (
+            <FormItem>
+              <FormLabel className="text-xs">Street / Road</FormLabel>
+              <FormControl>
+                <div className="relative">
+                  <Navigation className="absolute left-2.5 top-2.5 h-3.5 w-3.5 text-muted-foreground" />
+                  <Input className="pl-8 h-9 text-xs" placeholder="e.g. KG 15 Ave" {...field} />
+                </div>
+              </FormControl>
+              <FormMessage />
+            </FormItem>
+          )}
+        />
+        <FormField
+          control={form.control}
+          name="house_number"
+          render={({ field }) => (
+            <FormItem>
+              <FormLabel className="text-xs">House / Plot No.</FormLabel>
+              <FormControl>
+                <div className="relative">
+                  <Home className="absolute left-2.5 top-2.5 h-3.5 w-3.5 text-muted-foreground" />
+                  <Input className="pl-8 h-9 text-xs" placeholder="e.g. 42B" {...field} />
+                </div>
+              </FormControl>
+              <FormMessage />
+            </FormItem>
+          )}
+        />
+      </div>
+
+      {/* Landmark */}
+      <FormField
+        control={form.control}
+        name="landmark"
+        render={({ field }) => (
+          <FormItem>
+            <FormLabel className="text-xs">Landmark</FormLabel>
+            <FormControl>
+              <div className="relative">
+                <MapPin className="absolute left-2.5 top-2.5 h-3.5 w-3.5 text-muted-foreground" />
+                <Input
+                  className="pl-8 h-9 text-xs"
+                  placeholder="e.g. Near Kigali Convention Centre"
+                  {...field}
+                />
+              </div>
+            </FormControl>
+            <FormDescription className="text-[11px]">
+              Helps artisans find you easily
+            </FormDescription>
+            <FormMessage />
+          </FormItem>
+        )}
+      />
     </div>
-  ) : null;
+  );
 }
 
 // ── Main component ──────────────────────────────────────────────────────────
@@ -189,20 +435,13 @@ export const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, defaultTa
   const [email, setEmail] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const [otpCooldown, setOtpCooldown] = useState(0);
-  const [resendTimer, setResendTimer] = useState<ReturnType<typeof setInterval> | null>(null);
 
-  // Accumulated registration data across steps
   const [regData, setRegData] = useState<RegistrationData>({
     role: "client",
     fullName: "",
     phone: "",
     email: "",
     preferred_lang: "rw",
-    gender: undefined,
-    date_of_birth: undefined,
-    national_id: undefined,
-    district: undefined,
-    sector: undefined,
   });
 
   const setAuth = useAuthStore((state) => state.setAuth);
@@ -226,8 +465,6 @@ export const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, defaultTa
     defaultValues: { email: "" },
   });
 
-  // ── Cooldown timer ──────────────────────────────────────────────────────
-
   const startCooldown = (seconds: number) => {
     setOtpCooldown(seconds);
     const iv = setInterval(() => {
@@ -239,10 +476,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, defaultTa
         return prev - 1;
       });
     }, 1000);
-    setResendTimer(iv);
   };
-
-  // ── Login flow ──────────────────────────────────────────────────────────
 
   const handleRequestOtp = async (values: z.infer<typeof loginSchema>) => {
     setIsLoading(true);
@@ -278,7 +512,6 @@ export const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, defaultTa
           email: user.email,
           role: user.role,
           avatarUrl: user.avatar_url,
-          // Full Rwanda address
           province: user.province ?? null,
           district: user.district ?? null,
           sector: user.sector ?? null,
@@ -321,33 +554,13 @@ export const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, defaultTa
     }
   };
 
-  // ── Registration steps ──────────────────────────────────────────────────
-
-  const handleStep1 = async (values: z.infer<typeof step1Schema>) => {
-    setRegData((prev) => {
-      // Merge values, but ignore undefined fields to avoid overwriting with undefined
-      const filteredValues = Object.entries(values).reduce(
-        (acc, [key, val]) => {
-          return val !== undefined ? { ...acc, [key]: val } : acc;
-        },
-        {} as Record<string, unknown>,
-      );
-      return { ...prev, ...filteredValues };
-    });
+  const handleStep1 = (values: z.infer<typeof step1Schema>) => {
+    setRegData((prev) => ({ ...prev, ...values }));
     setRegStep(1);
   };
 
-  const handleStep2 = async (values: z.infer<typeof step2Schema>) => {
-    setRegData((prev) => {
-      // Merge values, but ignore undefined fields to avoid overwriting with undefined
-      const filteredValues = Object.entries(values).reduce(
-        (acc, [key, val]) => {
-          return val !== undefined ? { ...acc, [key]: val } : acc;
-        },
-        {} as Record<string, unknown>,
-      );
-      return { ...prev, ...filteredValues };
-    });
+  const handleStep2 = (values: z.infer<typeof step2Schema>) => {
+    setRegData((prev) => ({ ...prev, ...values }));
     setRegStep(2);
   };
 
@@ -364,8 +577,14 @@ export const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, defaultTa
         gender: merged.gender || null,
         date_of_birth: merged.date_of_birth || null,
         national_id: merged.national_id || null,
+        province: merged.province || null,
         district: merged.district || null,
         sector: merged.sector || null,
+        cell: merged.cell || null,
+        village: merged.village || null,
+        street_road: merged.street_road || null,
+        house_number: merged.house_number || null,
+        landmark: merged.landmark || null,
         agreed_to_terms: true,
         terms_version: "v1.0",
       };
@@ -373,25 +592,13 @@ export const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, defaultTa
       toast.success("Account created!", {
         description: res.data.message || "Check your email for a verification code.",
       });
-      // Pre-fill login email and switch to OTP verify
       loginForm.setValue("email", merged.email);
       setEmail(merged.email);
       setActiveTab("login");
       setLoginStep("verify");
       startCooldown(60);
       setRegStep(0);
-      setRegData({
-        role: "client",
-        fullName: "",
-        phone: "",
-        email: "",
-        preferred_lang: "rw",
-        gender: undefined,
-        date_of_birth: undefined,
-        national_id: undefined,
-        district: undefined,
-        sector: undefined,
-      });
+      setRegData({ role: "client", fullName: "", phone: "", email: "", preferred_lang: "rw" });
     } catch (error: unknown) {
       const err = error as {
         response?: {
@@ -402,7 +609,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, defaultTa
       if (typeof detail === "object" && detail?.field === "email") {
         setRegStep(0);
         step1Form.setError("email", { message: detail.message });
-        toast.error("Email already registered. Please use a different email.");
+        toast.error("Email already registered.");
       } else if (typeof detail === "object" && detail?.field === "phone_number") {
         setRegStep(0);
         step1Form.setError("phone", { message: detail.message });
@@ -416,20 +623,11 @@ export const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, defaultTa
     }
   };
 
-  const handleTabChange = (tab: string) => {
-    setActiveTab(tab);
-    if (tab === "register") {
-      setRegStep(0);
-    }
-  };
-
-  // ── Render ──────────────────────────────────────────────────────────────
-
   const roleWatched = step1Form.watch("role");
 
   return (
     <Dialog open={isOpen} onOpenChange={(open) => !open && onClose()}>
-      <DialogContent className="sm:max-w-[460px] bg-surface border border-border text-text shadow-card rounded-2xl max-h-[90vh] overflow-y-auto">
+      <DialogContent className="sm:max-w-[480px] bg-surface border border-border text-text shadow-card rounded-2xl max-h-[92vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle className="text-2xl font-bold text-text">
             {activeTab === "login" ? "Welcome Back" : "Create Account"}
@@ -439,7 +637,14 @@ export const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, defaultTa
           )}
         </DialogHeader>
 
-        <Tabs value={activeTab} onValueChange={handleTabChange} className="w-full">
+        <Tabs
+          value={activeTab}
+          onValueChange={(t) => {
+            setActiveTab(t);
+            if (t === "register") setRegStep(0);
+          }}
+          className="w-full"
+        >
           <TabsList className="grid w-full grid-cols-2 mb-4">
             <TabsTrigger value="login">Sign In</TabsTrigger>
             <TabsTrigger value="register">Register</TabsTrigger>
@@ -536,7 +741,6 @@ export const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, defaultTa
                     <span className="font-semibold text-sm">Who are you?</span>
                   </div>
 
-                  {/* Role selector */}
                   <FormField
                     control={step1Form.control}
                     name="role"
@@ -602,7 +806,6 @@ export const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, defaultTa
                           </div>
                         </FormControl>
                         <FormDescription>Rwanda number starting with +2507</FormDescription>
-                        <FieldStrengthBar value={field.value} label="format" />
                         <FormMessage />
                       </FormItem>
                     )}
@@ -666,18 +869,19 @@ export const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, defaultTa
                     <MapPin className="w-4 h-4 text-primary" />
                     <span className="font-semibold text-sm">Location & Identity</span>
                     <Badge variant="secondary" className="ml-auto text-xs">
-                      Optional but recommended
+                      Optional
                     </Badge>
                   </div>
 
                   <div className="bg-blue-500/5 rounded-lg p-3 flex gap-2 text-xs text-muted-foreground">
                     <Info className="w-3.5 h-3.5 mt-0.5 shrink-0 text-blue-500" />
                     <span>
-                      This helps us match you with nearby artisans and verify identities for safer
-                      transactions.
+                      Your location helps us match you with nearby artisans. The more detail you
+                      provide, the better the match.
                     </span>
                   </div>
 
+                  {/* Gender + DOB */}
                   <div className="grid grid-cols-2 gap-3">
                     <FormField
                       control={step2Form.control}
@@ -701,7 +905,6 @@ export const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, defaultTa
                         </FormItem>
                       )}
                     />
-
                     <FormField
                       control={step2Form.control}
                       name="date_of_birth"
@@ -725,6 +928,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, defaultTa
                     />
                   </div>
 
+                  {/* National ID */}
                   <FormField
                     control={step2Form.control}
                     name="national_id"
@@ -736,7 +940,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, defaultTa
                             <Shield className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
                             <Input
                               className="pl-9 tracking-widest"
-                              placeholder="1 2000 8 0000000 0 00"
+                              placeholder="16-digit ID number"
                               maxLength={16}
                               {...field}
                               onChange={(e) => field.onChange(e.target.value.replace(/\D/g, ""))}
@@ -744,52 +948,12 @@ export const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, defaultTa
                           </div>
                         </FormControl>
                         {field.value && (
-                          <FieldStrengthBar
-                            value={field.value.length === 16 ? "valid-nid-format-ok" : field.value}
-                            label={`${field.value.length}/16 digits`}
-                          />
+                          <p
+                            className={`text-xs mt-1 ${field.value.length === 16 ? "text-green-600" : "text-muted-foreground"}`}
+                          >
+                            {field.value.length}/16 digits {field.value.length === 16 ? "✓" : ""}
+                          </p>
                         )}
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-
-                  <FormField
-                    control={step2Form.control}
-                    name="district"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>District</FormLabel>
-                        <Select onValueChange={field.onChange} value={field.value}>
-                          <FormControl>
-                            <SelectTrigger>
-                              <SelectValue placeholder="Select your district" />
-                            </SelectTrigger>
-                          </FormControl>
-                          <SelectContent className="max-h-48">
-                            {RWANDA_DISTRICTS.map((d) => (
-                              <SelectItem key={d} value={d}>
-                                {d}
-                              </SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-
-                  <FormField
-                    control={step2Form.control}
-                    name="sector"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>
-                          Sector <span className="text-muted-foreground text-xs">(optional)</span>
-                        </FormLabel>
-                        <FormControl>
-                          <Input placeholder="e.g. Kimironko" {...field} />
-                        </FormControl>
                         <FormMessage />
                       </FormItem>
                     )}
@@ -799,11 +963,16 @@ export const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, defaultTa
                     <div className="bg-amber-500/10 rounded-lg p-3 flex gap-2 text-xs">
                       <AlertCircle className="w-3.5 h-3.5 mt-0.5 shrink-0 text-amber-600" />
                       <span className="text-amber-700">
-                        As an artisan, your National ID and district will be used to verify your
-                        identity before you can accept paid jobs.
+                        As an artisan, your location helps clients find you. Your National ID will
+                        be used to verify your identity before accepting paid jobs.
                       </span>
                     </div>
                   )}
+
+                  {/* Full cascading address */}
+                  <div className="border rounded-xl p-3 bg-muted/20">
+                    <AddressSection form={step2Form} />
+                  </div>
 
                   <div className="flex gap-2">
                     <Button
@@ -831,30 +1000,51 @@ export const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, defaultTa
                     <span className="font-semibold text-sm">Review & Confirm</span>
                   </div>
 
-                  {/* Summary card */}
                   <div className="bg-muted/50 rounded-xl p-4 space-y-2 text-sm">
-                    <div className="flex justify-between">
-                      <span className="text-muted-foreground">Name</span>
-                      <span className="font-medium">{regData.fullName}</span>
-                    </div>
-                    <div className="flex justify-between">
-                      <span className="text-muted-foreground">Email</span>
-                      <span className="font-medium">{regData.email}</span>
-                    </div>
-                    <div className="flex justify-between">
-                      <span className="text-muted-foreground">Phone</span>
-                      <span className="font-medium">{regData.phone}</span>
-                    </div>
+                    {[
+                      ["Name", regData.fullName],
+                      ["Email", regData.email],
+                      ["Phone", regData.phone],
+                    ].map(([label, val]) => (
+                      <div key={label} className="flex justify-between">
+                        <span className="text-muted-foreground">{label}</span>
+                        <span className="font-medium">{val}</span>
+                      </div>
+                    ))}
                     <div className="flex justify-between">
                       <span className="text-muted-foreground">Role</span>
                       <Badge variant={regData.role === "artisan" ? "default" : "secondary"}>
                         {regData.role}
                       </Badge>
                     </div>
+                    {regData.province && (
+                      <div className="flex justify-between">
+                        <span className="text-muted-foreground">Province</span>
+                        <span className="font-medium">{regData.province}</span>
+                      </div>
+                    )}
                     {regData.district && (
                       <div className="flex justify-between">
                         <span className="text-muted-foreground">District</span>
                         <span className="font-medium">{regData.district}</span>
+                      </div>
+                    )}
+                    {(regData.sector || regData.cell || regData.village) && (
+                      <div className="flex justify-between">
+                        <span className="text-muted-foreground">Area</span>
+                        <span className="font-medium text-right text-xs">
+                          {[regData.village, regData.cell, regData.sector]
+                            .filter(Boolean)
+                            .join(", ")}
+                        </span>
+                      </div>
+                    )}
+                    {(regData.street_road || regData.house_number) && (
+                      <div className="flex justify-between">
+                        <span className="text-muted-foreground">Street</span>
+                        <span className="font-medium text-xs">
+                          {[regData.house_number, regData.street_road].filter(Boolean).join(", ")}
+                        </span>
                       </div>
                     )}
                   </div>

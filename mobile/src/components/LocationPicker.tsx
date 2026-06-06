@@ -272,7 +272,9 @@ export function LocationPicker({ initialCoords, onChange }: Props) {
 
   // Keep a stable ref to the hook so reverseGeocodeCoords deps stay empty
   const rwandaHookRef = useRef(rwandaHook);
-  useEffect(() => { rwandaHookRef.current = rwandaHook; });
+  useEffect(() => {
+    rwandaHookRef.current = rwandaHook;
+  });
 
   // ── Reverse-geocode when pin moves ────────────────────────────────────────
   // IMPORTANT: empty dep array → stable callback → no re-render loops.

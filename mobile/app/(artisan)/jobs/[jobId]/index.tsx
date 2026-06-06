@@ -14,6 +14,7 @@ import {
   KeyboardAvoidingView,
   Platform,
 } from 'react-native';
+import MapView, { Marker, UrlTile } from 'react-native-maps';
 import Toast from 'react-native-toast-message';
 
 import api from '../../../../src/services/api';
@@ -234,6 +235,49 @@ export default function JobDetailBid() {
             )}
           </View>
         </View>
+
+        {/* Exact job location map — shown when GPS coords are available */}
+        {job.latitude && job.longitude ? (
+          <View className="bg-card rounded-3xl border border-border mb-5 overflow-hidden">
+            <View className="px-5 pt-4 pb-2 flex-row items-center gap-2">
+              <Text className="text-sm font-extrabold">📍 Exact Job Location</Text>
+            </View>
+            <MapView
+              style={{ height: 200 }}
+              initialRegion={{
+                latitude: job.latitude,
+                longitude: job.longitude,
+                latitudeDelta: 0.01,
+                longitudeDelta: 0.01,
+              }}
+              scrollEnabled={false}
+              zoomEnabled={false}
+              pitchEnabled={false}
+              rotateEnabled={false}
+            >
+              <UrlTile
+                urlTemplate="https://tile.openstreetmap.org/{z}/{x}/{y}.png"
+                maximumZ={19}
+                flipY={false}
+              />
+              <Marker
+                coordinate={{ latitude: job.latitude, longitude: job.longitude }}
+                title={job.location_label ?? 'Job site'}
+                pinColor="#1B5E3B"
+              />
+            </MapView>
+            {job.location_label ? (
+              <View className="px-5 py-3 flex-row items-start gap-2 border-t border-border">
+                <Text className="text-xs text-muted-foreground flex-1">{job.location_label}</Text>
+              </View>
+            ) : null}
+          </View>
+        ) : job.location_label ? (
+          <View className="bg-card rounded-3xl border border-border p-4 mb-5 flex-row items-center gap-2">
+            <Text className="text-lg">📍</Text>
+            <Text className="text-sm font-semibold flex-1">{job.location_label}</Text>
+          </View>
+        ) : null}
 
         {/* Price guidance */}
         {priceGuidance && priceGuidance.sample_size > 0 && (

@@ -66,17 +66,32 @@ function PushTokenRegistrar() {
           });
         }
 
-        // Try FCM token first (preferred for native builds)
+        // Try FCM token first (preferred for native builds).
+        // @react-native-firebase requires native linking; it throws a synchronous
+        // error in Expo Go ("RNFBAppModule not found"). We wrap both the import
+        // AND the usage in a Promise so any thrown error — sync or async — is caught.
         let fcmRegistered = false;
         try {
-          const { getMessaging, getToken } = await import('@react-native-firebase/messaging');
-          const fcmToken = await getToken(getMessaging());
-          if (fcmToken && mounted) {
-            await proService.registerFCMToken(fcmToken);
-            fcmRegistered = true;
-          }
+          fcmRegistered = await new Promise<boolean>((resolve) => {
+            // Wrapping in Promise.resolve().then() defers execution to a
+            // microtask, converting sync throws into rejections that our
+            // outer try/catch can catch without crashing the JS thread.
+            Promise.resolve()
+              .then(() => import('@react-native-firebase/messaging'))
+              .then(async ({ getMessaging, getToken }) => {
+                const fcmToken = await getToken(getMessaging());
+                if (fcmToken && mounted) {
+                  await proService.registerFCMToken(fcmToken);
+                  resolve(true);
+                } else {
+                  resolve(false);
+                }
+              })
+              .catch(() => resolve(false)); // Firebase not available in Expo Go
+          });
         } catch {
-          // Firebase not available in Expo Go — fall through to Expo push
+          // Defensive outer catch — fall through to Expo push token
+          fcmRegistered = false;
         }
 
         // Fallback to Expo push token

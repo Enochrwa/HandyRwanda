@@ -1,14 +1,21 @@
-// File: mobile/src/components/RwandaAddressPicker.tsx
 /**
- * Mobile Rwanda address picker with cascading dropdowns.
- * Province → District → Sector → Cell → Village → Street/Road
+ * RwandaAddressPicker — offline-first cascading address picker.
+ *
+ * Now uses the bundled useRwandaLocation hook instead of hitting
+ * /address/* API endpoints. Zero network required; zero re-render loops.
+ *
+ * Infinite-loop fix (two layers):
+ *  1. Data comes from a static in-memory object, not React Query.
+ *     No async state → no "data arrived → setState → re-render" cycle.
+ *  2. onChange is stored in a ref. The useEffect dep array never includes
+ *     the parent's onChange reference, so a new arrow function on each
+ *     parent render never triggers a cascade.
  */
 import { Picker } from '@react-native-picker/picker';
-import { useQuery } from '@tanstack/react-query';
-import React, { useCallback, useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { Platform, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 
-import api from '../services/api';
+import { useRwandaLocation } from '../hooks/useRwandaLocation';
 
 export interface RwandaAddress {
   province: string;
@@ -33,57 +40,29 @@ export function RwandaAddressPicker({ value, onChange }: Props) {
   const [village, setVillage] = useState(value?.village ?? '');
   const [streetRoad, setStreetRoad] = useState(value?.street_road ?? '');
 
-  // iOS picker wheel needs an explicit text color; Android ignores itemStyle.
-  // pickerStyle was defined but never consumed — wired up here via Platform.
-  const pickerStyle = Platform.OS === 'ios' ? { color: '#111' } : undefined;
-
-  const { data: provinces } = useQuery<string[]>({
-    queryKey: ['addr-provinces'],
-    queryFn: () => api.get('/address/provinces').then((r) => r.data.provinces),
-    staleTime: Infinity,
+  // Keep onChange in a ref so the effect dep array is stable
+  const onChangeRef = useRef(onChange);
+  useEffect(() => {
+    onChangeRef.current = onChange;
   });
 
-  const { data: districts } = useQuery<string[]>({
-    queryKey: ['addr-districts', province],
-    queryFn: () =>
-      api
-        .get(`/address/districts?province=${encodeURIComponent(province)}`)
-        .then((r) => r.data.districts),
-    enabled: !!province,
-    staleTime: Infinity,
-  });
+  const { getProvinces, getDistrictByProvince, getSectors, getCells } = useRwandaLocation();
 
-  const { data: sectors } = useQuery<string[]>({
-    queryKey: ['addr-sectors', province, district],
-    queryFn: () =>
-      api
-        .get(
-          `/address/sectors?province=${encodeURIComponent(province)}&district=${encodeURIComponent(district)}`,
-        )
-        .then((r) => r.data.sectors),
-    enabled: !!province && !!district,
-    staleTime: Infinity,
-  });
+  // Compute dropdown options synchronously — no async, no re-renders from data loading
+  const provinces = getProvinces();
+  const districts = province ? getDistrictByProvince(province) : [];
+  const sectors = district ? getSectors(province, district) : [];
+  const cells = sector ? getCells(province, district, sector) : [];
 
-  const { data: cells } = useQuery<string[]>({
-    queryKey: ['addr-cells', province, district, sector],
-    queryFn: () =>
-      api
-        .get(
-          `/address/cells?province=${encodeURIComponent(province)}&district=${encodeURIComponent(district)}&sector=${encodeURIComponent(sector)}`,
-        )
-        .then((r) => r.data.cells),
-    enabled: !!province && !!district && !!sector,
-    staleTime: Infinity,
-  });
+  // iOS picker wheel needs explicit text colour
+  const pickerItemStyle = Platform.OS === 'ios' ? { color: '#111827' } : undefined;
 
-  // Stable notify — mirrors the web version's useCallback pattern so onChange
-  // can safely live in the useEffect dep array without causing infinite loops.
+  // Stable notify — empty deps, reads onChange via ref
   const notify = useCallback(
     (p: string, d: string, s: string, c: string, v: string, sr: string) => {
       if (!d) return;
       const parts = [sr, v, c, s, d, p, 'Rwanda'].filter(Boolean);
-      onChange({
+      onChangeRef.current({
         province: p,
         district: d,
         sector: s,
@@ -93,16 +72,36 @@ export function RwandaAddressPicker({ value, onChange }: Props) {
         formatted: parts.join(', '),
       });
     },
-    [onChange],
+    [],
   );
 
   useEffect(() => {
     notify(province, district, sector, cell, village, streetRoad);
   }, [province, district, sector, cell, village, streetRoad, notify]);
 
+  // Cascade resets
+  const onProvinceChange = useCallback((v: string) => {
+    setProvince(v);
+    setDistrict('');
+    setSector('');
+    setCell('');
+    setVillage('');
+  }, []);
+
+  const onDistrictChange = useCallback((v: string) => {
+    setDistrict(v);
+    setSector('');
+    setCell('');
+    setVillage('');
+  }, []);
+
+  const onSectorChange = useCallback((v: string) => {
+    setSector(v);
+    setCell('');
+    setVillage('');
+  }, []);
+
   return (
-    // ScrollView lets the full picker list scroll on small screens without
-    // clipping the lower fields — nestedScrollEnabled for Android list views.
     <ScrollView
       style={styles.scroll}
       contentContainerStyle={styles.container}
@@ -112,52 +111,39 @@ export function RwandaAddressPicker({ value, onChange }: Props) {
       <PickerRow
         label="Province *"
         value={province}
-        items={provinces ?? []}
-        pickerItemStyle={pickerStyle}
-        onValueChange={(v) => {
-          setProvince(v);
-          setDistrict('');
-          setSector('');
-          setCell('');
-          setVillage('');
-        }}
+        items={provinces}
+        pickerItemStyle={pickerItemStyle}
+        onValueChange={onProvinceChange}
       />
       <PickerRow
         label="District *"
         value={district}
-        items={districts ?? []}
-        pickerItemStyle={pickerStyle}
-        onValueChange={(v) => {
-          setDistrict(v);
-          setSector('');
-          setCell('');
-          setVillage('');
-        }}
+        items={districts}
+        pickerItemStyle={pickerItemStyle}
+        onValueChange={onDistrictChange}
         disabled={!province}
       />
-      <PickerRow
-        label="Sector"
-        value={sector}
-        items={sectors ?? []}
-        pickerItemStyle={pickerStyle}
-        onValueChange={(v) => {
-          setSector(v);
-          setCell('');
-          setVillage('');
-        }}
-        disabled={!district}
-      />
-      <PickerRow
-        label="Cell"
-        value={cell}
-        items={cells ?? []}
-        pickerItemStyle={pickerStyle}
-        onValueChange={(v) => {
-          setCell(v);
-          setVillage('');
-        }}
-        disabled={!sector}
-      />
+      {district ? (
+        <PickerRow
+          label="Sector"
+          value={sector}
+          items={sectors}
+          pickerItemStyle={pickerItemStyle}
+          onValueChange={onSectorChange}
+        />
+      ) : null}
+      {sector ? (
+        <PickerRow
+          label="Cell"
+          value={cell}
+          items={cells}
+          pickerItemStyle={pickerItemStyle}
+          onValueChange={(v) => {
+            setCell(v);
+            setVillage('');
+          }}
+        />
+      ) : null}
 
       <View style={styles.field}>
         <Text style={styles.label}>Village</Text>
@@ -217,7 +203,7 @@ function PickerRow({
           enabled={!disabled}
           itemStyle={pickerItemStyle}
         >
-          <Picker.Item label={`Select ${label.replace(' *', '')}...`} value="" />
+          <Picker.Item label={`Select ${label.replace(' *', '')}…`} value="" />
           {items.map((item) => (
             <Picker.Item key={item} label={item} value={item} />
           ))}
@@ -247,6 +233,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 12,
     paddingVertical: 10,
     fontSize: 14,
+    color: '#111827',
     backgroundColor: '#F9FAFB',
   },
   preview: { backgroundColor: '#EFF6FF', borderRadius: 8, padding: 10, marginTop: 4 },

@@ -2,6 +2,7 @@
 import { useQuery } from '@tanstack/react-query';
 import { ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+
 import api from '../../src/services/api';
 
 export default function PrivacyScreen() {

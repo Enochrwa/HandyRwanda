@@ -18,6 +18,15 @@ module.exports = {
   ...baseConfig,
   expo: {
     ...baseConfig.expo,
+    ios: {
+      ...baseConfig.expo.ios,
+      googleServicesFile: isProduction || isDevClient ? './GoogleService-Info.plist' : undefined,
+    },
+    android: {
+      ...baseConfig.expo.android,
+      googleServicesFile:
+        isProduction || isDevClient ? './android/app/google-services.json' : undefined,
+    },
     plugins: [...baseConfig.expo.plugins, ...firebasePlugins],
     extra: {
       ...baseConfig.expo.extra,

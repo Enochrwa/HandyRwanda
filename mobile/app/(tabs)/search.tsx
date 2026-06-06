@@ -7,6 +7,7 @@
  */
 import { Search, Filter, MapIcon, List, Star, X, MapPin } from '@icons';
 import { useQuery, keepPreviousData } from '@tanstack/react-query';
+import * as Location from 'expo-location';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import React, { useState, useEffect, useCallback } from 'react';
 import {
@@ -22,8 +23,6 @@ import {
   Platform,
   ActivityIndicator,
 } from 'react-native';
-
-import * as Location from 'expo-location';
 
 import api from '../../src/services/api';
 

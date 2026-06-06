@@ -12,9 +12,10 @@
  *  - Background/foreground transitions (reconnects when app comes to foreground)
  *  - React Query cache invalidation on new notification
  */
+import { useQueryClient } from '@tanstack/react-query';
 import { useEffect, useRef } from 'react';
 import { AppState, AppStateStatus, Platform } from 'react-native';
-import { useQueryClient } from '@tanstack/react-query';
+
 import { useAuthStore } from '../store/authStore';
 
 const API_BASE = (() => {

@@ -142,7 +142,7 @@ export default function PaymentScreen() {
           <Text className="text-sm text-muted-foreground mb-6">
             Amount due:{' '}
             <Text className="font-bold text-foreground text-lg">
-              {formatRWF(parseInt(amountStr ?? '0'))} RWF
+              {formatRWF(parseInt(amountStr ?? '0', 10))} RWF
             </Text>
           </Text>
           <Text className="text-xs font-bold uppercase tracking-wide text-muted-foreground mb-3">

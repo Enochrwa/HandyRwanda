@@ -1,15 +1,15 @@
 // File: mobile/app/(tabs)/_layout.tsx
 import { Home, Search, MessageCircle, User, LayoutDashboard, Bell } from '@icons';
+import { useQuery } from '@tanstack/react-query';
 import { Tabs, useRouter } from 'expo-router';
 import { useEffect } from 'react';
 import { Platform, TouchableOpacity, Text, View } from 'react-native';
-import { useQuery } from '@tanstack/react-query';
 
+import { OfflineBanner } from '../../src/components/OfflineBanner';
+import { useNotificationSocket } from '../../src/hooks/useNotificationSocket';
 import api from '../../src/services/api';
 import { proService } from '../../src/services/proService';
 import { useAuthStore } from '../../src/store/authStore';
-import { useNotificationSocket } from '../../src/hooks/useNotificationSocket';
-import { OfflineBanner } from '../../src/components/OfflineBanner';
 
 export default function TabsLayout() {
   const { isAuthenticated, user } = useAuthStore();

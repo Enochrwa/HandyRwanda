@@ -6,7 +6,6 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useState } from 'react';
 import {
-  Alert,
   ScrollView,
   StyleSheet,
   Switch,
@@ -17,6 +16,7 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import Toast from 'react-native-toast-message';
+
 import api from '../../src/services/api';
 
 const DAYS = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
@@ -49,7 +49,7 @@ export default function ArtisanScheduleScreen() {
   const [newBlockedDate, setNewBlockedDate] = useState('');
   const [newBlockedReason, setNewBlockedReason] = useState('');
 
-  const { data: schedule } = useQuery({
+  useQuery({
     queryKey: ['my-schedule'],
     queryFn: () => api.get('/schedule/me').then((r) => r.data),
     onSuccess: (data: any) => {

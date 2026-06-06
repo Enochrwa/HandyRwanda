@@ -26,12 +26,9 @@ const loginSchema = z.object({
   email: z.string().email('Invalid email address'),
 });
 
-const otpSchema = z.object({
-  otp: z
-    .string()
-    .length(6, 'OTP must be exactly 6 digits')
-    .regex(/^\d{6}$/, 'Digits only'),
-});
+// NOTE: otpSchema removed — OTP is managed via plain useState to avoid
+// React Hook Form Controller re-renders overwriting the TextInput value
+// on every parent state change (the "self-deleting input" bug).
 
 const reg1Schema = z.object({
   role: z.enum(['client', 'artisan']),
@@ -68,7 +65,6 @@ const reg3Schema = z.object({
 });
 
 type LoginData = z.infer<typeof loginSchema>;
-type OTPData = z.infer<typeof otpSchema>;
 type Reg1Data = z.infer<typeof reg1Schema>;
 type Reg2Data = z.infer<typeof reg2Schema>;
 type Reg3Data = z.infer<typeof reg3Schema>;
@@ -195,6 +191,11 @@ export default function AuthScreen() {
   const [email, setEmail] = useState('');
   const [loading, setLoading] = useState(false);
   const [otpCooldown, setOtpCooldown] = useState(0);
+
+  // ── OTP local state (replaces RHF Controller to prevent self-delete bug) ──
+  const [otpValue, setOtpValue] = useState('');
+  const [otpError, setOtpError] = useState('');
+
   const [regData, setRegData] = useState<RegistrationData>({
     role: 'client',
     fullName: '',
@@ -213,7 +214,6 @@ export default function AuthScreen() {
   const setAuth = useAuthStore((state) => state.setAuth);
 
   const loginForm = useForm<LoginData>({ resolver: zodResolver(loginSchema) });
-  const otpForm = useForm<OTPData>({ resolver: zodResolver(otpSchema) });
   const reg1Form = useForm<Reg1Data>({
     resolver: zodResolver(reg1Schema),
     defaultValues: { role: 'client', preferred_lang: 'rw' },
@@ -244,6 +244,8 @@ export default function AuthScreen() {
     try {
       await api.post('/auth/otp/request', { email: data.email, lang: 'en' });
       setEmail(data.email);
+      setOtpValue('');
+      setOtpError('');
       setLoginStep('verify');
       startCooldown(60);
       Toast.show({
@@ -260,10 +262,21 @@ export default function AuthScreen() {
     }
   };
 
-  const onVerifyOTP = async (data: OTPData) => {
+  // Called directly — no RHF involved, so no re-render race condition.
+  const onVerifyOTP = async () => {
+    // Manual validation
+    if (otpValue.length === 0) {
+      setOtpError('Please enter the verification code');
+      return;
+    }
+    if (otpValue.length !== 6 || !/^\d{6}$/.test(otpValue)) {
+      setOtpError('OTP must be exactly 6 digits');
+      return;
+    }
+    setOtpError('');
     setLoading(true);
     try {
-      const res = await api.post('/auth/otp/verify', { email, otp_code: data.otp });
+      const res = await api.post('/auth/otp/verify', { email, otp_code: otpValue });
       const { user, access_token, refresh_token } = res.data;
       setAuth(
         {
@@ -286,7 +299,7 @@ export default function AuthScreen() {
     } catch (err: any) {
       const detail = err.response?.data?.detail;
       const msg = typeof detail === 'string' ? detail : detail?.message;
-      Toast.show({ type: 'error', text1: 'Error', text2: msg ?? 'Invalid code' });
+      setOtpError(msg ?? 'Invalid code. Please try again.');
     } finally {
       setLoading(false);
     }
@@ -297,6 +310,8 @@ export default function AuthScreen() {
     setLoading(true);
     try {
       await api.post('/auth/otp/request', { email, lang: 'en' });
+      setOtpValue('');
+      setOtpError('');
       startCooldown(60);
       Toast.show({ type: 'success', text1: 'New code sent!' });
     } catch {
@@ -310,11 +325,8 @@ export default function AuthScreen() {
 
   const onReg1 = (data: Reg1Data) => {
     setRegData((prev) => {
-      // Merge data, but ignore undefined fields to avoid overwriting with undefined
       const filteredData = Object.entries(data).reduce(
-        (acc, [key, val]) => {
-          return val !== undefined ? { ...acc, [key]: val } : acc;
-        },
+        (acc, [key, val]) => (val !== undefined ? { ...acc, [key]: val } : acc),
         {} as Record<string, unknown>,
       );
       return { ...prev, ...filteredData };
@@ -324,11 +336,8 @@ export default function AuthScreen() {
 
   const onReg2 = (data: Reg2Data) => {
     setRegData((prev) => {
-      // Merge data, but ignore undefined fields to avoid overwriting with undefined
       const filteredData = Object.entries(data).reduce(
-        (acc, [key, val]) => {
-          return val !== undefined ? { ...acc, [key]: val } : acc;
-        },
+        (acc, [key, val]) => (val !== undefined ? { ...acc, [key]: val } : acc),
         {} as Record<string, unknown>,
       );
       return { ...prev, ...filteredData };
@@ -362,6 +371,8 @@ export default function AuthScreen() {
       // Transition to login OTP verify
       setEmail(merged.email);
       loginForm.setValue('email', merged.email);
+      setOtpValue('');
+      setOtpError('');
       setActiveTab('login');
       setLoginStep('verify');
       startCooldown(60);
@@ -501,6 +512,7 @@ export default function AuthScreen() {
                 </TouchableOpacity>
               </View>
             ) : (
+              // ── OTP VERIFY — plain useState, no RHF Controller ─────────
               <View>
                 <SectionLabel emoji="🔒" title="Enter your code" subtitle={`Sent to ${email}`} />
                 <InfoBox
@@ -508,30 +520,33 @@ export default function AuthScreen() {
                   variant="info"
                 />
 
-                <Controller
-                  control={otpForm.control}
-                  name="otp"
-                  render={({ field: { onChange, value }, fieldState: { error } }) => (
-                    <View className="mb-4">
-                      <TextInput
-                        className={`bg-muted/50 p-4 rounded-xl border text-center text-3xl tracking-[0.5em] font-bold ${
-                          error ? 'border-destructive' : 'border-primary'
-                        }`}
-                        placeholder="------"
-                        value={value}
-                        onChangeText={(t) => onChange(t.replace(/\D/g, '').slice(0, 6))}
-                        keyboardType="number-pad"
-                        maxLength={6}
-                        autoFocus
-                      />
-                      <FieldError message={error?.message} />
-                    </View>
-                  )}
-                />
+                <View className="mb-4">
+                  <TextInput
+                    className={`bg-muted/50 p-4 rounded-xl border text-center text-3xl tracking-[0.5em] font-bold ${
+                      otpError ? 'border-destructive' : 'border-primary'
+                    }`}
+                    placeholder="------"
+                    // value is driven ONLY by local state — no RHF re-render interference
+                    value={otpValue}
+                    onChangeText={(t) => {
+                      const cleaned = t.replace(/\D/g, '').slice(0, 6);
+                      setOtpValue(cleaned);
+                      if (otpError) setOtpError('');
+                    }}
+                    keyboardType="number-pad"
+                    maxLength={6}
+                    autoFocus
+                    // Prevent autocorrect / suggestions from clobbering digits
+                    autoCorrect={false}
+                    autoComplete="one-time-code"
+                    textContentType="oneTimeCode"
+                  />
+                  <FieldError message={otpError} />
+                </View>
 
                 <TouchableOpacity
                   accessibilityLabel="Verify code and sign in"
-                  onPress={otpForm.handleSubmit(onVerifyOTP)}
+                  onPress={onVerifyOTP}
                   disabled={loading}
                   className="bg-primary p-4 rounded-xl items-center mb-3"
                 >
@@ -545,7 +560,11 @@ export default function AuthScreen() {
                 <View className="flex-row justify-between items-center">
                   <TouchableOpacity
                     accessibilityLabel="Change email"
-                    onPress={() => setLoginStep('request')}
+                    onPress={() => {
+                      setLoginStep('request');
+                      setOtpValue('');
+                      setOtpError('');
+                    }}
                   >
                     <Text className="text-muted-foreground text-sm">← Change email</Text>
                   </TouchableOpacity>

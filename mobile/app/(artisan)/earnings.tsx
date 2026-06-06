@@ -1,5 +1,6 @@
 // File: mobile/app/(artisan)/earnings.tsx
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { useQuery, useMutation } from '@tanstack/react-query';
+import { formatDistanceToNow } from 'date-fns';
 import { useState } from 'react';
 import {
   RefreshControl,
@@ -12,11 +13,10 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import Toast from 'react-native-toast-message';
-import { formatDistanceToNow } from 'date-fns';
+
 import api from '../../src/services/api';
 
 export default function ArtisanEarningsScreen() {
-  const qc = useQueryClient();
   const [momoNumber, setMomoNumber] = useState('');
   const [amount, setAmount] = useState('');
 
@@ -41,7 +41,7 @@ export default function ArtisanEarningsScreen() {
 
   const withdraw = useMutation({
     mutationFn: () =>
-      api.post('/escrow/withdraw', { amount: parseInt(amount), momo_number: momoNumber }),
+      api.post('/escrow/withdraw', { amount: parseInt(amount, 10), momo_number: momoNumber }),
     onSuccess: () => {
       Toast.show({
         type: 'success',

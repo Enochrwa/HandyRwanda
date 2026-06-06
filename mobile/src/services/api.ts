@@ -1,21 +1,43 @@
 // File: mobile/src/services/api.ts
 import axios from 'axios';
+import Constants from 'expo-constants';
 import { router } from 'expo-router';
 import { Platform } from 'react-native';
 
 import { useAuthStore } from '../store/authStore';
 
 // ── Base URL ────────────────────────────────────────────────────────────────
-// Priority:
-// 1. .env (EXPO_PUBLIC_API_URL)
-// 2. Android emulator fallback
-// 3. Hard fallback (your LAN IP)
+// .env (EXPO_PUBLIC_API_URL) takes priority.
+// For Expo Go on a physical device, fall back to the Metro dev server host,
+// automatically detected from expo-constants or expo-router manifest.
+// On Android emulator use 10.0.2.2 (host loopback alias).
+// Web or native builds without dev host fall back to your LAN IP.
+
+const LAN_IP = 'http://192.168.1.105:8000';
+
+const getDevHost = (): string | null => {
+  if (Platform.OS === 'web') return LAN_IP;
+
+  // expo-router / Expo Go: manifest.debuggerHost === "192.168.x.x:8081"
+  const debugHost =
+    (Constants.expoConfig as any)?.hostUri || (Constants.manifest as any)?.debuggerHost;
+
+  if (debugHost) {
+    const host = debugHost.split(':')[0];
+    if (host && !host.startsWith('localhost') && !host.startsWith('127.')) {
+      return `http://${host}:8000`;
+    }
+  }
+
+  return null;
+};
 
 const API_BASE_URL =
   process.env.EXPO_PUBLIC_API_URL ||
-  (Platform.OS === 'android'
-    ? 'http://10.0.2.2:8000' // Android emulator only
-    : 'http://192.168.1.105:8000'); // 👈 your Mac IP
+  getDevHost() ||
+  (Platform.OS === 'android' ? 'http://10.0.2.2:8000' : LAN_IP);
+
+console.log('[API] Base URL:', API_BASE_URL);
 
 // ── Axios instance ─────────────────────────────────────────────────────────
 

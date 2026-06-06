@@ -1,5 +1,6 @@
 // File: mobile/app/notifications.tsx
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { formatDistanceToNow } from 'date-fns';
 import { useRouter } from 'expo-router';
 import { Bell, Check, Settings } from 'lucide-react-native';
 import { useCallback } from 'react';
@@ -16,7 +17,6 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 
 import api from '../src/services/api';
 import { useAuthStore } from '../src/store/authStore';
-import { formatDistanceToNow } from 'date-fns';
 
 interface Notification {
   id: string;

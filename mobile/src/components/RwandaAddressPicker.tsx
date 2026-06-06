@@ -3,10 +3,11 @@
  * Mobile Rwanda address picker with cascading dropdowns.
  * Province → District → Sector → Cell → Village → Street/Road
  */
-import React, { useEffect, useState } from 'react';
-import { View, Text, ScrollView, TextInput, StyleSheet, Platform } from 'react-native';
 import { Picker } from '@react-native-picker/picker';
 import { useQuery } from '@tanstack/react-query';
+import React, { useCallback, useEffect, useState } from 'react';
+import { Platform, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
+
 import api from '../services/api';
 
 export interface RwandaAddress {
@@ -31,6 +32,10 @@ export function RwandaAddressPicker({ value, onChange }: Props) {
   const [cell, setCell] = useState(value?.cell ?? '');
   const [village, setVillage] = useState(value?.village ?? '');
   const [streetRoad, setStreetRoad] = useState(value?.street_road ?? '');
+
+  // iOS picker wheel needs an explicit text color; Android ignores itemStyle.
+  // pickerStyle was defined but never consumed — wired up here via Platform.
+  const pickerStyle = Platform.OS === 'ios' ? { color: '#111' } : undefined;
 
   const { data: provinces } = useQuery<string[]>({
     queryKey: ['addr-provinces'],
@@ -72,28 +77,43 @@ export function RwandaAddressPicker({ value, onChange }: Props) {
     staleTime: Infinity,
   });
 
-  useEffect(() => {
-    if (!district) return;
-    const parts = [streetRoad, village, cell, sector, district, 'Rwanda'].filter(Boolean);
-    onChange({
-      province,
-      district,
-      sector,
-      cell,
-      village,
-      street_road: streetRoad,
-      formatted: parts.join(', '),
-    });
-  }, [province, district, sector, cell, village, streetRoad]);
+  // Stable notify — mirrors the web version's useCallback pattern so onChange
+  // can safely live in the useEffect dep array without causing infinite loops.
+  const notify = useCallback(
+    (p: string, d: string, s: string, c: string, v: string, sr: string) => {
+      if (!d) return;
+      const parts = [sr, v, c, s, d, p, 'Rwanda'].filter(Boolean);
+      onChange({
+        province: p,
+        district: d,
+        sector: s,
+        cell: c,
+        village: v,
+        street_road: sr,
+        formatted: parts.join(', '),
+      });
+    },
+    [onChange],
+  );
 
-  const pickerStyle = { color: '#111' };
+  useEffect(() => {
+    notify(province, district, sector, cell, village, streetRoad);
+  }, [province, district, sector, cell, village, streetRoad, notify]);
 
   return (
-    <View style={styles.container}>
+    // ScrollView lets the full picker list scroll on small screens without
+    // clipping the lower fields — nestedScrollEnabled for Android list views.
+    <ScrollView
+      style={styles.scroll}
+      contentContainerStyle={styles.container}
+      nestedScrollEnabled
+      keyboardShouldPersistTaps="handled"
+    >
       <PickerRow
         label="Province *"
         value={province}
         items={provinces ?? []}
+        pickerItemStyle={pickerStyle}
         onValueChange={(v) => {
           setProvince(v);
           setDistrict('');
@@ -106,6 +126,7 @@ export function RwandaAddressPicker({ value, onChange }: Props) {
         label="District *"
         value={district}
         items={districts ?? []}
+        pickerItemStyle={pickerStyle}
         onValueChange={(v) => {
           setDistrict(v);
           setSector('');
@@ -118,6 +139,7 @@ export function RwandaAddressPicker({ value, onChange }: Props) {
         label="Sector"
         value={sector}
         items={sectors ?? []}
+        pickerItemStyle={pickerStyle}
         onValueChange={(v) => {
           setSector(v);
           setCell('');
@@ -129,6 +151,7 @@ export function RwandaAddressPicker({ value, onChange }: Props) {
         label="Cell"
         value={cell}
         items={cells ?? []}
+        pickerItemStyle={pickerStyle}
         onValueChange={(v) => {
           setCell(v);
           setVillage('');
@@ -165,7 +188,7 @@ export function RwandaAddressPicker({ value, onChange }: Props) {
           </Text>
         </View>
       ) : null}
-    </View>
+    </ScrollView>
   );
 }
 
@@ -174,19 +197,26 @@ function PickerRow({
   value,
   items,
   onValueChange,
+  pickerItemStyle,
   disabled,
 }: {
   label: string;
   value: string;
   items: string[];
   onValueChange: (v: string) => void;
+  pickerItemStyle?: { color: string } | undefined;
   disabled?: boolean;
 }) {
   return (
     <View style={styles.field}>
-      <Text style={[styles.label, disabled && { opacity: 0.4 }]}>{label}</Text>
-      <View style={[styles.pickerWrapper, disabled && { opacity: 0.4 }]}>
-        <Picker selectedValue={value} onValueChange={onValueChange} enabled={!disabled}>
+      <Text style={[styles.label, disabled && styles.dimmed]}>{label}</Text>
+      <View style={[styles.pickerWrapper, disabled && styles.dimmed]}>
+        <Picker
+          selectedValue={value}
+          onValueChange={onValueChange}
+          enabled={!disabled}
+          itemStyle={pickerItemStyle}
+        >
           <Picker.Item label={`Select ${label.replace(' *', '')}...`} value="" />
           {items.map((item) => (
             <Picker.Item key={item} label={item} value={item} />
@@ -198,9 +228,11 @@ function PickerRow({
 }
 
 const styles = StyleSheet.create({
+  scroll: { flexGrow: 0 },
   container: { gap: 12 },
   field: { gap: 4 },
   label: { fontSize: 13, fontWeight: '600', color: '#374151' },
+  dimmed: { opacity: 0.4 },
   pickerWrapper: {
     borderWidth: 1,
     borderColor: '#D1D5DB',

@@ -136,7 +136,6 @@ function PushTokenRegistrar() {
  */
 function handleNotificationDeepLink(data: Record<string, string>) {
   try {
-    // eslint-disable-next-line @typescript-eslint/no-require-imports
     const { router } = require('expo-router') as {
       router: { push: (path: string) => void; replace: (path: string) => void };
     };

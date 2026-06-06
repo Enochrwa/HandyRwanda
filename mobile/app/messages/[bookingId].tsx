@@ -239,6 +239,19 @@ export default function ChatThread() {
                 </TouchableOpacity>
               </View>
             )}
+            {status === 'pending_payment' && !isClient && (
+              <View className="mt-3 bg-blue-50 border border-blue-200 rounded-2xl px-4 py-3 flex-row items-center gap-2">
+                <TouchableOpacity
+                  onPress={() => confirmPayment.mutate()}
+                  disabled={confirmPayment.isPending}
+                  className="flex-1 bg-primary rounded-xl py-2 items-center"
+                >
+                  <Text className="text-white text-xs font-bold">
+                    {confirmPayment.isPending ? 'Confirming…' : 'Confirm Payment Received'}
+                  </Text>
+                </TouchableOpacity>
+              </View>
+            )}
             {status === 'in_progress' && isClient && (
               <View className="mt-3 bg-green-50 border border-green-200 rounded-2xl px-4 py-2 flex-row gap-2">
                 <TouchableOpacity

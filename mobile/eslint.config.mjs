@@ -15,6 +15,11 @@ export default [
     ignores: ['**/node_modules/**', '**/.expo/**', '**/dist/**', '**/*.d.ts'],
   },
   {
+    languageOptions: {
+      globals: {
+        __dirname: 'readonly',
+      },
+    },
     rules: {
       '@typescript-eslint/no-explicit-any': 'off',
       'react-hooks/exhaustive-deps': 'off',

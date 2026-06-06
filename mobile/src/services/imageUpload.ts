@@ -9,6 +9,7 @@
  * File size gate: rejects images > 5 MB before any network call.
  */
 import * as FileSystem from 'expo-file-system';
+
 import api from './api';
 
 const MAX_BYTES = 5 * 1024 * 1024; // 5 MB

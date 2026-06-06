@@ -13,17 +13,17 @@ import { Route as SearchRouteImport } from "./routes/search";
 import { Route as ProRouteImport } from "./routes/pro";
 import { Route as MessagesRouteImport } from "./routes/messages";
 import { Route as IndexRouteImport } from "./routes/index";
+import { Route as SettingsNotificationsRouteImport } from "./routes/settings/notifications";
 import { Route as ProfilePortfolioRouteImport } from "./routes/profile/portfolio";
 import { Route as OnboardingArtisanRouteImport } from "./routes/onboarding/artisan";
+import { Route as LegalTermsRouteImport } from "./routes/legal/terms";
+import { Route as LegalPrivacyRouteImport } from "./routes/legal/privacy";
 import { Route as JobsPostRouteImport } from "./routes/jobs/post";
 import { Route as ArtisansJobsRouteImport } from "./routes/artisans/jobs";
+import { Route as ArtisanEarningsRouteImport } from "./routes/artisan/earnings";
 import { Route as ArtisanIdRouteImport } from "./routes/artisan.$id";
 import { Route as AdminVerificationRouteImport } from "./routes/admin/verification";
 import { Route as ArtisansJobsJobIdIndexRouteImport } from "./routes/artisans/jobs/$jobId/index";
-import { Route as ArtisanEarningsRouteImport } from "./routes/artisan/earnings";
-import { Route as LegalPrivacyRouteImport } from "./routes/legal/privacy";
-import { Route as LegalTermsRouteImport } from "./routes/legal/terms";
-import { Route as SettingsNotificationsRouteImport } from "./routes/settings/notifications";
 
 const SearchRoute = SearchRouteImport.update({
   id: "/search",
@@ -45,6 +45,11 @@ const IndexRoute = IndexRouteImport.update({
   path: "/",
   getParentRoute: () => rootRouteImport,
 } as any);
+const SettingsNotificationsRoute = SettingsNotificationsRouteImport.update({
+  id: "/settings/notifications",
+  path: "/settings/notifications",
+  getParentRoute: () => rootRouteImport,
+} as any);
 const ProfilePortfolioRoute = ProfilePortfolioRouteImport.update({
   id: "/profile/portfolio",
   path: "/profile/portfolio",
@@ -55,6 +60,16 @@ const OnboardingArtisanRoute = OnboardingArtisanRouteImport.update({
   path: "/onboarding/artisan",
   getParentRoute: () => rootRouteImport,
 } as any);
+const LegalTermsRoute = LegalTermsRouteImport.update({
+  id: "/legal/terms",
+  path: "/legal/terms",
+  getParentRoute: () => rootRouteImport,
+} as any);
+const LegalPrivacyRoute = LegalPrivacyRouteImport.update({
+  id: "/legal/privacy",
+  path: "/legal/privacy",
+  getParentRoute: () => rootRouteImport,
+} as any);
 const JobsPostRoute = JobsPostRouteImport.update({
   id: "/jobs/post",
   path: "/jobs/post",
@@ -63,6 +78,11 @@ const JobsPostRoute = JobsPostRouteImport.update({
 const ArtisansJobsRoute = ArtisansJobsRouteImport.update({
   id: "/artisans/jobs",
   path: "/artisans/jobs",
+  getParentRoute: () => rootRouteImport,
+} as any);
+const ArtisanEarningsRoute = ArtisanEarningsRouteImport.update({
+  id: "/artisan/earnings",
+  path: "/artisan/earnings",
   getParentRoute: () => rootRouteImport,
 } as any);
 const ArtisanIdRoute = ArtisanIdRouteImport.update({
@@ -81,27 +101,6 @@ const ArtisansJobsJobIdIndexRoute = ArtisansJobsJobIdIndexRouteImport.update({
   getParentRoute: () => ArtisansJobsRoute,
 } as any);
 
-const ArtisanEarningsRoute = ArtisanEarningsRouteImport.update({
-  id: "/artisan/earnings",
-  path: "/artisan/earnings",
-  getParentRoute: () => rootRouteImport,
-} as any);
-const LegalPrivacyRoute = LegalPrivacyRouteImport.update({
-  id: "/legal/privacy",
-  path: "/legal/privacy",
-  getParentRoute: () => rootRouteImport,
-} as any);
-const LegalTermsRoute = LegalTermsRouteImport.update({
-  id: "/legal/terms",
-  path: "/legal/terms",
-  getParentRoute: () => rootRouteImport,
-} as any);
-const SettingsNotificationsRoute = SettingsNotificationsRouteImport.update({
-  id: "/settings/notifications",
-  path: "/settings/notifications",
-  getParentRoute: () => rootRouteImport,
-} as any);
-
 export interface FileRoutesByFullPath {
   "/": typeof IndexRoute;
   "/messages": typeof MessagesRoute;
@@ -109,15 +108,15 @@ export interface FileRoutesByFullPath {
   "/search": typeof SearchRoute;
   "/admin/verification": typeof AdminVerificationRoute;
   "/artisan/$id": typeof ArtisanIdRoute;
+  "/artisan/earnings": typeof ArtisanEarningsRoute;
   "/artisans/jobs": typeof ArtisansJobsRouteWithChildren;
   "/jobs/post": typeof JobsPostRoute;
-  "/onboarding/artisan": typeof OnboardingArtisanRoute;
-  "/profile/portfolio": typeof ProfilePortfolioRoute;
-  "/artisans/jobs/$jobId/": typeof ArtisansJobsJobIdIndexRoute;
-  "/artisan/earnings": typeof ArtisanEarningsRoute;
   "/legal/privacy": typeof LegalPrivacyRoute;
   "/legal/terms": typeof LegalTermsRoute;
+  "/onboarding/artisan": typeof OnboardingArtisanRoute;
+  "/profile/portfolio": typeof ProfilePortfolioRoute;
   "/settings/notifications": typeof SettingsNotificationsRoute;
+  "/artisans/jobs/$jobId/": typeof ArtisansJobsJobIdIndexRoute;
 }
 export interface FileRoutesByTo {
   "/": typeof IndexRoute;
@@ -126,15 +125,15 @@ export interface FileRoutesByTo {
   "/search": typeof SearchRoute;
   "/admin/verification": typeof AdminVerificationRoute;
   "/artisan/$id": typeof ArtisanIdRoute;
+  "/artisan/earnings": typeof ArtisanEarningsRoute;
   "/artisans/jobs": typeof ArtisansJobsRouteWithChildren;
   "/jobs/post": typeof JobsPostRoute;
-  "/onboarding/artisan": typeof OnboardingArtisanRoute;
-  "/profile/portfolio": typeof ProfilePortfolioRoute;
-  "/artisans/jobs/$jobId": typeof ArtisansJobsJobIdIndexRoute;
-  "/artisan/earnings": typeof ArtisanEarningsRoute;
   "/legal/privacy": typeof LegalPrivacyRoute;
   "/legal/terms": typeof LegalTermsRoute;
+  "/onboarding/artisan": typeof OnboardingArtisanRoute;
+  "/profile/portfolio": typeof ProfilePortfolioRoute;
   "/settings/notifications": typeof SettingsNotificationsRoute;
+  "/artisans/jobs/$jobId": typeof ArtisansJobsJobIdIndexRoute;
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport;
@@ -144,15 +143,15 @@ export interface FileRoutesById {
   "/search": typeof SearchRoute;
   "/admin/verification": typeof AdminVerificationRoute;
   "/artisan/$id": typeof ArtisanIdRoute;
+  "/artisan/earnings": typeof ArtisanEarningsRoute;
   "/artisans/jobs": typeof ArtisansJobsRouteWithChildren;
   "/jobs/post": typeof JobsPostRoute;
-  "/onboarding/artisan": typeof OnboardingArtisanRoute;
-  "/profile/portfolio": typeof ProfilePortfolioRoute;
-  "/artisans/jobs/$jobId/": typeof ArtisansJobsJobIdIndexRoute;
-  "/artisan/earnings": typeof ArtisanEarningsRoute;
   "/legal/privacy": typeof LegalPrivacyRoute;
   "/legal/terms": typeof LegalTermsRoute;
+  "/onboarding/artisan": typeof OnboardingArtisanRoute;
+  "/profile/portfolio": typeof ProfilePortfolioRoute;
   "/settings/notifications": typeof SettingsNotificationsRoute;
+  "/artisans/jobs/$jobId/": typeof ArtisansJobsJobIdIndexRoute;
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath;
@@ -163,15 +162,15 @@ export interface FileRouteTypes {
     | "/search"
     | "/admin/verification"
     | "/artisan/$id"
+    | "/artisan/earnings"
     | "/artisans/jobs"
     | "/jobs/post"
-    | "/onboarding/artisan"
-    | "/profile/portfolio"
-    | "/artisans/jobs/$jobId/"
-    | "/artisan/earnings"
     | "/legal/privacy"
     | "/legal/terms"
-    | "/settings/notifications";
+    | "/onboarding/artisan"
+    | "/profile/portfolio"
+    | "/settings/notifications"
+    | "/artisans/jobs/$jobId/";
   fileRoutesByTo: FileRoutesByTo;
   to:
     | "/"
@@ -180,15 +179,15 @@ export interface FileRouteTypes {
     | "/search"
     | "/admin/verification"
     | "/artisan/$id"
+    | "/artisan/earnings"
     | "/artisans/jobs"
     | "/jobs/post"
-    | "/onboarding/artisan"
-    | "/profile/portfolio"
-    | "/artisans/jobs/$jobId"
-    | "/artisan/earnings"
     | "/legal/privacy"
     | "/legal/terms"
-    | "/settings/notifications";
+    | "/onboarding/artisan"
+    | "/profile/portfolio"
+    | "/settings/notifications"
+    | "/artisans/jobs/$jobId";
   id:
     | "__root__"
     | "/"
@@ -197,15 +196,15 @@ export interface FileRouteTypes {
     | "/search"
     | "/admin/verification"
     | "/artisan/$id"
+    | "/artisan/earnings"
     | "/artisans/jobs"
     | "/jobs/post"
-    | "/onboarding/artisan"
-    | "/profile/portfolio"
-    | "/artisans/jobs/$jobId/"
-    | "/artisan/earnings"
     | "/legal/privacy"
     | "/legal/terms"
-    | "/settings/notifications";
+    | "/onboarding/artisan"
+    | "/profile/portfolio"
+    | "/settings/notifications"
+    | "/artisans/jobs/$jobId/";
   fileRoutesById: FileRoutesById;
 }
 export interface RootRouteChildren {
@@ -215,13 +214,13 @@ export interface RootRouteChildren {
   SearchRoute: typeof SearchRoute;
   AdminVerificationRoute: typeof AdminVerificationRoute;
   ArtisanIdRoute: typeof ArtisanIdRoute;
+  ArtisanEarningsRoute: typeof ArtisanEarningsRoute;
   ArtisansJobsRoute: typeof ArtisansJobsRouteWithChildren;
   JobsPostRoute: typeof JobsPostRoute;
-  OnboardingArtisanRoute: typeof OnboardingArtisanRoute;
-  ProfilePortfolioRoute: typeof ProfilePortfolioRoute;
-  ArtisanEarningsRoute: typeof ArtisanEarningsRoute;
   LegalPrivacyRoute: typeof LegalPrivacyRoute;
   LegalTermsRoute: typeof LegalTermsRoute;
+  OnboardingArtisanRoute: typeof OnboardingArtisanRoute;
+  ProfilePortfolioRoute: typeof ProfilePortfolioRoute;
   SettingsNotificationsRoute: typeof SettingsNotificationsRoute;
 }
 
@@ -255,6 +254,13 @@ declare module "@tanstack/react-router" {
       preLoaderRoute: typeof IndexRouteImport;
       parentRoute: typeof rootRouteImport;
     };
+    "/settings/notifications": {
+      id: "/settings/notifications";
+      path: "/settings/notifications";
+      fullPath: "/settings/notifications";
+      preLoaderRoute: typeof SettingsNotificationsRouteImport;
+      parentRoute: typeof rootRouteImport;
+    };
     "/profile/portfolio": {
       id: "/profile/portfolio";
       path: "/profile/portfolio";
@@ -269,6 +275,20 @@ declare module "@tanstack/react-router" {
       preLoaderRoute: typeof OnboardingArtisanRouteImport;
       parentRoute: typeof rootRouteImport;
     };
+    "/legal/terms": {
+      id: "/legal/terms";
+      path: "/legal/terms";
+      fullPath: "/legal/terms";
+      preLoaderRoute: typeof LegalTermsRouteImport;
+      parentRoute: typeof rootRouteImport;
+    };
+    "/legal/privacy": {
+      id: "/legal/privacy";
+      path: "/legal/privacy";
+      fullPath: "/legal/privacy";
+      preLoaderRoute: typeof LegalPrivacyRouteImport;
+      parentRoute: typeof rootRouteImport;
+    };
     "/jobs/post": {
       id: "/jobs/post";
       path: "/jobs/post";
@@ -281,6 +301,13 @@ declare module "@tanstack/react-router" {
       path: "/artisans/jobs";
       fullPath: "/artisans/jobs";
       preLoaderRoute: typeof ArtisansJobsRouteImport;
+      parentRoute: typeof rootRouteImport;
+    };
+    "/artisan/earnings": {
+      id: "/artisan/earnings";
+      path: "/artisan/earnings";
+      fullPath: "/artisan/earnings";
+      preLoaderRoute: typeof ArtisanEarningsRouteImport;
       parentRoute: typeof rootRouteImport;
     };
     "/artisan/$id": {
@@ -304,34 +331,6 @@ declare module "@tanstack/react-router" {
       preLoaderRoute: typeof ArtisansJobsJobIdIndexRouteImport;
       parentRoute: typeof ArtisansJobsRoute;
     };
-    "/artisan/earnings": {
-      id: "/artisan/earnings";
-      path: "/artisan/earnings";
-      fullPath: "/artisan/earnings";
-      preLoaderRoute: typeof ArtisanEarningsRouteImport;
-      parentRoute: typeof rootRouteImport;
-    };
-    "/legal/privacy": {
-      id: "/legal/privacy";
-      path: "/legal/privacy";
-      fullPath: "/legal/privacy";
-      preLoaderRoute: typeof LegalPrivacyRouteImport;
-      parentRoute: typeof rootRouteImport;
-    };
-    "/legal/terms": {
-      id: "/legal/terms";
-      path: "/legal/terms";
-      fullPath: "/legal/terms";
-      preLoaderRoute: typeof LegalTermsRouteImport;
-      parentRoute: typeof rootRouteImport;
-    };
-    "/settings/notifications": {
-      id: "/settings/notifications";
-      path: "/settings/notifications";
-      fullPath: "/settings/notifications";
-      preLoaderRoute: typeof SettingsNotificationsRouteImport;
-      parentRoute: typeof rootRouteImport;
-    };
   }
 }
 
@@ -352,13 +351,13 @@ const rootRouteChildren: RootRouteChildren = {
   SearchRoute: SearchRoute,
   AdminVerificationRoute: AdminVerificationRoute,
   ArtisanIdRoute: ArtisanIdRoute,
+  ArtisanEarningsRoute: ArtisanEarningsRoute,
   ArtisansJobsRoute: ArtisansJobsRouteWithChildren,
   JobsPostRoute: JobsPostRoute,
-  OnboardingArtisanRoute: OnboardingArtisanRoute,
-  ProfilePortfolioRoute: ProfilePortfolioRoute,
-  ArtisanEarningsRoute: ArtisanEarningsRoute,
   LegalPrivacyRoute: LegalPrivacyRoute,
   LegalTermsRoute: LegalTermsRoute,
+  OnboardingArtisanRoute: OnboardingArtisanRoute,
+  ProfilePortfolioRoute: ProfilePortfolioRoute,
   SettingsNotificationsRoute: SettingsNotificationsRoute,
 };
 export const routeTree = rootRouteImport

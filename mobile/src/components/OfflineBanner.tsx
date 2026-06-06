@@ -6,6 +6,7 @@
  */
 import React, { useEffect, useRef } from 'react';
 import { Animated, StyleSheet, Text, View } from 'react-native';
+
 import { useOfflineStatus } from '../hooks/useOfflineCache';
 
 export function OfflineBanner() {

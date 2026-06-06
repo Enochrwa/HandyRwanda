@@ -71,9 +71,17 @@ class RegisterRequest(BaseModel):
     gender: Gender | None = None
     date_of_birth: date | None = None
     national_id: str | None = Field(default=None, description="Rwanda 16-digit NID")
+    # Structured Rwanda address
+    province: str | None = None
     district: str | None = None
     sector: str | None = None
-    address_detail: str | None = Field(default=None, max_length=300)
+    cell: str | None = None
+    village: str | None = None
+    address_detail: str | None = Field(
+        default=None,
+        max_length=300,
+        description="Street/road, house number, landmark — plain text fallback",
+    )
 
     # Preferences
     preferred_lang: Literal["rw", "en", "fr"] = "rw"
@@ -160,7 +168,12 @@ class UserBase(BaseModel):
     role: UserRole
     account_status: AccountStatus
     email_verified: bool
+    province: str | None = None
     district: str | None
+    sector: str | None = None
+    cell: str | None = None
+    village: str | None = None
+    address_detail: str | None = None
     preferred_lang: str
 
     model_config = ConfigDict(from_attributes=True)
@@ -180,9 +193,17 @@ class ProfileUpdate(BaseModel):
     gender: Gender | None = None
     date_of_birth: date | None = None
     national_id: str | None = None
+    # Structured Rwanda address
+    province: str | None = None
     district: str | None = None
     sector: str | None = None
-    address_detail: str | None = None
+    cell: str | None = None
+    village: str | None = None
+    address_detail: str | None = Field(
+        default=None,
+        max_length=300,
+        description="Street/road, house number, landmark — plain-text supplement",
+    )
     preferred_lang: Literal["rw", "en", "fr"] | None = None
 
     @field_validator("national_id")

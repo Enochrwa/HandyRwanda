@@ -6,6 +6,7 @@ GET /address/provinces              — list all provinces
 GET /address/districts              — list all districts (optionally filter by province)
 GET /address/sectors                — list sectors in a district
 GET /address/cells                  — list cells in a sector
+GET /address/villages               — list villages (alias for cells at leaf level)
 GET /address/format                 — format an address into a label string
 """
 
@@ -14,11 +15,12 @@ from typing import Any
 from fastapi import APIRouter, HTTPException, Query
 
 from app.utils.rwanda_address import (
-    format_address,
+    format_full_address,
     get_cells,
     get_districts,
     get_provinces,
     get_sectors,
+    get_villages,
 )
 
 router = APIRouter(prefix="/address", tags=["address"])
@@ -63,13 +65,44 @@ async def list_cells(
     return {"cells": cells}
 
 
+@router.get("/villages")
+async def list_villages(
+    province: str = Query(...),
+    district: str = Query(...),
+    sector: str = Query(...),
+) -> Any:
+    """
+    Returns the leaf-level locality names for a sector.
+    In Rwanda's NISR data these are cells/villages — same data as /cells.
+    """
+    villages = get_villages(province, district, sector)
+    if not villages:
+        raise HTTPException(
+            status_code=404,
+            detail=f"No villages found for {sector}, {district}.",
+        )
+    return {"villages": villages}
+
+
 @router.get("/format")
 async def format_address_endpoint(
+    province: str | None = Query(None),
     district: str | None = Query(None),
     sector: str | None = Query(None),
     cell: str | None = Query(None),
     village: str | None = Query(None),
     street_road: str | None = Query(None),
+    house_number: str | None = Query(None),
+    landmark: str | None = Query(None),
 ) -> Any:
-    label = format_address(district, sector, cell, village, street_road)
+    label = format_full_address(
+        province=province,
+        district=district,
+        sector=sector,
+        cell=cell,
+        village=village,
+        street_road=street_road,
+        house_number=house_number,
+        landmark=landmark,
+    )
     return {"formatted": label}

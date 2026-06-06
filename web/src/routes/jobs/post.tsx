@@ -22,40 +22,6 @@ import { formatRWF } from "@/services/artisanService";
 import { uploadImage } from "@/services/imageUpload";
 import { RwandaAddressPicker, type RwandaAddress } from "@/components/RwandaAddressPicker";
 
-// District → approximate center coordinates (WGS-84)
-const DISTRICT_COORDS: Record<string, [number, number]> = {
-  Gasabo: [-1.8845, 30.1167],
-  Kicukiro: [-1.9769, 30.0985],
-  Nyarugenge: [-1.95, 30.0588],
-  Bugesera: [-2.2024, 30.1676],
-  Gatsibo: [-1.576, 30.4602],
-  Kayonza: [-1.88, 30.6474],
-  Kirehe: [-2.169, 30.6748],
-  Ngoma: [-2.1583, 30.4386],
-  Nyagatare: [-1.2985, 30.3263],
-  Rwamagana: [-1.9487, 30.4345],
-  Burera: [-1.4801, 29.8511],
-  Gakenke: [-1.6905, 29.7832],
-  Gicumbi: [-1.5725, 30.0621],
-  Musanze: [-1.4991, 29.6346],
-  Rulindo: [-1.7194, 30.0332],
-  Gisagara: [-2.6095, 29.827],
-  Huye: [-2.5967, 29.7397],
-  Kamonyi: [-2.0278, 29.88],
-  Muhanga: [-2.0833, 29.756],
-  Nyamagabe: [-2.4545, 29.4872],
-  Nyanza: [-2.3571, 29.7527],
-  Nyaruguru: [-2.7316, 29.5441],
-  Ruhango: [-2.2179, 29.7906],
-  Karongi: [-2.1556, 29.367],
-  Ngororero: [-1.8617, 29.5636],
-  Nyabihu: [-1.6571, 29.5014],
-  Nyamasheke: [-2.336, 29.1349],
-  Rubavu: [-1.6812, 29.35],
-  Rusizi: [-2.4824, 28.907],
-  Rutsiro: [-1.9365, 29.4303],
-};
-
 export const Route = createFileRoute("/jobs/post")({
   head: () => ({ meta: [{ title: "Post a Job — HandyRwanda" }] }),
   component: PostJob,
@@ -94,6 +60,8 @@ function PostJob() {
   const [jobAddress, setJobAddress] = useState<Partial<RwandaAddress>>({
     province: "Kigali City",
     district: "Gasabo",
+    latitude: -1.8845,
+    longitude: 30.1167,
   });
   // Store file + blob URL pairs; blob URLs are always same-origin (no XSS risk)
   const [photos, setPhotos] = useState<{ file: File; blobUrl: string }[]>([]);
@@ -190,7 +158,8 @@ function PostJob() {
       }
 
       const district = jobAddress.district ?? "Gasabo";
-      const [lat, lng] = DISTRICT_COORDS[district] ?? [-1.9441, 30.0619];
+      const lat = jobAddress.latitude ?? -1.9441;
+      const lng = jobAddress.longitude ?? 30.0619;
       const locationLabel = jobAddress.formatted ?? district;
       await api.post("/jobs", {
         category_id: formData.category_id,
@@ -200,6 +169,16 @@ function PostJob() {
         location_label: locationLabel,
         latitude: lat,
         longitude: lng,
+        address: {
+          province: jobAddress.province ?? "",
+          district: jobAddress.district ?? "",
+          sector: jobAddress.sector ?? "",
+          cell: jobAddress.cell ?? "",
+          village: jobAddress.village ?? "",
+          street_road: jobAddress.street_road ?? "",
+          house_number: jobAddress.house_number ?? "",
+          landmark: jobAddress.landmark ?? "",
+        },
         urgency: selectedUrgency,
         scheduled_time: buildScheduledTime(),
         budget_negotiable: formData.budget_negotiable,

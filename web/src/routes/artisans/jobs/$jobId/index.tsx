@@ -15,6 +15,17 @@ export const Route = createFileRoute("/artisans/jobs/$jobId/")({
   component: JobDetail,
 });
 
+interface JobAddress {
+  province?: string;
+  district?: string;
+  sector?: string;
+  cell?: string;
+  village?: string;
+  street_road?: string;
+  house_number?: string;
+  landmark?: string;
+}
+
 interface JobItem {
   id: string;
   title: string;
@@ -23,6 +34,9 @@ interface JobItem {
   budget?: number;
   budget_negotiable?: boolean;
   location_label?: string;
+  latitude?: number;
+  longitude?: number;
+  address?: JobAddress;
   created_at?: string;
   scheduled_time?: string;
   urgency?: string;
@@ -220,9 +234,22 @@ function JobDetail() {
             <h2 className="text-base font-bold">{job.title}</h2>
 
             <div className="mt-1.5 flex flex-wrap items-center gap-3 text-sm text-muted-foreground">
-              {job.location_label && (
-                <span className="flex items-center gap-1">
-                  <MapPin className="h-3.5 w-3.5" /> {job.location_label}
+              {/* Structured address — show finest available grain */}
+              {(job.address?.district || job.location_label) && (
+                <span className="flex items-start gap-1">
+                  <MapPin className="h-3.5 w-3.5 mt-0.5 shrink-0" />
+                  <span>
+                    {job.location_label ??
+                      [job.address?.sector, job.address?.district, job.address?.province]
+                        .filter(Boolean)
+                        .join(", ")}
+                    {/* Landmark hint — visible to artisan even before bid accepted */}
+                    {job.address?.landmark && (
+                      <span className="block text-xs text-amber-600 font-medium mt-0.5">
+                        📍 Near {job.address.landmark}
+                      </span>
+                    )}
+                  </span>
                 </span>
               )}
               {job.budget ? (
@@ -285,6 +312,74 @@ function JobDetail() {
                 <p className="text-sm font-semibold text-green-700">
                   You already submitted a bid on this job.
                 </p>
+              </div>
+            )}
+
+            {/* Full address detail — shown once artisan has bid (they need this to plan travel) */}
+            {alreadyBid && job.address && (
+              <div className="rounded-xl border border-blue-200 bg-blue-50 p-4 space-y-2">
+                <p className="text-xs font-bold text-blue-700 uppercase tracking-wide">
+                  📍 Job Location Detail
+                </p>
+                <div className="grid grid-cols-2 gap-x-4 gap-y-1 text-sm">
+                  {job.address.province && (
+                    <>
+                      <span className="text-muted-foreground text-xs">Province</span>
+                      <span className="font-medium">{job.address.province}</span>
+                    </>
+                  )}
+                  {job.address.district && (
+                    <>
+                      <span className="text-muted-foreground text-xs">District</span>
+                      <span className="font-medium">{job.address.district}</span>
+                    </>
+                  )}
+                  {job.address.sector && (
+                    <>
+                      <span className="text-muted-foreground text-xs">Sector</span>
+                      <span className="font-medium">{job.address.sector}</span>
+                    </>
+                  )}
+                  {job.address.cell && (
+                    <>
+                      <span className="text-muted-foreground text-xs">Cell</span>
+                      <span className="font-medium">{job.address.cell}</span>
+                    </>
+                  )}
+                  {job.address.village && (
+                    <>
+                      <span className="text-muted-foreground text-xs">Village</span>
+                      <span className="font-medium">{job.address.village}</span>
+                    </>
+                  )}
+                  {job.address.street_road && (
+                    <>
+                      <span className="text-muted-foreground text-xs">Street</span>
+                      <span className="font-medium">{job.address.street_road}</span>
+                    </>
+                  )}
+                  {job.address.house_number && (
+                    <>
+                      <span className="text-muted-foreground text-xs">House No.</span>
+                      <span className="font-medium text-blue-800">{job.address.house_number}</span>
+                    </>
+                  )}
+                </div>
+                {job.address.landmark && (
+                  <p className="text-xs font-semibold text-amber-700 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2 mt-1">
+                    📍 Near {job.address.landmark}
+                  </p>
+                )}
+                {job.latitude && job.longitude && (
+                  <a
+                    href={`https://www.google.com/maps/dir/?api=1&destination=${job.latitude},${job.longitude}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="inline-flex items-center gap-1.5 text-xs text-blue-600 hover:underline mt-1"
+                  >
+                    🗺️ Open in Google Maps
+                  </a>
+                )}
               </div>
             )}
 

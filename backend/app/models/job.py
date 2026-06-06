@@ -3,7 +3,17 @@ import enum
 import uuid
 from datetime import datetime
 
-from sqlalchemy import Boolean, DateTime, Enum, ForeignKey, Integer, String, Text, func
+from sqlalchemy import (
+    Boolean,
+    DateTime,
+    Enum,
+    Float,
+    ForeignKey,
+    Integer,
+    String,
+    Text,
+    func,
+)
 from sqlalchemy.orm import Mapped, mapped_column
 
 from app.database import Base
@@ -47,19 +57,35 @@ class Job(Base):
     )
     title: Mapped[str] = mapped_column(String(200), nullable=False)
     description: Mapped[str] = mapped_column(Text, nullable=False)
-    # Free-text extra context: materials needed, access instructions, etc.
     additional_notes: Mapped[str | None] = mapped_column(Text, nullable=True)
+
+    # ── Legacy WKT point (kept for spatial queries) ──────────────────────────
     location: Mapped[str | None] = mapped_column(String, nullable=True)
-    location_label: Mapped[str | None] = mapped_column(String(200), nullable=True)
+    # Human-readable label (full formatted address)
+    location_label: Mapped[str | None] = mapped_column(String(400), nullable=True)
+
+    # ── Explicit lat/lon for fast proximity queries ──────────────────────────
+    latitude: Mapped[float | None] = mapped_column(Float, nullable=True)
+    longitude: Mapped[float | None] = mapped_column(Float, nullable=True)
+
+    # ── Rwanda structured address fields ────────────────────────────────────
+    province: Mapped[str | None] = mapped_column(String(100), nullable=True)
+    district: Mapped[str | None] = mapped_column(String(100), nullable=True)
+    sector: Mapped[str | None] = mapped_column(String(100), nullable=True)
+    cell: Mapped[str | None] = mapped_column(String(100), nullable=True)
+    village: Mapped[str | None] = mapped_column(String(100), nullable=True)
+    street_road: Mapped[str | None] = mapped_column(String(200), nullable=True)
+    # House/plot number and nearby landmark for door-step delivery precision
+    house_number: Mapped[str | None] = mapped_column(String(50), nullable=True)
+    landmark: Mapped[str | None] = mapped_column(String(200), nullable=True)
+
     scheduled_time: Mapped[datetime | None] = mapped_column(
         DateTime(timezone=True), nullable=True
     )
-    # How quickly the client needs this done
     urgency: Mapped[JobUrgency] = mapped_column(
         Enum(JobUrgency), default=JobUrgency.flexible
     )
     budget: Mapped[int | None] = mapped_column(Integer, nullable=True)
-    # Whether client is open to negotiate above budget
     budget_negotiable: Mapped[bool] = mapped_column(Boolean, default=True)
     status: Mapped[JobStatus] = mapped_column(Enum(JobStatus), default=JobStatus.open)
     photos_urls: Mapped[list[str] | None] = mapped_column(ARRAY(String), nullable=True)
@@ -86,7 +112,6 @@ class Bid(Base):
     )
     proposed_price: Mapped[int] = mapped_column(Integer, nullable=False)
     message: Mapped[str | None] = mapped_column(String(800), nullable=True)
-    # Additional pitch: why this artisan is right for the job
     cover_letter: Mapped[str | None] = mapped_column(String(500), nullable=True)
     proposed_start_time: Mapped[str | None] = mapped_column(
         DateTime(timezone=True), nullable=True

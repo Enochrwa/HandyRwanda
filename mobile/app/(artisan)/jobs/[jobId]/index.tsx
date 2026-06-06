@@ -201,12 +201,20 @@ export default function JobDetailBid() {
                 <Text className="font-semibold text-muted-foreground">Open to bids</Text>
               </View>
             )}
-            {job.location_label && (
+            {(job.address?.district || job.location_label) && (
               <View>
                 <Text className="text-[10px] font-bold uppercase text-muted-foreground">
                   Location
                 </Text>
-                <Text className="font-bold text-foreground">{job.location_label}</Text>
+                <Text className="font-bold text-foreground">
+                  {[job.address?.sector, job.address?.district].filter(Boolean).join(', ') ||
+                    job.location_label}
+                </Text>
+                {job.address?.landmark ? (
+                  <Text className="text-xs text-amber-600 font-semibold mt-0.5">
+                    Near {job.address.landmark}
+                  </Text>
+                ) : null}
               </View>
             )}
             {job.scheduled_time && (
@@ -266,16 +274,50 @@ export default function JobDetailBid() {
                 pinColor="#1B5E3B"
               />
             </MapView>
-            {job.location_label ? (
-              <View className="px-5 py-3 flex-row items-start gap-2 border-t border-border">
-                <Text className="text-xs text-muted-foreground flex-1">{job.location_label}</Text>
-              </View>
-            ) : null}
+
+            {/* Address detail row — show structured fields when available */}
+            <View className="px-5 py-3 border-t border-border gap-1">
+              {job.location_label ? (
+                <Text className="text-xs text-muted-foreground">{job.location_label}</Text>
+              ) : null}
+              {/* House number — critical for door-step arrival */}
+              {job.address?.house_number ? (
+                <View className="flex-row items-center gap-1.5 bg-blue-50 border border-blue-200 rounded-lg px-3 py-2 mt-1">
+                  <Text className="text-xs font-bold text-blue-800">
+                    🏠 House / Plot: {job.address.house_number}
+                  </Text>
+                </View>
+              ) : null}
+              {/* Landmark */}
+              {job.address?.landmark ? (
+                <View className="flex-row items-center gap-1.5 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2">
+                  <Text className="text-xs font-semibold text-amber-800">
+                    📍 Near {job.address.landmark}
+                  </Text>
+                </View>
+              ) : null}
+              {/* Street / Road */}
+              {job.address?.street_road ? (
+                <Text className="text-xs text-muted-foreground">🛣️ {job.address.street_road}</Text>
+              ) : null}
+            </View>
           </View>
         ) : job.location_label ? (
-          <View className="bg-card rounded-3xl border border-border p-4 mb-5 flex-row items-center gap-2">
-            <Text className="text-lg">📍</Text>
-            <Text className="text-sm font-semibold flex-1">{job.location_label}</Text>
+          <View className="bg-card rounded-3xl border border-border p-4 mb-5">
+            <View className="flex-row items-center gap-2 mb-2">
+              <Text className="text-lg">📍</Text>
+              <Text className="text-sm font-semibold flex-1">{job.location_label}</Text>
+            </View>
+            {job.address?.house_number ? (
+              <Text className="text-xs font-bold text-blue-700">
+                🏠 House / Plot: {job.address.house_number}
+              </Text>
+            ) : null}
+            {job.address?.landmark ? (
+              <Text className="text-xs font-semibold text-amber-700 mt-1">
+                Near {job.address.landmark}
+              </Text>
+            ) : null}
           </View>
         ) : null}
 

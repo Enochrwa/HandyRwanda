@@ -87,6 +87,8 @@ export default function JobLocation() {
         latitude: result.latitude.toString(),
         longitude: result.longitude.toString(),
         locationLabel: result.formatted,
+        // Pass the full structured Rwanda address as JSON so confirm.tsx can send it to API
+        addressJson: result.rwanda ? JSON.stringify(result.rwanda) : '',
       },
     });
   };

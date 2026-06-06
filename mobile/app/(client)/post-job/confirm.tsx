@@ -63,6 +63,14 @@ export default function ConfirmJob() {
       }
 
       setUploadProgress('Posting job…');
+      // Parse structured address passed from location step
+      let parsedAddress: Record<string, string> | undefined;
+      try {
+        parsedAddress = params.addressJson ? JSON.parse(params.addressJson) : undefined;
+      } catch {
+        parsedAddress = undefined;
+      }
+
       const jobData: Record<string, unknown> = {
         category_id: params.categoryId,
         title: params.title,
@@ -73,6 +81,7 @@ export default function ConfirmJob() {
         location_label: params.locationLabel ?? 'Custom Location',
         urgency: params.urgency ?? 'flexible',
         budget_negotiable: params.budgetNegotiable === '1',
+        ...(parsedAddress && parsedAddress.district ? { address: parsedAddress } : {}),
         ...(params.scheduledTime ? { scheduled_time: params.scheduledTime } : {}),
         ...(budget ? { budget } : {}),
         ...(uploadedPhotoUrls.length > 0 ? { photos_urls: uploadedPhotoUrls } : {}),

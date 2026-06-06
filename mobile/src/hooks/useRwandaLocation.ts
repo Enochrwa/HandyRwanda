@@ -1,17 +1,16 @@
 /**
  * useRwandaLocation — offline-first Rwanda administrative hierarchy hook.
  *
- * Mirrors the web app's hook API exactly so components can be shared:
+ * Full 5-level hierarchy: Province → District → Sector → Cell → Village[]
+ * Data is bundled in src/data/rwanda-addresses.ts — no network needed.
+ *
+ * API:
  *   getProvinces()
  *   getDistrictByProvince(province)
  *   getAllDistricts()
  *   getSectors(province, district)
  *   getCells(province, district, sector)
- *   getVillages(province, district, sector, cell)
- *
- * Data is bundled in src/data/rwanda-addresses.ts — no network needed.
- * This eliminates the per-keystroke API calls that were causing freezes
- * when combined with cascading state updates.
+ *   getVillages(province, district, sector, cell)  ← now returns real villages
  */
 import { useCallback } from 'react';
 
@@ -25,7 +24,6 @@ export interface RwandaLocationHook {
   getAllDistricts: () => string[];
   getSectors: (province: string, district: string) => string[];
   getCells: (province: string, district: string, sector: string) => string[];
-  /** In the mobile data, cells and villages share the same leaf array. */
   getVillages: (province: string, district: string, sector: string, cell: string) => string[];
 }
 
@@ -53,18 +51,12 @@ export function useRwandaLocation(): RwandaLocationHook {
   }, []);
 
   const getCells = useCallback((province: string, district: string, sector: string): string[] => {
-    return [...(RWANDA_ADDRESSES[province]?.[district]?.[sector] ?? [])].sort();
+    return Object.keys(RWANDA_ADDRESSES[province]?.[district]?.[sector] ?? {}).sort();
   }, []);
 
-  /**
-   * The bundled data stores cells at the sector level.
-   * Villages are free-text in Rwanda's smallest unit; we return the same
-   * array so callers that expect a village list still get something useful.
-   * Users can always type a custom village into the free-text field.
-   */
   const getVillages = useCallback(
-    (province: string, district: string, sector: string, _cell: string): string[] => {
-      return [...(RWANDA_ADDRESSES[province]?.[district]?.[sector] ?? [])].sort();
+    (province: string, district: string, sector: string, cell: string): string[] => {
+      return [...(RWANDA_ADDRESSES[province]?.[district]?.[sector]?.[cell] ?? [])].sort();
     },
     [],
   );

@@ -2,11 +2,13 @@
 """
 Rwanda address hierarchy endpoints.
 
+Full 5-level cascade (Province → District → Sector → Cell → Village):
+
 GET /address/provinces              — list all provinces
 GET /address/districts              — list all districts (optionally filter by province)
 GET /address/sectors                — list sectors in a district
 GET /address/cells                  — list cells in a sector
-GET /address/villages               — list villages (alias for cells at leaf level)
+GET /address/villages               — list villages in a cell
 GET /address/format                 — format an address into a label string
 """
 
@@ -70,16 +72,14 @@ async def list_villages(
     province: str = Query(...),
     district: str = Query(...),
     sector: str = Query(...),
+    cell: str = Query(...),
 ) -> Any:
-    """
-    Returns the leaf-level locality names for a sector.
-    In Rwanda's NISR data these are cells/villages — same data as /cells.
-    """
-    villages = get_villages(province, district, sector)
+    """Returns the real villages within a cell (5th level of Rwanda's hierarchy)."""
+    villages = get_villages(province, district, sector, cell)
     if not villages:
         raise HTTPException(
             status_code=404,
-            detail=f"No villages found for {sector}, {district}.",
+            detail=f"No villages found for cell '{cell}', sector '{sector}', district '{district}'.",
         )
     return {"villages": villages}
 

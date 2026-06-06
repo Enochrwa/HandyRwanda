@@ -1,15 +1,11 @@
 /**
  * RwandaAddressPicker — offline-first cascading address picker.
  *
- * Now uses the bundled useRwandaLocation hook instead of hitting
- * /address/* API endpoints. Zero network required; zero re-render loops.
+ * Full 5-level cascade: Province → District → Sector → Cell → Village (all dropdowns)
+ * → Street/Road → House/Plot Number → Landmark
  *
- * Infinite-loop fix (two layers):
- *  1. Data comes from a static in-memory object, not React Query.
- *     No async state → no "data arrived → setState → re-render" cycle.
- *  2. onChange is stored in a ref. The useEffect dep array never includes
- *     the parent's onChange reference, so a new arrow function on each
- *     parent render never triggers a cascade.
+ * Data comes from the bundled RWANDA_ADDRESSES (src/data/rwanda-addresses.ts).
+ * No API calls. No re-render loops.
  */
 import { Picker } from '@react-native-picker/picker';
 import React, { useCallback, useEffect, useRef, useState } from 'react';
@@ -50,18 +46,19 @@ export function RwandaAddressPicker({ value, onChange }: Props) {
     onChangeRef.current = onChange;
   });
 
-  const { getProvinces, getDistrictByProvince, getSectors, getCells } = useRwandaLocation();
+  const { getProvinces, getDistrictByProvince, getSectors, getCells, getVillages } =
+    useRwandaLocation();
 
-  // Compute dropdown options synchronously — no async, no re-renders from data loading
+  // All computed synchronously — no async, no re-renders from data loading
   const provinces = getProvinces();
   const districts = province ? getDistrictByProvince(province) : [];
   const sectors = district ? getSectors(province, district) : [];
   const cells = sector ? getCells(province, district, sector) : [];
+  const villages = cell ? getVillages(province, district, sector, cell) : [];
 
-  // iOS picker wheel needs explicit text colour
   const pickerItemStyle = Platform.OS === 'ios' ? { color: '#111827' } : undefined;
 
-  // Stable notify — empty deps, reads onChange via ref
+  // Stable notify — reads onChange via ref
   const notify = useCallback(
     (p: string, d: string, s: string, c: string, v: string, sr: string, hn: string, lm: string) => {
       if (!d) return;
@@ -107,6 +104,11 @@ export function RwandaAddressPicker({ value, onChange }: Props) {
     setVillage('');
   }, []);
 
+  const onCellChange = useCallback((v: string) => {
+    setCell(v);
+    setVillage('');
+  }, []);
+
   return (
     <ScrollView
       style={styles.scroll}
@@ -144,22 +146,19 @@ export function RwandaAddressPicker({ value, onChange }: Props) {
           value={cell}
           items={cells}
           pickerItemStyle={pickerItemStyle}
-          onValueChange={(v) => {
-            setCell(v);
-            setVillage('');
-          }}
+          onValueChange={onCellChange}
+        />
+      ) : null}
+      {cell ? (
+        <PickerRow
+          label="Village"
+          value={village}
+          items={villages}
+          pickerItemStyle={pickerItemStyle}
+          onValueChange={setVillage}
         />
       ) : null}
 
-      <View style={styles.field}>
-        <Text style={styles.label}>Village</Text>
-        <TextInput
-          style={styles.input}
-          placeholder="Village (optional)"
-          value={village}
-          onChangeText={setVillage}
-        />
-      </View>
       <View style={styles.field}>
         <Text style={styles.label}>Street / Road</Text>
         <TextInput

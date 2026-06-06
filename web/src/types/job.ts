@@ -10,6 +10,8 @@ export interface JobAddress {
   street_road?: string;
   house_number?: string;
   landmark?: string;
+  /** Pre-formatted full address string (house_number → street → landmark → village → cell → sector → district → province → Rwanda) */
+  formatted?: string;
 }
 
 export interface Job {

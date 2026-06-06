@@ -78,6 +78,9 @@ class RegisterRequest(BaseModel):
     sector: str | None = None
     cell: str | None = None
     village: str | None = None
+    street_road: str | None = Field(default=None, max_length=200, description="Street or road name")
+    house_number: str | None = Field(default=None, max_length=50, description="House/plot/apartment number")
+    landmark: str | None = Field(default=None, max_length=200, description="Nearby landmark")
     address_detail: str | None = Field(
         default=None,
         max_length=300,
@@ -170,10 +173,13 @@ class UserBase(BaseModel):
     account_status: AccountStatus
     email_verified: bool
     province: str | None = None
-    district: str | None
+    district: str | None = None
     sector: str | None = None
     cell: str | None = None
     village: str | None = None
+    street_road: str | None = None
+    house_number: str | None = None
+    landmark: str | None = None
     address_detail: str | None = None
     preferred_lang: str
 
@@ -200,6 +206,9 @@ class ProfileUpdate(BaseModel):
     sector: str | None = None
     cell: str | None = None
     village: str | None = None
+    street_road: str | None = Field(default=None, max_length=200)
+    house_number: str | None = Field(default=None, max_length=50)
+    landmark: str | None = Field(default=None, max_length=200)
     address_detail: str | None = Field(
         default=None,
         max_length=300,

@@ -103,13 +103,22 @@ function ArtisanOnboarding() {
         const lng = artisanAddress.longitude ?? formData.longitude;
         const label =
           artisanAddress.formatted ?? artisanAddress.district ?? formData.location_label;
+        // Save artisan profile with full structured address + GPS
         await artisanService.updateProfile({
           location_label: label,
           service_radius_km: formData.service_radius,
           latitude: lat,
           longitude: lng,
+          province: artisanAddress.province ?? undefined,
+          district: artisanAddress.district ?? undefined,
+          sector: artisanAddress.sector ?? undefined,
+          cell: artisanAddress.cell ?? undefined,
+          village: artisanAddress.village ?? undefined,
+          street_road: artisanAddress.street_road ?? undefined,
+          house_number: artisanAddress.house_number ?? undefined,
+          landmark: artisanAddress.landmark ?? undefined,
         });
-        // Also save structured address to user profile
+        // Mirror full address to user profile record
         if (artisanAddress.district) {
           await import("@/services/api").then(({ default: api }) =>
             api.patch("/auth/profile", {
@@ -118,14 +127,9 @@ function ArtisanOnboarding() {
               sector: artisanAddress.sector ?? undefined,
               cell: artisanAddress.cell ?? undefined,
               village: artisanAddress.village ?? undefined,
-              address_detail:
-                [
-                  artisanAddress.house_number,
-                  artisanAddress.street_road,
-                  artisanAddress.landmark ? `Near ${artisanAddress.landmark}` : "",
-                ]
-                  .filter(Boolean)
-                  .join(", ") || undefined,
+              street_road: artisanAddress.street_road ?? undefined,
+              house_number: artisanAddress.house_number ?? undefined,
+              landmark: artisanAddress.landmark ?? undefined,
             }),
           );
         }

@@ -215,10 +215,7 @@ function MapRecenter({ centre }: { centre: [number, number] }) {
   const map = useMapEvents({});
   const prevCentreRef = useRef<[number, number]>(centre);
   useEffect(() => {
-    if (
-      prevCentreRef.current[0] !== centre[0] ||
-      prevCentreRef.current[1] !== centre[1]
-    ) {
+    if (prevCentreRef.current[0] !== centre[0] || prevCentreRef.current[1] !== centre[1]) {
       prevCentreRef.current = centre;
       map.flyTo(centre, Math.max(map.getZoom(), 13), { duration: 0.8 });
     }
@@ -303,11 +300,29 @@ export function RwandaAddressPicker({ value, onChange, required }: Props) {
 
   useEffect(() => {
     notify(
-      province, district, sector, cell, village,
-      streetRoad, houseNumber, landmark,
-      pinPos[0], pinPos[1],
+      province,
+      district,
+      sector,
+      cell,
+      village,
+      streetRoad,
+      houseNumber,
+      landmark,
+      pinPos[0],
+      pinPos[1],
     );
-  }, [province, district, sector, cell, village, streetRoad, houseNumber, landmark, pinPos, notify]);
+  }, [
+    province,
+    district,
+    sector,
+    cell,
+    village,
+    streetRoad,
+    houseNumber,
+    landmark,
+    pinPos,
+    notify,
+  ]);
 
   // Auto-zoom when district changes
   const prevDistrictRef = useRef(district);
@@ -434,9 +449,7 @@ export function RwandaAddressPicker({ value, onChange, required }: Props) {
       <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
         {/* Province */}
         <div className="space-y-1">
-          <Label>
-            Province {required && <span className="text-destructive">*</span>}
-          </Label>
+          <Label>Province {required && <span className="text-destructive">*</span>}</Label>
           <Select value={province} onValueChange={handleProvince}>
             <SelectTrigger>
               <SelectValue placeholder="Select province" />
@@ -453,14 +466,10 @@ export function RwandaAddressPicker({ value, onChange, required }: Props) {
 
         {/* District */}
         <div className="space-y-1">
-          <Label>
-            District {required && <span className="text-destructive">*</span>}
-          </Label>
+          <Label>District {required && <span className="text-destructive">*</span>}</Label>
           <Select value={district} onValueChange={handleDistrict} disabled={!province}>
             <SelectTrigger>
-              <SelectValue
-                placeholder={province ? "Select district" : "Select province first"}
-              />
+              <SelectValue placeholder={province ? "Select district" : "Select province first"} />
             </SelectTrigger>
             <SelectContent>
               {districts.map((d) => (
@@ -477,9 +486,7 @@ export function RwandaAddressPicker({ value, onChange, required }: Props) {
           <Label>Sector</Label>
           <Select value={sector} onValueChange={handleSector} disabled={!district}>
             <SelectTrigger>
-              <SelectValue
-                placeholder={district ? "Select sector" : "Select district first"}
-              />
+              <SelectValue placeholder={district ? "Select sector" : "Select district first"} />
             </SelectTrigger>
             <SelectContent>
               {sectors.map((s) => (
@@ -496,9 +503,7 @@ export function RwandaAddressPicker({ value, onChange, required }: Props) {
           <Label>Cell</Label>
           <Select value={cell} onValueChange={handleCell} disabled={!sector}>
             <SelectTrigger>
-              <SelectValue
-                placeholder={sector ? "Select cell" : "Select sector first"}
-              />
+              <SelectValue placeholder={sector ? "Select cell" : "Select sector first"} />
             </SelectTrigger>
             <SelectContent>
               {cells.map((c) => (
@@ -538,9 +543,7 @@ export function RwandaAddressPicker({ value, onChange, required }: Props) {
             value={houseNumber}
             onChange={(e) => setHouseNumber(e.target.value)}
           />
-          <p className="text-[10px] text-muted-foreground">
-            Helps artisan find the exact door
-          </p>
+          <p className="text-[10px] text-muted-foreground">Helps artisan find the exact door</p>
         </div>
 
         {/* Landmark */}

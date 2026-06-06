@@ -170,7 +170,7 @@ async def process_auto_releases(db: AsyncSession) -> int:
         select(EscrowTransaction).where(
             EscrowTransaction.status == EscrowStatus.held,
             EscrowTransaction.release_at.isnot(None),
-            EscrowTransaction.release_at <= now,
+            EscrowTransaction.release_at <= now,  # type: ignore[operator]
         )
     )
     released = 0

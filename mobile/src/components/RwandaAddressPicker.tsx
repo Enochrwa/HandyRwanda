@@ -65,17 +65,7 @@ export function RwandaAddressPicker({ value, onChange }: Props) {
   const notify = useCallback(
     (p: string, d: string, s: string, c: string, v: string, sr: string, hn: string, lm: string) => {
       if (!d) return;
-      const parts = [
-        hn,
-        sr,
-        lm ? `Near ${lm}` : '',
-        v,
-        c,
-        s,
-        d,
-        p,
-        'Rwanda',
-      ].filter(Boolean);
+      const parts = [hn, sr, lm ? `Near ${lm}` : '', v, c, s, d, p, 'Rwanda'].filter(Boolean);
       onChangeRef.current({
         province: p,
         district: d,
@@ -286,6 +276,13 @@ const styles = StyleSheet.create({
     backgroundColor: '#F9FAFB',
   },
   preview: { backgroundColor: '#EFF6FF', borderRadius: 8, padding: 10, marginTop: 4 },
-  previewLabel: { fontSize: 10, fontWeight: '700', color: '#1D4ED8', textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 2 },
+  previewLabel: {
+    fontSize: 10,
+    fontWeight: '700',
+    color: '#1D4ED8',
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
+    marginBottom: 2,
+  },
   previewText: { fontSize: 12, color: '#1D4ED8', lineHeight: 18 },
 });

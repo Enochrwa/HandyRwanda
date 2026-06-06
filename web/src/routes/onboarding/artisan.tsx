@@ -101,7 +101,8 @@ function ArtisanOnboarding() {
       } else if (step === 3) {
         const lat = artisanAddress.latitude ?? formData.latitude;
         const lng = artisanAddress.longitude ?? formData.longitude;
-        const label = artisanAddress.formatted ?? artisanAddress.district ?? formData.location_label;
+        const label =
+          artisanAddress.formatted ?? artisanAddress.district ?? formData.location_label;
         await artisanService.updateProfile({
           location_label: label,
           service_radius_km: formData.service_radius,
@@ -117,12 +118,15 @@ function ArtisanOnboarding() {
               sector: artisanAddress.sector ?? undefined,
               cell: artisanAddress.cell ?? undefined,
               village: artisanAddress.village ?? undefined,
-              address_detail: [
-                artisanAddress.house_number,
-                artisanAddress.street_road,
-                artisanAddress.landmark ? `Near ${artisanAddress.landmark}` : "",
-              ].filter(Boolean).join(", ") || undefined,
-            })
+              address_detail:
+                [
+                  artisanAddress.house_number,
+                  artisanAddress.street_road,
+                  artisanAddress.landmark ? `Near ${artisanAddress.landmark}` : "",
+                ]
+                  .filter(Boolean)
+                  .join(", ") || undefined,
+            }),
           );
         }
       } else if (step === 4) {
@@ -249,7 +253,8 @@ function ArtisanOnboarding() {
                     Your Service Area &amp; Home Address
                   </label>
                   <p className="text-xs text-muted-foreground mt-1 mb-4">
-                    Pin your location on the map, then complete your address so clients near you can find you first.
+                    Pin your location on the map, then complete your address so clients near you can
+                    find you first.
                   </p>
                   <RwandaAddressPicker
                     value={artisanAddress}

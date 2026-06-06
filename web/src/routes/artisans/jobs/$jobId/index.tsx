@@ -239,11 +239,10 @@ function JobDetail() {
                 <span className="flex items-start gap-1">
                   <MapPin className="h-3.5 w-3.5 mt-0.5 shrink-0" />
                   <span>
-                    {job.location_label ?? [
-                      job.address?.sector,
-                      job.address?.district,
-                      job.address?.province,
-                    ].filter(Boolean).join(", ")}
+                    {job.location_label ??
+                      [job.address?.sector, job.address?.district, job.address?.province]
+                        .filter(Boolean)
+                        .join(", ")}
                     {/* Landmark hint — visible to artisan even before bid accepted */}
                     {job.address?.landmark && (
                       <span className="block text-xs text-amber-600 font-medium mt-0.5">
@@ -324,25 +323,46 @@ function JobDetail() {
                 </p>
                 <div className="grid grid-cols-2 gap-x-4 gap-y-1 text-sm">
                   {job.address.province && (
-                    <><span className="text-muted-foreground text-xs">Province</span><span className="font-medium">{job.address.province}</span></>
+                    <>
+                      <span className="text-muted-foreground text-xs">Province</span>
+                      <span className="font-medium">{job.address.province}</span>
+                    </>
                   )}
                   {job.address.district && (
-                    <><span className="text-muted-foreground text-xs">District</span><span className="font-medium">{job.address.district}</span></>
+                    <>
+                      <span className="text-muted-foreground text-xs">District</span>
+                      <span className="font-medium">{job.address.district}</span>
+                    </>
                   )}
                   {job.address.sector && (
-                    <><span className="text-muted-foreground text-xs">Sector</span><span className="font-medium">{job.address.sector}</span></>
+                    <>
+                      <span className="text-muted-foreground text-xs">Sector</span>
+                      <span className="font-medium">{job.address.sector}</span>
+                    </>
                   )}
                   {job.address.cell && (
-                    <><span className="text-muted-foreground text-xs">Cell</span><span className="font-medium">{job.address.cell}</span></>
+                    <>
+                      <span className="text-muted-foreground text-xs">Cell</span>
+                      <span className="font-medium">{job.address.cell}</span>
+                    </>
                   )}
                   {job.address.village && (
-                    <><span className="text-muted-foreground text-xs">Village</span><span className="font-medium">{job.address.village}</span></>
+                    <>
+                      <span className="text-muted-foreground text-xs">Village</span>
+                      <span className="font-medium">{job.address.village}</span>
+                    </>
                   )}
                   {job.address.street_road && (
-                    <><span className="text-muted-foreground text-xs">Street</span><span className="font-medium">{job.address.street_road}</span></>
+                    <>
+                      <span className="text-muted-foreground text-xs">Street</span>
+                      <span className="font-medium">{job.address.street_road}</span>
+                    </>
                   )}
                   {job.address.house_number && (
-                    <><span className="text-muted-foreground text-xs">House No.</span><span className="font-medium text-blue-800">{job.address.house_number}</span></>
+                    <>
+                      <span className="text-muted-foreground text-xs">House No.</span>
+                      <span className="font-medium text-blue-800">{job.address.house_number}</span>
+                    </>
                   )}
                 </div>
                 {job.address.landmark && (

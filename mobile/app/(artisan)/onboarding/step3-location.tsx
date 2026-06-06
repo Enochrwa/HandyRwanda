@@ -26,8 +26,11 @@ import {
 import MapView, { Marker, Circle } from 'react-native-maps';
 import Toast from 'react-native-toast-message';
 
+import {
+  RwandaAddressPicker,
+  type RwandaAddress,
+} from '../../../src/components/RwandaAddressPicker';
 import api from '../../../src/services/api';
-import { RwandaAddressPicker, type RwandaAddress } from '../../../src/components/RwandaAddressPicker';
 
 const KIGALI_CENTER = {
   latitude: -1.9441,
@@ -72,12 +75,15 @@ export default function LocationStep() {
 
   useEffect(() => {
     getCurrentLocation();
-  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const handleNext = async () => {
     if (!address.district) {
-      Toast.show({ type: 'error', text1: 'Missing district', text2: 'Please select your district.' });
+      Toast.show({
+        type: 'error',
+        text1: 'Missing district',
+        text2: 'Please select your district.',
+      });
       return;
     }
     setLoading(true);
@@ -97,13 +103,14 @@ export default function LocationStep() {
         sector: address.sector || undefined,
         cell: address.cell || undefined,
         village: address.village || undefined,
-        address_detail: [
-          address.house_number,
-          address.street_road,
-          address.landmark ? `Near ${address.landmark}` : '',
-        ]
-          .filter(Boolean)
-          .join(', ') || undefined,
+        address_detail:
+          [
+            address.house_number,
+            address.street_road,
+            address.landmark ? `Near ${address.landmark}` : '',
+          ]
+            .filter(Boolean)
+            .join(', ') || undefined,
       });
 
       router.push('/(artisan)/onboarding/step4-id');

@@ -207,9 +207,8 @@ export default function JobDetailBid() {
                   Location
                 </Text>
                 <Text className="font-bold text-foreground">
-                  {[job.address?.sector, job.address?.district]
-                    .filter(Boolean)
-                    .join(', ') || job.location_label}
+                  {[job.address?.sector, job.address?.district].filter(Boolean).join(', ') ||
+                    job.location_label}
                 </Text>
                 {job.address?.landmark ? (
                   <Text className="text-xs text-amber-600 font-semibold mt-0.5">
@@ -299,9 +298,7 @@ export default function JobDetailBid() {
               ) : null}
               {/* Street / Road */}
               {job.address?.street_road ? (
-                <Text className="text-xs text-muted-foreground">
-                  🛣️ {job.address.street_road}
-                </Text>
+                <Text className="text-xs text-muted-foreground">🛣️ {job.address.street_road}</Text>
               ) : null}
             </View>
           </View>

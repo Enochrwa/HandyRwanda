@@ -278,9 +278,9 @@ export default function ProDashboard() {
                   <MapPin size={14} color="#6B6B6B" style={{ marginTop: 2 }} />
                   <View className="ml-1 flex-1">
                     <Text className="text-xs text-muted-foreground">
-                      {[job.address?.sector, job.address?.district]
-                        .filter(Boolean)
-                        .join(', ') || job.location_label || 'Rwanda'}
+                      {[job.address?.sector, job.address?.district].filter(Boolean).join(', ') ||
+                        job.location_label ||
+                        'Rwanda'}
                       {job.distance != null ? ` • ${job.distance} km away` : ''}
                     </Text>
                     {job.address?.landmark ? (

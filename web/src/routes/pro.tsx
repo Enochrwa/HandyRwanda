@@ -354,9 +354,7 @@ function NearbyJobCard({ job }: { job: any }) {
           {job.distance != null && ` · ${job.distance} km`}
         </span>
         {job.address?.landmark && (
-          <span className="text-amber-600 font-medium">
-            · Near {job.address.landmark}
-          </span>
+          <span className="text-amber-600 font-medium">· Near {job.address.landmark}</span>
         )}
         <span className="ml-auto inline-flex items-center gap-1 rounded-full bg-success/10 px-2 py-0.5 text-success">
           <Clock className="h-3 w-3" /> New

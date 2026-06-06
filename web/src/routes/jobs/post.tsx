@@ -22,8 +22,6 @@ import { formatRWF } from "@/services/artisanService";
 import { uploadImage } from "@/services/imageUpload";
 import { RwandaAddressPicker, type RwandaAddress } from "@/components/RwandaAddressPicker";
 
-
-
 export const Route = createFileRoute("/jobs/post")({
   head: () => ({ meta: [{ title: "Post a Job — HandyRwanda" }] }),
   component: PostJob,

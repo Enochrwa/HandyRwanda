@@ -243,9 +243,8 @@ function ArtisanJobFeed() {
                           <MapPin className="h-3.5 w-3.5 mt-0.5 shrink-0" />
                           <span>
                             {/* Show sector + district for quick at-a-glance on list */}
-                            {[j.address?.sector, j.address?.district]
-                              .filter(Boolean)
-                              .join(", ") || j.location_label}
+                            {[j.address?.sector, j.address?.district].filter(Boolean).join(", ") ||
+                              j.location_label}
                             {j.address?.landmark && (
                               <span className="block text-[11px] text-amber-600 font-medium">
                                 Near {j.address.landmark}

@@ -70,11 +70,11 @@ async def get_overview(
     month_revenue = await db.scalar(
         select(func.sum(Payment.amount)).where(
             Payment.status.in_([PaymentStatus.approved, PaymentStatus.auto_verified]),
-            Payment.created_at >= month_start,
+            Payment.created_at >= month_start,  # type: ignore[operator]
         )
     )
     month_bookings = await db.scalar(
-        select(func.count(Booking.id)).where(Booking.created_at >= month_start)
+        select(func.count(Booking.id)).where(Booking.created_at >= month_start)  # type: ignore[operator]
     )
 
     return {

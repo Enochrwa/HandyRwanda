@@ -104,9 +104,8 @@ export default function ArtisanJobFeed() {
               <MapPin size={12} color="#6B6B6B" style={{ marginTop: 2 }} />
               <View>
                 <Text className="text-[11px] text-muted-foreground">
-                  {[item.address?.sector, item.address?.district]
-                    .filter(Boolean)
-                    .join(', ') || item.location_label}
+                  {[item.address?.sector, item.address?.district].filter(Boolean).join(', ') ||
+                    item.location_label}
                 </Text>
                 {item.address?.landmark ? (
                   <Text className="text-[10px] text-amber-600 font-semibold">

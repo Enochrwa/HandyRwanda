@@ -240,7 +240,21 @@ export function LocationPicker({ initialCoords, onChange }: Props) {
       landmark,
       isRwanda,
     );
-  }, [coords, province, district, sector, cell, village, country, city, streetRoad, houseNumber, landmark, isRwanda, notify]);
+  }, [
+    coords,
+    province,
+    district,
+    sector,
+    cell,
+    village,
+    country,
+    city,
+    streetRoad,
+    houseNumber,
+    landmark,
+    isRwanda,
+    notify,
+  ]);
 
   // ── Zoom map when district changes ────────────────────────────────────────
   useEffect(() => {
@@ -532,9 +546,7 @@ export function LocationPicker({ initialCoords, onChange }: Props) {
                 houseNumber,
                 streetRoad,
                 landmark ? `Near ${landmark}` : '',
-                ...(isRwanda
-                  ? [village, cell, sector, district, province]
-                  : [city, country]),
+                ...(isRwanda ? [village, cell, sector, district, province] : [city, country]),
               ]
                 .filter(Boolean)
                 .join(', ')}

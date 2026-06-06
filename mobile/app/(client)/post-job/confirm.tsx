@@ -81,9 +81,7 @@ export default function ConfirmJob() {
         location_label: params.locationLabel ?? 'Custom Location',
         urgency: params.urgency ?? 'flexible',
         budget_negotiable: params.budgetNegotiable === '1',
-        ...(parsedAddress && parsedAddress.district
-          ? { address: parsedAddress }
-          : {}),
+        ...(parsedAddress && parsedAddress.district ? { address: parsedAddress } : {}),
         ...(params.scheduledTime ? { scheduled_time: params.scheduledTime } : {}),
         ...(budget ? { budget } : {}),
         ...(uploadedPhotoUrls.length > 0 ? { photos_urls: uploadedPhotoUrls } : {}),

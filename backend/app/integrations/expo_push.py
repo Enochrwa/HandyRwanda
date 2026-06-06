@@ -8,6 +8,7 @@ Silently no-ops if the token is missing or the device token is None.
 
 Docs: https://docs.expo.dev/push-notifications/sending-notifications/
 """
+
 import os
 from typing import Any
 

@@ -12,7 +12,7 @@ Flow:
 from __future__ import annotations
 
 from datetime import datetime, timedelta, timezone
-from typing import Any
+from typing import Any, cast
 from uuid import UUID
 
 from sqlalchemy import func, select, update
@@ -53,11 +53,14 @@ async def schedule_release(
     release_in_hours: int = 48,
 ) -> EscrowTransaction | None:
     """Called when artisan marks job done. Sets auto-release timer."""
-    escrow = await db.scalar(
-        select(EscrowTransaction).where(
-            EscrowTransaction.booking_id == booking_id,
-            EscrowTransaction.status == EscrowStatus.held,
-        )
+    escrow = cast(
+        EscrowTransaction | None,
+        await db.scalar(
+            select(EscrowTransaction).where(
+                EscrowTransaction.booking_id == booking_id,
+                EscrowTransaction.status == EscrowStatus.held,
+            )
+        ),
     )
     if not escrow:
         return None
@@ -166,8 +169,8 @@ async def process_auto_releases(db: AsyncSession) -> int:
     due = await db.execute(
         select(EscrowTransaction).where(
             EscrowTransaction.status == EscrowStatus.held,
-            EscrowTransaction.release_at <= now,
             EscrowTransaction.release_at.isnot(None),
+            EscrowTransaction.release_at <= now,
         )
     )
     released = 0

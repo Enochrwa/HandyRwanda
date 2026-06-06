@@ -8,6 +8,7 @@ GET /address/sectors                — list sectors in a district
 GET /address/cells                  — list cells in a sector
 GET /address/format                 — format an address into a label string
 """
+
 from typing import Any
 
 from fastapi import APIRouter, HTTPException, Query

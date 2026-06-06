@@ -6,6 +6,7 @@ GET  /legal/terms    — Terms of Service content
 GET  /legal/privacy  — Privacy Policy content
 POST /legal/accept   — Record user's acceptance of current terms version
 """
+
 from datetime import datetime, timezone
 from typing import Any
 

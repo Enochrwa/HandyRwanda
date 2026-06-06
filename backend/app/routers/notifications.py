@@ -55,6 +55,7 @@ async def create_and_push_notification(
 
     # Push over WebSocket (fire-and-forget, don't block)
     import asyncio  # noqa: PLC0415
+
     asyncio.ensure_future(
         notification_manager.push(
             str(user_id),

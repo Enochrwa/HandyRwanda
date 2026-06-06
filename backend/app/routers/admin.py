@@ -3,6 +3,7 @@
 Admin router — full dashboard for admin role.
 """
 
+from datetime import datetime, timezone
 from typing import Any
 from uuid import UUID
 
@@ -16,6 +17,8 @@ from app.dependencies.jwt_auth import require_role
 from app.models.artisan import ArtisanProfile, Category, VerificationStatus
 from app.models.booking import Booking, BookingStatus
 from app.models.job import Job, JobStatus
+from app.models.notification import Notification
+from app.models.payment import Payment, PaymentStatus
 from app.models.review import Review
 from app.models.user import AccountStatus, User, UserRole
 
@@ -36,6 +39,11 @@ class RejectPayload(BaseModel):
 class DisputeResolution(BaseModel):
     winner: str  # "client" | "artisan"
     notes: str | None = None
+
+
+class PaymentVerdict(BaseModel):
+    approved: bool
+    admin_note: str | None = None
 
 
 # ── Verification queue ────────────────────────────────────────────────────────
@@ -95,9 +103,6 @@ async def approve_artisan(
         .values(account_status=AccountStatus.active, email_verified=True)
     )
 
-    # In-app notification
-    from app.models.notification import Notification  # noqa: PLC0415
-
     db.add(
         Notification(
             user_id=user_id,
@@ -112,7 +117,6 @@ async def approve_artisan(
     )
     await db.commit()
 
-    # Push notification
     from app.integrations.push import send_push_notification  # noqa: PLC0415
 
     await send_push_notification(
@@ -137,8 +141,6 @@ async def reject_artisan(
         .where(ArtisanProfile.user_id == user_id)
         .values(verification_status=VerificationStatus.rejected)
     )
-
-    from app.models.notification import Notification  # noqa: PLC0415
 
     db.add(
         Notification(
@@ -509,7 +511,6 @@ async def get_platform_stats(
             "completed": completed_jobs,
             "disputed": disputed_jobs,
         },
-        # Alias fields to match frontend shape
         "bookings": {
             "total": total_bookings,
             "completed": completed_jobs,
@@ -562,16 +563,6 @@ async def resolve_booking_dispute(
 
 
 # ── Payment Verification ───────────────────────────────────────────────────────
-
-from datetime import datetime, timezone  # noqa: E402 (appended section)
-
-from app.models.notification import Notification  # noqa: E402
-from app.models.payment import Payment, PaymentStatus  # noqa: E402
-
-
-class PaymentVerdict(BaseModel):
-    approved: bool
-    admin_note: str | None = None
 
 
 @router.get("/payments/pending")
@@ -644,26 +635,26 @@ async def verify_payment(
             .where(Booking.id == payment.booking_id)
             .values(status=BookingStatus.confirmed)
         )
-        # Notify artisan via DB notification + push
-        notif = Notification(
-            user_id=payment.artisan_id,
-            event_type="booking_confirmed",
-            title="✅ Booking Confirmed",
-            body=f"Payment of {payment.amount:,} RWF received. Job is confirmed!",
-            payload={"booking_id": str(payment.booking_id)},
+        db.add(
+            Notification(
+                user_id=payment.artisan_id,
+                event_type="booking_confirmed",
+                title="✅ Booking Confirmed",
+                body=f"Payment of {payment.amount:,} RWF received. Job is confirmed!",
+                payload={"booking_id": str(payment.booking_id)},
+            )
         )
-        db.add(notif)
-        # Notify client via DB notification + push
-        client_notif = Notification(
-            user_id=payment.client_id,
-            event_type="payment_approved",
-            title="💚 Payment Verified",
-            body=f"Your payment of {payment.amount:,} RWF has been confirmed. Your artisan is on the way!",
-            payload={"booking_id": str(payment.booking_id)},
+        db.add(
+            Notification(
+                user_id=payment.client_id,
+                event_type="payment_approved",
+                title="💚 Payment Verified",
+                body=f"Your payment of {payment.amount:,} RWF has been confirmed. Your artisan is on the way!",
+                payload={"booking_id": str(payment.booking_id)},
+            )
         )
-        db.add(client_notif)
         await db.commit()
-        # Send push notifications (after commit so DB is consistent)
+
         from app.integrations.expo_push import send_push_to_user  # noqa: PLC0415
 
         await send_push_to_user(
@@ -681,20 +672,21 @@ async def verify_payment(
             {"screen": "messages", "booking_id": str(payment.booking_id)},
         )
     else:
-        # Notify client of rejection via DB notification + push
-        notif = Notification(
-            user_id=payment.client_id,
-            event_type="payment_rejected",
-            title="❌ Payment Not Verified",
-            body=payload.admin_note
-            or "We couldn't verify your payment. Please try again.",
-            payload={
-                "payment_id": str(payment_id),
-                "booking_id": str(payment.booking_id),
-            },
+        db.add(
+            Notification(
+                user_id=payment.client_id,
+                event_type="payment_rejected",
+                title="❌ Payment Not Verified",
+                body=payload.admin_note
+                or "We couldn't verify your payment. Please try again.",
+                payload={
+                    "payment_id": str(payment_id),
+                    "booking_id": str(payment.booking_id),
+                },
+            )
         )
-        db.add(notif)
         await db.commit()
+
         from app.integrations.expo_push import send_push_to_user  # noqa: PLC0415
 
         await send_push_to_user(
@@ -705,6 +697,7 @@ async def verify_payment(
             or "We couldn't verify your payment. Please try again or contact support.",
             {"screen": "payment", "booking_id": str(payment.booking_id)},
         )
+
     return {
         "message": f"Payment {'approved' if payload.approved else 'rejected'}.",
         "payment_id": str(payment_id),
@@ -727,8 +720,6 @@ async def cron_pro_upgrade(
     - Average rating >= 4.0
     - completion_rate >= 0.8
     """
-    from app.models.notification import Notification  # noqa: PLC0415
-
     eligible = await db.execute(
         select(ArtisanProfile).where(
             ArtisanProfile.verification_status == VerificationStatus.id_verified,

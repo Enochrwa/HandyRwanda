@@ -1,5 +1,5 @@
 // File: mobile/app/(tabs)/_layout.tsx
-import { Home, Search, MessageCircle, User, LayoutDashboard, Bell } from '@icons';
+import { Home, Search, MessageCircle, User, LayoutDashboard, Bell, Plus } from '@icons';
 import { useQuery } from '@tanstack/react-query';
 import { Tabs, useRouter } from 'expo-router';
 import { useEffect } from 'react';
@@ -15,6 +15,7 @@ export default function TabsLayout() {
   const { isAuthenticated, user } = useAuthStore();
   const router = useRouter();
   const isArtisan = user?.role === 'artisan';
+  // const isClient = isAuthenticated && !isArtisan;
 
   // Real-time WebSocket notifications (replaces polling)
   useNotificationSocket();
@@ -162,6 +163,35 @@ export default function TabsLayout() {
             tabBarIcon: ({ color }) => <Search color={color} size={22} />,
           }}
         />
+
+        {/* ── Post a Job tab — visible to clients and unauthenticated ── */}
+        <Tabs.Screen
+          name="post-job"
+          options={{
+            title: 'Post a Job',
+            tabBarLabel: 'Post Job',
+            tabBarIcon: ({ color, focused }) => (
+              <View
+                style={
+                  focused
+                    ? {
+                        backgroundColor: '#1B5E3B',
+                        borderRadius: 16,
+                        padding: 6,
+                        marginTop: -4,
+                      }
+                    : {}
+                }
+              >
+                <Plus color={focused ? '#fff' : color} size={focused ? 26 : 22} />
+              </View>
+            ),
+            tabBarLabelStyle: { fontWeight: '700' },
+            // Hide for artisans — they don't post jobs
+            href: isArtisan ? null : undefined,
+          }}
+        />
+
         <Tabs.Screen
           name="messages"
           options={{

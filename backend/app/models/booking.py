@@ -1,6 +1,7 @@
 # File: backend/app/models/booking.py
 import enum
 import uuid
+from datetime import datetime
 
 from sqlalchemy import DateTime, Enum, ForeignKey, Integer, String, func
 from sqlalchemy.orm import Mapped, mapped_column
@@ -44,9 +45,11 @@ class Booking(Base):
     auto_confirm_at: Mapped[str | None] = mapped_column(
         DateTime(timezone=True), nullable=True
     )
-    created_at: Mapped[str | None] = mapped_column(
-        DateTime(timezone=True), server_default=func.now()
+    created_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True),
+        server_default=func.now(),
+        nullable=False,
     )
-    updated_at: Mapped[str | None] = mapped_column(
+    updated_at: Mapped[datetime | None] = mapped_column(
         DateTime(timezone=True), onupdate=func.now()
     )

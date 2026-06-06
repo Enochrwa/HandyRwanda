@@ -8,6 +8,7 @@ GET  /uploads/confirm   — confirm upload completed (returns final public URL)
 This bypasses the API server for the actual file transfer, dramatically reducing
 load and improving performance on slow mobile connections.
 """
+
 import re
 from typing import Any
 

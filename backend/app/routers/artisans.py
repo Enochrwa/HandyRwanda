@@ -114,12 +114,17 @@ async def get_my_profile(
     current_user: dict[str, Any] = Depends(require_role(UserRole.artisan)),
 ) -> Any:
     user_id = UUID(current_user["sub"])
+
+    # Join User so we can return district (lives on users table, not artisan_profiles)
     result = await db.execute(
-        select(ArtisanProfile).where(ArtisanProfile.user_id == user_id)
+        select(ArtisanProfile, User)
+        .join(User, User.id == ArtisanProfile.user_id)
+        .where(ArtisanProfile.user_id == user_id)
     )
-    profile = result.scalar_one_or_none()
-    if not profile:
+    row = result.first()
+    if not row:
         raise HTTPException(status_code=404, detail="Profile not found")
+    profile, user = row
 
     # Include skills for onboarding gate check
     skills_result = await db.execute(
@@ -127,14 +132,18 @@ async def get_my_profile(
         .join(artisan_skills, artisan_skills.c.category_id == Category.id)
         .where(artisan_skills.c.artisan_id == user_id)
     )
-    skills = [{"id": str(c.id), "name_en": c.name_en} for c in skills_result.scalars().all()]
+    skills = [
+        {"id": str(c.id), "name_en": c.name_en} for c in skills_result.scalars().all()
+    ]
 
     return {
         "bio": profile.bio,
         "years_experience": profile.years_experience,
         "hourly_rate": profile.hourly_rate,
         "fixed_rate": profile.fixed_rate,
-        "district": profile.district,
+        "district": user.district,  # district is on users table
+        "spoken_languages": profile.spoken_languages,
+        "location_label": profile.location_label,
         "service_radius_km": profile.service_radius_km,
         "is_available": profile.is_available,
         "verification_status": profile.verification_status,
@@ -168,7 +177,9 @@ async def submit_id_verification(
 
 @router.get("/categories")
 async def list_categories(db: AsyncSession = Depends(get_db)) -> Any:
-    result = await db.execute(select(Category).where(Category.is_active).order_by(Category.name_en))
+    result = await db.execute(
+        select(Category).where(Category.is_active).order_by(Category.name_en)
+    )
     cats = result.scalars().all()
     return [
         {

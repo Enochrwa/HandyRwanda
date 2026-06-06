@@ -7,6 +7,7 @@ ArtisanEarnings:   aggregated earnings ledger per artisan.
 WithdrawalRequest: artisan payout request (manual MoMo process).
 DisputeEvidence:   evidence submitted during a dispute.
 """
+
 import enum
 import uuid
 from datetime import datetime
@@ -19,10 +20,10 @@ from app.db_compat import UUID
 
 
 class EscrowStatus(str, enum.Enum):
-    held = "held"                   # payment received, job not yet complete
-    released = "released"           # payment released to artisan
-    refunded = "refunded"           # payment refunded to client
-    disputed = "disputed"           # under dispute, hold extended
+    held = "held"  # payment received, job not yet complete
+    released = "released"  # payment released to artisan
+    refunded = "refunded"  # payment refunded to client
+    disputed = "disputed"  # under dispute, hold extended
 
 
 class EscrowTransaction(Base):
@@ -30,6 +31,7 @@ class EscrowTransaction(Base):
     Tracks the hold-and-release lifecycle of a booking payment.
     Created when admin approves a payment; released 48h after job completion.
     """
+
     __tablename__ = "escrow_transactions"
 
     id: Mapped[uuid.UUID] = mapped_column(
@@ -59,7 +61,8 @@ class EscrowTransaction(Base):
         DateTime(timezone=True), nullable=True
     )
     released_by: Mapped[str | None] = mapped_column(
-        String(20), nullable=True  # "client", "auto", "admin"
+        String(20),
+        nullable=True,  # "client", "auto", "admin"
     )
     notes: Mapped[str | None] = mapped_column(String(300), nullable=True)
 
@@ -73,6 +76,7 @@ class WithdrawalStatus(str, enum.Enum):
 
 class WithdrawalRequest(Base):
     """Artisan requests payout; admin manually sends via MoMo and marks paid."""
+
     __tablename__ = "withdrawal_requests"
 
     id: Mapped[uuid.UUID] = mapped_column(
@@ -106,6 +110,7 @@ class DisputeEvidenceType(str, enum.Enum):
 
 class DisputeEvidence(Base):
     """Evidence submitted by either party during a booking dispute."""
+
     __tablename__ = "dispute_evidence"
 
     id: Mapped[uuid.UUID] = mapped_column(

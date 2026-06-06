@@ -218,7 +218,7 @@ async def verify_otp(
     await db.commit()
     await db.refresh(user)
 
-    access_token = auth_service.create_access_token(str(user.id), str(user.role))
+    access_token = auth_service.create_access_token(str(user.id), user.role.value)
     refresh_token = auth_service.create_refresh_token(str(user.id))
 
     return AuthResponse(
@@ -269,7 +269,7 @@ async def refresh_token(
             status_code=401, detail="User not found or account suspended."
         )
 
-    new_access_token = auth_service.create_access_token(user_id, str(user.role))
+    new_access_token = auth_service.create_access_token(user_id, user.role.value)
     return {"access_token": new_access_token}
 
 

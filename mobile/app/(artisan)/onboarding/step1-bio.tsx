@@ -22,6 +22,36 @@ const LANGUAGES = [
   { code: 'sw', label: '🇰🇪 Swahili' },
 ];
 
+/**
+ * Extract a human-readable message from any Axios error.
+ * Handles:
+ *   - FastAPI HTTPException:  { detail: "string" }
+ *   - Pydantic 422:           { detail: [{ msg: "...", loc: [...] }] }
+ *   - Network errors:         error.message (e.g. "Network Error")
+ */
+function extractErrorMessage(error: any): string {
+  const detail = error?.response?.data?.detail;
+
+  if (typeof detail === 'string') return detail;
+
+  if (Array.isArray(detail) && detail.length > 0) {
+    // Pydantic validation error — join all field messages
+    return detail
+      .map((d: any) => {
+        const field = Array.isArray(d.loc) ? d.loc.slice(-1)[0] : '';
+        return field ? `${field}: ${d.msg}` : d.msg;
+      })
+      .join('\n');
+  }
+
+  // Network-level error (no response at all)
+  if (!error?.response) {
+    return `Network error — check that the server is reachable.\n(${error?.message ?? 'unknown'})`;
+  }
+
+  return 'Failed to save. Please try again.';
+}
+
 export default function BioStep() {
   const router = useRouter();
   const [bio, setBio] = useState('');
@@ -39,35 +69,63 @@ export default function BioStep() {
   };
 
   const handleNext = async () => {
+    // ── Client-side validation ───────────────────────────────────────────
     if (bio.trim().length < 20) {
-      Toast.show({ type: 'error', text1: 'Bio too short', text2: 'Write at least 20 characters' });
+      Toast.show({
+        type: 'error',
+        text1: 'Bio too short',
+        text2: 'Write at least 20 characters.',
+      });
       return;
     }
     if (languages.length === 0) {
       Toast.show({
         type: 'error',
         text1: 'Select a language',
-        text2: 'Pick at least one language you speak',
+        text2: 'Pick at least one language you speak.',
       });
       return;
     }
+
+    const radius = parseInt(serviceRadius, 10);
+    if (isNaN(radius) || radius < 1 || radius > 50) {
+      Toast.show({
+        type: 'error',
+        text1: 'Invalid service radius',
+        text2: 'Enter a value between 1 and 50 km.',
+      });
+      return;
+    }
+
+    // ── Build payload ────────────────────────────────────────────────────
+    const payload: Record<string, any> = {
+      bio: bio.trim(),
+      years_experience: parseInt(experience, 10) || 0,
+      spoken_languages: languages.join(','),
+      service_radius_km: radius,
+    };
+
+    const parsedHourly = parseInt(hourlyRate, 10);
+    if (!isNaN(parsedHourly) && parsedHourly > 0) {
+      payload.hourly_rate = parsedHourly;
+    }
+
+    const parsedFixed = parseInt(fixedRate, 10);
+    if (!isNaN(parsedFixed) && parsedFixed > 0) {
+      payload.fixed_rate = parsedFixed;
+    }
+
     setLoading(true);
     try {
-      await api.post('/artisans/profile', {
-        bio: bio.trim(),
-        years_experience: parseInt(experience, 10) || 0,
-        spoken_languages: languages.join(','),
-        service_radius_km: parseInt(serviceRadius, 10) || 10,
-        ...(hourlyRate && { hourly_rate: parseInt(hourlyRate, 10) }),
-        ...(fixedRate && { fixed_rate: parseInt(fixedRate, 10) }),
-      });
+      await api.post('/artisans/profile', payload);
       router.push('/(artisan)/onboarding/step2-skills');
     } catch (error: any) {
-      const msg = error?.response?.data?.detail;
+      const msg = extractErrorMessage(error);
       Toast.show({
         type: 'error',
         text1: 'Error',
-        text2: typeof msg === 'string' ? msg : 'Failed to save. Try again.',
+        text2: msg,
+        visibilityTime: 5000, // longer so multi-line messages are readable
       });
     } finally {
       setLoading(false);
@@ -100,7 +158,10 @@ export default function BioStep() {
         {/* Bio */}
         <View className="mb-5">
           <Text className="text-xs font-bold uppercase tracking-wide text-muted-foreground mb-1.5">
-            Bio * <Text className="normal-case font-normal">({bio.length}/250)</Text>
+            Bio *{' '}
+            <Text className="normal-case font-normal">
+              ({bio.length}/500{bio.length < 20 ? ` — need ${20 - bio.length} more` : ''})
+            </Text>
           </Text>
           <TextInput
             value={bio}
@@ -121,7 +182,7 @@ export default function BioStep() {
           </Text>
           <TextInput
             value={experience}
-            onChangeText={setExperience}
+            onChangeText={(v) => setExperience(v.replace(/[^0-9]/g, ''))}
             placeholder="e.g. 5"
             keyboardType="number-pad"
             maxLength={2}
@@ -136,7 +197,7 @@ export default function BioStep() {
           </Text>
           <TextInput
             value={hourlyRate}
-            onChangeText={setHourlyRate}
+            onChangeText={(v) => setHourlyRate(v.replace(/[^0-9]/g, ''))}
             placeholder="e.g. 5000"
             keyboardType="number-pad"
             className="bg-card p-4 rounded-2xl border border-border text-foreground text-sm"
@@ -153,7 +214,7 @@ export default function BioStep() {
           </Text>
           <TextInput
             value={fixedRate}
-            onChangeText={setFixedRate}
+            onChangeText={(v) => setFixedRate(v.replace(/[^0-9]/g, ''))}
             placeholder="e.g. 20000 per job"
             keyboardType="number-pad"
             className="bg-card p-4 rounded-2xl border border-border text-foreground text-sm"
@@ -170,14 +231,14 @@ export default function BioStep() {
           </Text>
           <TextInput
             value={serviceRadius}
-            onChangeText={setServiceRadius}
+            onChangeText={(v) => setServiceRadius(v.replace(/[^0-9]/g, ''))}
             placeholder="e.g. 10"
             keyboardType="number-pad"
-            maxLength={3}
+            maxLength={2}
             className="bg-card p-4 rounded-2xl border border-border text-foreground text-sm"
           />
           <Text className="text-[10px] text-muted-foreground mt-1">
-            How far are you willing to travel to a job? (1-50 km)
+            How far are you willing to travel to a job? (1–50 km)
           </Text>
         </View>
 
@@ -192,10 +253,16 @@ export default function BioStep() {
                 key={l.code}
                 onPress={() => toggleLang(l.code)}
                 accessibilityLabel={l.label}
-                className={`px-4 py-2.5 rounded-xl border-2 ${languages.includes(l.code) ? 'border-primary bg-primary/10' : 'border-border bg-card'}`}
+                className={`px-4 py-2.5 rounded-xl border-2 ${
+                  languages.includes(l.code)
+                    ? 'border-primary bg-primary/10'
+                    : 'border-border bg-card'
+                }`}
               >
                 <Text
-                  className={`text-sm font-semibold ${languages.includes(l.code) ? 'text-primary' : 'text-foreground'}`}
+                  className={`text-sm font-semibold ${
+                    languages.includes(l.code) ? 'text-primary' : 'text-foreground'
+                  }`}
                 >
                   {l.label}
                 </Text>

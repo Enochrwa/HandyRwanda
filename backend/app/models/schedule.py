@@ -4,6 +4,7 @@ Artisan availability models.
 - ArtisanSchedule: weekly recurring availability windows
 - BlockedDate:     one-off days the artisan is unavailable
 """
+
 import uuid
 from datetime import date, time
 
@@ -27,6 +28,7 @@ DAYS = {
 
 class ArtisanSchedule(Base):
     """Weekly recurring availability slot for an artisan."""
+
     __tablename__ = "artisan_schedules"
 
     id: Mapped[uuid.UUID] = mapped_column(
@@ -47,6 +49,7 @@ class ArtisanSchedule(Base):
 
 class BlockedDate(Base):
     """A specific date on which the artisan is unavailable (holiday / personal)."""
+
     __tablename__ = "artisan_blocked_dates"
 
     id: Mapped[uuid.UUID] = mapped_column(

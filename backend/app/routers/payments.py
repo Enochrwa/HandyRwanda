@@ -10,6 +10,7 @@ POST   /payments/{payment_id}/submit-proof  — client submits transaction ID / 
 GET    /payments/{payment_id}               — get payment status
 GET    /payments/booking/{booking_id}       — get payment for a booking
 """
+
 import os
 import random
 import string
@@ -70,8 +71,9 @@ class InitiatePaymentRequest(BaseModel):
 
 
 class SubmitProofRequest(BaseModel):
-    client_transaction_id: str = Field(..., min_length=3, max_length=100,
-                                       description="Transaction ID from MoMo SMS")
+    client_transaction_id: str = Field(
+        ..., min_length=3, max_length=100, description="Transaction ID from MoMo SMS"
+    )
     proof_screenshot_base64: str | None = Field(
         None, description="Optional base64 screenshot of payment confirmation"
     )
@@ -109,9 +111,7 @@ async def initiate_payment(
         )
 
     # Check no existing payment already initiated
-    existing = await db.scalar(
-        select(Payment).where(Payment.booking_id == booking_id)
-    )
+    existing = await db.scalar(select(Payment).where(Payment.booking_id == booking_id))
     if existing:
         # Re-use existing payment record — idempotent
         return _payment_instructions(existing, payload.method)
@@ -159,7 +159,7 @@ def _payment_instructions(payment: Payment, method: PaymentMethod) -> dict[str, 
             "7. Come back here and tap 'I've Sent the Payment'",
         ],
         "note": "Payment is verified within 5 minutes. "
-                "Your booking is confirmed immediately after verification.",
+        "Your booking is confirmed immediately after verification.",
     }
 
 
@@ -240,13 +240,13 @@ async def get_payment_for_booking(
 ) -> Any:
     """Get current payment status for a booking."""
     user_id = UUID(current_user["sub"])
-    payment = await db.scalar(
-        select(Payment).where(Payment.booking_id == booking_id)
-    )
+    payment = await db.scalar(select(Payment).where(Payment.booking_id == booking_id))
     if not payment:
         return {"status": "not_initiated"}
     # Only client or artisan on this booking can view
-    if str(payment.client_id) != str(user_id) and str(payment.artisan_id) != str(user_id):
+    if str(payment.client_id) != str(user_id) and str(payment.artisan_id) != str(
+        user_id
+    ):
         raise HTTPException(status_code=403, detail="Forbidden.")
 
     return {
@@ -274,7 +274,9 @@ async def get_payment(
     payment = await db.scalar(select(Payment).where(Payment.id == payment_id))
     if not payment:
         raise HTTPException(status_code=404, detail="Payment not found.")
-    if str(payment.client_id) != str(user_id) and str(payment.artisan_id) != str(user_id):
+    if str(payment.client_id) != str(user_id) and str(payment.artisan_id) != str(
+        user_id
+    ):
         raise HTTPException(status_code=403, detail="Forbidden.")
     return {
         "payment_id": str(payment.id),

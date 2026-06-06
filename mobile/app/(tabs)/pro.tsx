@@ -274,11 +274,21 @@ export default function ProDashboard() {
                     {job.budget?.toLocaleString() ?? 'Negotiable'} RWF
                   </Text>
                 </View>
-                <View className="flex-row items-center mb-3">
-                  <MapPin size={14} color="#6B6B6B" />
-                  <Text className="text-xs text-muted-foreground ml-1">
-                    {job.location_label} • {job.distance} km away
-                  </Text>
+                <View className="flex-row items-start mb-3">
+                  <MapPin size={14} color="#6B6B6B" style={{ marginTop: 2 }} />
+                  <View className="ml-1 flex-1">
+                    <Text className="text-xs text-muted-foreground">
+                      {[job.address?.sector, job.address?.district]
+                        .filter(Boolean)
+                        .join(', ') || job.location_label || 'Rwanda'}
+                      {job.distance != null ? ` • ${job.distance} km away` : ''}
+                    </Text>
+                    {job.address?.landmark ? (
+                      <Text className="text-[10px] text-amber-600 font-semibold">
+                        Near {job.address.landmark}
+                      </Text>
+                    ) : null}
+                  </View>
                 </View>
                 <Text className="text-sm text-foreground mb-4" numberOfLines={2}>
                   {job.description}

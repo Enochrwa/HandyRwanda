@@ -6,46 +6,12 @@ import { artisanService } from "@/services/artisanService";
 import { useAuthStore } from "@/store/authStore";
 import { Category } from "@/types/category";
 import { MapPin, Camera, User, Check, Loader2, X } from "lucide-react";
-import { MapContainer, TileLayer, Marker, useMapEvents } from "react-leaflet";
-import "leaflet/dist/leaflet.css";
-import L from "leaflet";
 import { toast } from "sonner";
-
-// Fix Leaflet default marker icon bug
-import markerIcon2x from "leaflet/dist/images/marker-icon-2x.png";
-import markerIcon from "leaflet/dist/images/marker-icon.png";
-import markerShadow from "leaflet/dist/images/marker-shadow.png";
-
-// eslint-disable-next-line @typescript-eslint/ban-ts-comment
-// @ts-ignore
-delete (L.Icon.Default.prototype as Record<string, unknown>)._getIconUrl;
-L.Icon.Default.mergeOptions({
-  iconRetinaUrl: markerIcon2x,
-  iconUrl: markerIcon,
-  shadowUrl: markerShadow,
-});
+import { RwandaAddressPicker, type RwandaAddress } from "@/components/RwandaAddressPicker";
 
 export const Route = createFileRoute("/onboarding/artisan")({
   component: ArtisanOnboarding,
 });
-
-function MapPicker({
-  onSelect,
-  lat,
-  lng,
-}: {
-  onSelect: (lat: number, lng: number) => void;
-  lat: number;
-  lng: number;
-}) {
-  const map = useMapEvents({
-    click(e) {
-      onSelect(e.latlng.lat, e.latlng.lng);
-    },
-  });
-
-  return <Marker position={[lat, lng]} />;
-}
 
 function ArtisanOnboarding() {
   const navigate = useNavigate();
@@ -65,6 +31,13 @@ function ArtisanOnboarding() {
     national_id: "",
     id_photo_base64: null as string | null,
     selfie_photo_base64: null as string | null,
+  });
+
+  const [artisanAddress, setArtisanAddress] = useState<Partial<RwandaAddress>>({
+    province: "Kigali City",
+    district: "Gasabo",
+    latitude: -1.9441,
+    longitude: 30.0619,
   });
 
   const [previews, setPreviews] = useState({
@@ -126,12 +99,32 @@ function ArtisanOnboarding() {
       } else if (step === 2) {
         await artisanService.updateSkills(formData.category_ids);
       } else if (step === 3) {
+        const lat = artisanAddress.latitude ?? formData.latitude;
+        const lng = artisanAddress.longitude ?? formData.longitude;
+        const label = artisanAddress.formatted ?? artisanAddress.district ?? formData.location_label;
         await artisanService.updateProfile({
-          location_label: formData.location_label,
+          location_label: label,
           service_radius_km: formData.service_radius,
-          latitude: formData.latitude,
-          longitude: formData.longitude,
+          latitude: lat,
+          longitude: lng,
         });
+        // Also save structured address to user profile
+        if (artisanAddress.district) {
+          await import("@/services/api").then(({ default: api }) =>
+            api.patch("/auth/profile", {
+              province: artisanAddress.province ?? undefined,
+              district: artisanAddress.district,
+              sector: artisanAddress.sector ?? undefined,
+              cell: artisanAddress.cell ?? undefined,
+              village: artisanAddress.village ?? undefined,
+              address_detail: [
+                artisanAddress.house_number,
+                artisanAddress.street_road,
+                artisanAddress.landmark ? `Near ${artisanAddress.landmark}` : "",
+              ].filter(Boolean).join(", ") || undefined,
+            })
+          );
+        }
       } else if (step === 4) {
         if (formData.id_photo_base64 && formData.selfie_photo_base64) {
           await artisanService.submitVerification({
@@ -155,7 +148,7 @@ function ArtisanOnboarding() {
 
   const isStep1Valid = formData.bio.length > 10;
   const isStep2Valid = formData.category_ids.length > 0;
-  const isStep3Valid = formData.location_label.length > 2;
+  const isStep3Valid = !!(artisanAddress.district && artisanAddress.district.length > 1);
   const isStep4Valid =
     formData.national_id.length > 5 && formData.id_photo_base64 && formData.selfie_photo_base64;
 
@@ -253,14 +246,23 @@ function ArtisanOnboarding() {
               <div className="space-y-4">
                 <div>
                   <label className="text-sm font-semibold text-muted-foreground">
-                    Your Base Location (Area Name)
+                    Your Service Area &amp; Home Address
                   </label>
-                  <input
-                    type="text"
-                    placeholder="e.g., Kimironko, Kigali"
-                    className="mt-2 w-full rounded-xl border border-border bg-muted/20 p-4"
-                    value={formData.location_label}
-                    onChange={(e) => setFormData({ ...formData, location_label: e.target.value })}
+                  <p className="text-xs text-muted-foreground mt-1 mb-4">
+                    Pin your location on the map, then complete your address so clients near you can find you first.
+                  </p>
+                  <RwandaAddressPicker
+                    value={artisanAddress}
+                    onChange={(addr) => {
+                      setArtisanAddress(addr);
+                      setFormData((f) => ({
+                        ...f,
+                        latitude: addr.latitude,
+                        longitude: addr.longitude,
+                        location_label: addr.formatted,
+                      }));
+                    }}
+                    required
                   />
                 </div>
                 <div>
@@ -280,33 +282,6 @@ function ArtisanOnboarding() {
                   />
                   <p className="mt-2 text-xs text-muted-foreground">
                     Clients within this radius will be able to find and book you.
-                  </p>
-                </div>
-                <div className="space-y-2">
-                  <label className="text-sm font-semibold text-muted-foreground">
-                    Pick exact location on map
-                  </label>
-                  <div className="aspect-video w-full rounded-2xl overflow-hidden border-2 border-border z-0">
-                    <MapContainer
-                      center={[-1.9441, 30.0619]}
-                      zoom={12}
-                      style={{ height: "100%", width: "100%" }}
-                    >
-                      <TileLayer
-                        attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
-                        url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
-                      />
-                      <MapPicker
-                        lat={formData.latitude}
-                        lng={formData.longitude}
-                        onSelect={(lat, lng) =>
-                          setFormData({ ...formData, latitude: lat, longitude: lng })
-                        }
-                      />
-                    </MapContainer>
-                  </div>
-                  <p className="text-[10px] text-muted-foreground">
-                    Lat: {formData.latitude.toFixed(4)}, Lng: {formData.longitude.toFixed(4)}
                   </p>
                 </div>
               </div>

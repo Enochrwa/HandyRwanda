@@ -43,6 +43,17 @@ const URGENCY_LABELS: Record<string, string> = {
   flexible: "📅 Flexible",
 };
 
+interface JobAddress {
+  province?: string;
+  district?: string;
+  sector?: string;
+  cell?: string;
+  village?: string;
+  street_road?: string;
+  house_number?: string;
+  landmark?: string;
+}
+
 interface JobItem {
   id: string;
   title: string;
@@ -51,6 +62,9 @@ interface JobItem {
   budget?: number;
   budget_negotiable?: boolean;
   location_label?: string;
+  latitude?: number;
+  longitude?: number;
+  address?: JobAddress;
   created_at?: string;
   scheduled_time?: string;
   urgency?: string;
@@ -224,9 +238,20 @@ function ArtisanJobFeed() {
                     </div>
                     <h2 className="text-base font-bold">{j.title}</h2>
                     <div className="mt-1.5 flex flex-wrap items-center gap-3 text-sm text-muted-foreground">
-                      {j.location_label && (
-                        <span className="flex items-center gap-1">
-                          <MapPin className="h-3.5 w-3.5" /> {j.location_label}
+                      {(j.address?.district || j.location_label) && (
+                        <span className="flex items-start gap-1">
+                          <MapPin className="h-3.5 w-3.5 mt-0.5 shrink-0" />
+                          <span>
+                            {/* Show sector + district for quick at-a-glance on list */}
+                            {[j.address?.sector, j.address?.district]
+                              .filter(Boolean)
+                              .join(", ") || j.location_label}
+                            {j.address?.landmark && (
+                              <span className="block text-[11px] text-amber-600 font-medium">
+                                Near {j.address.landmark}
+                              </span>
+                            )}
+                          </span>
                         </span>
                       )}
                       {j.budget ? (

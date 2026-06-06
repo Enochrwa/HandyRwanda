@@ -464,3 +464,48 @@ def address_to_search_label(
     """Short label for search filtering."""
     parts = [p for p in [sector, district] if p]
     return ", ".join(parts) if parts else "Rwanda"
+
+
+def get_villages(province: str, district: str, sector: str) -> list[str]:
+    """
+    In Rwanda's NISR data the leaf nodes are cells/villages.
+    We return the same list as cells — callers can treat them interchangeably.
+    """
+    return get_cells(province, district, sector)
+
+
+def format_full_address(
+    province: str | None = None,
+    district: str | None = None,
+    sector: str | None = None,
+    cell: str | None = None,
+    village: str | None = None,
+    street_road: str | None = None,
+    house_number: str | None = None,
+    landmark: str | None = None,
+) -> str:
+    """
+    Build a full human-readable address from finest-to-coarsest granularity.
+
+    Order: house_number → street_road → landmark → village → cell
+           → sector → district → province → Rwanda
+    """
+    parts: list[str] = []
+    if house_number:
+        parts.append(house_number)
+    if street_road:
+        parts.append(street_road)
+    if landmark:
+        parts.append(f"Near {landmark}")
+    if village:
+        parts.append(village)
+    if cell:
+        parts.append(cell)
+    if sector:
+        parts.append(sector)
+    if district:
+        parts.append(district)
+    if province:
+        parts.append(province)
+    parts.append("Rwanda")
+    return ", ".join(p for p in parts if p)

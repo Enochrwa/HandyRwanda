@@ -19,6 +19,15 @@ function formatRWF(n: number) {
   return new Intl.NumberFormat('rw-RW').format(n);
 }
 
+interface JobAddress {
+  district?: string;
+  sector?: string;
+  village?: string;
+  landmark?: string;
+  house_number?: string;
+  street_road?: string;
+}
+
 interface JobItem {
   id: string;
   title: string;
@@ -27,6 +36,7 @@ interface JobItem {
   budget?: number;
   created_at: string;
   location_label?: string;
+  address?: JobAddress;
   bid_count?: number;
   category?: { name_en: string; icon_emoji?: string };
 }
@@ -89,10 +99,21 @@ export default function ArtisanJobFeed() {
               💰 {formatRWF(item.budget)} RWF
             </Text>
           )}
-          {item.location_label && (
-            <View className="flex-row items-center gap-1">
-              <MapPin size={12} color="#6B6B6B" />
-              <Text className="text-[11px] text-muted-foreground">{item.location_label}</Text>
+          {(item.address?.district || item.location_label) && (
+            <View className="flex-row items-start gap-1">
+              <MapPin size={12} color="#6B6B6B" style={{ marginTop: 2 }} />
+              <View>
+                <Text className="text-[11px] text-muted-foreground">
+                  {[item.address?.sector, item.address?.district]
+                    .filter(Boolean)
+                    .join(', ') || item.location_label}
+                </Text>
+                {item.address?.landmark ? (
+                  <Text className="text-[10px] text-amber-600 font-semibold">
+                    Near {item.address.landmark}
+                  </Text>
+                ) : null}
+              </View>
             </View>
           )}
           {item.bid_count !== undefined && (

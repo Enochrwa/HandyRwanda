@@ -18,6 +18,7 @@ from app.models.job import Bid, Job, JobStatus, JobUrgency
 from app.models.user import UserRole
 from app.services.matching_service import notify_matching_artisans
 from app.services.price_anchor_service import get_price_anchor
+from app.utils.rwanda_address import format_full_address
 
 router = APIRouter(prefix="/jobs", tags=["jobs"])
 
@@ -40,8 +41,23 @@ def _serialize_job(
         "title": job.title,
         "description": job.description,
         "additional_notes": job.additional_notes,
+        # Geo
         "location": job.location,
+        "latitude": job.latitude,
+        "longitude": job.longitude,
+        # Human-readable labels
         "location_label": job.location_label,
+        # Structured Rwanda address
+        "address": {
+            "province": job.province,
+            "district": job.district,
+            "sector": job.sector,
+            "cell": job.cell,
+            "village": job.village,
+            "street_road": job.street_road,
+            "house_number": job.house_number,
+            "landmark": job.landmark,
+        },
         "scheduled_time": job.scheduled_time.isoformat()
         if job.scheduled_time
         else None,
@@ -56,6 +72,26 @@ def _serialize_job(
     }
 
 
+class RwandaAddressInput(BaseModel):
+    """Structured Rwanda address — all fields optional except district."""
+    province: str | None = Field(None, max_length=100)
+    district: str = Field(..., min_length=2, max_length=100)
+    sector: str | None = Field(None, max_length=100)
+    cell: str | None = Field(None, max_length=100)
+    village: str | None = Field(None, max_length=100)
+    street_road: str | None = Field(None, max_length=200)
+    house_number: str | None = Field(
+        None,
+        max_length=50,
+        description="Plot/house number, apartment number, floor, etc.",
+    )
+    landmark: str | None = Field(
+        None,
+        max_length=200,
+        description="Nearby landmark to help artisan find the exact spot (e.g. 'Near Total petrol station')",
+    )
+
+
 class JobCreate(BaseModel):
     category_id: UUID
     title: str = Field(..., min_length=5, max_length=200)
@@ -63,16 +99,24 @@ class JobCreate(BaseModel):
     additional_notes: str | None = Field(
         None,
         max_length=1000,
-        description="Any extra info: materials available, access details, preferred artisan skills",
+        description="Extra info: materials available, access details, preferred artisan skills",
     )
     latitude: float
     longitude: float
-    location_label: str = Field(..., min_length=2, max_length=200)
+    # Structured address (preferred — replaces free-text location_label)
+    address: RwandaAddressInput | None = None
+    # Fallback plain label (used if address not provided)
+    location_label: str | None = Field(None, min_length=2, max_length=400)
     scheduled_time: datetime | None = None
     urgency: JobUrgency = JobUrgency.flexible
     budget: int | None = Field(None, ge=500, description="Budget in RWF (minimum 500)")
     budget_negotiable: bool = True
     photos_base64: list[str] = Field(default=[], max_length=5)
+    photos_urls: list[str] = Field(
+        default=[],
+        max_length=5,
+        description="Already-uploaded photo URLs (from presigned upload)",
+    )
 
 
 class JobUpdate(BaseModel):
@@ -83,7 +127,8 @@ class JobUpdate(BaseModel):
     urgency: JobUrgency | None = None
     budget: int | None = Field(None, ge=500)
     budget_negotiable: bool | None = None
-    location_label: str | None = Field(None, min_length=2, max_length=200)
+    location_label: str | None = Field(None, min_length=2, max_length=400)
+    address: RwandaAddressInput | None = None
 
 
 @router.post("", status_code=201)
@@ -93,6 +138,13 @@ async def create_job(
     current_user: dict[str, Any] = Depends(require_role(UserRole.client)),
 ) -> Any:
     user_id = UUID(current_user["sub"])
+
+    # Validate: need either address.district or location_label
+    if not payload.address and not payload.location_label:
+        raise HTTPException(
+            status_code=422,
+            detail="Provide either `address.district` or `location_label`.",
+        )
 
     # AI category suggestion if null UUID provided
     if str(payload.category_id) == "00000000-0000-0000-0000-000000000000":
@@ -119,11 +171,28 @@ async def create_job(
             status_code=400, detail="Invalid or inactive category selected."
         )
 
-    # Upload photos (max 5)
-    photo_urls: list[str] = []
-    for base64_data in payload.photos_base64[:5]:
+    # Upload photos via base64 (legacy path) — max 5
+    photo_urls: list[str] = list(payload.photos_urls[:5])
+    remaining_slots = 5 - len(photo_urls)
+    for base64_data in payload.photos_base64[:remaining_slots]:
         url = await upload_image(base64_data, f"job-photos/{user_id}")
         photo_urls.append(url)
+
+    # Build location label from structured address if provided
+    addr = payload.address
+    if addr:
+        computed_label = format_full_address(
+            province=addr.province,
+            district=addr.district,
+            sector=addr.sector,
+            cell=addr.cell,
+            village=addr.village,
+            street_road=addr.street_road,
+            house_number=addr.house_number,
+            landmark=addr.landmark,
+        )
+    else:
+        computed_label = payload.location_label or "Rwanda"
 
     job = Job(
         client_id=user_id,
@@ -132,7 +201,18 @@ async def create_job(
         description=payload.description,
         additional_notes=payload.additional_notes,
         location=f"POINT({payload.longitude} {payload.latitude})",
-        location_label=payload.location_label,
+        latitude=payload.latitude,
+        longitude=payload.longitude,
+        location_label=computed_label,
+        # Structured fields
+        province=addr.province if addr else None,
+        district=addr.district if addr else None,
+        sector=addr.sector if addr else None,
+        cell=addr.cell if addr else None,
+        village=addr.village if addr else None,
+        street_road=addr.street_road if addr else None,
+        house_number=addr.house_number if addr else None,
+        landmark=addr.landmark if addr else None,
         scheduled_time=payload.scheduled_time,
         urgency=payload.urgency,
         budget=payload.budget,
@@ -230,7 +310,19 @@ async def list_available_jobs(
                 "title": m["title"],
                 "description": m["description"],
                 "additional_notes": m.get("additional_notes"),
+                "latitude": m.get("latitude"),
+                "longitude": m.get("longitude"),
                 "location_label": m.get("location_label"),
+                "address": {
+                    "province": m.get("province"),
+                    "district": m.get("district"),
+                    "sector": m.get("sector"),
+                    "cell": m.get("cell"),
+                    "village": m.get("village"),
+                    "street_road": m.get("street_road"),
+                    "house_number": m.get("house_number"),
+                    "landmark": m.get("landmark"),
+                },
                 "urgency": m.get("urgency", "flexible"),
                 "budget": m.get("budget"),
                 "budget_negotiable": bool(m.get("budget_negotiable", True)),
@@ -252,6 +344,7 @@ async def list_available_jobs(
 async def list_open_jobs(
     category_id: UUID | None = Query(None),
     district: str | None = Query(None),
+    sector: str | None = Query(None),
     urgency: JobUrgency | None = Query(None),
     limit: int = Query(default=50, le=100),
     db: AsyncSession = Depends(get_db),
@@ -266,8 +359,13 @@ async def list_open_jobs(
         query = query.where(Job.category_id == category_id)
     if urgency:
         query = query.where(Job.urgency == urgency)
+    # Prefer structured district field, fall back to label search
     if district:
-        query = query.where(Job.location_label.ilike(f"%{district}%"))
+        query = query.where(
+            (Job.district == district) | Job.location_label.ilike(f"%{district}%")
+        )
+    if sector:
+        query = query.where(Job.sector == sector)
     query = query.order_by(Job.created_at.desc()).limit(limit)
 
     result = await db.execute(query)
@@ -303,9 +401,7 @@ async def get_job_detail(
     # Price anchoring for artisans
     price_guidance: dict[str, Any] | None = None
     if current_user["role"] == UserRole.artisan:
-        district = "Kigali"
-        if job.location_label and "," in job.location_label:
-            district = job.location_label.split(",")[-1].strip()
+        district = job.district or "Kigali"
         price_guidance = await get_price_anchor(
             UUID(str(job.category_id)), district, db
         )
@@ -348,6 +444,29 @@ async def update_job(
         )
 
     update_data = payload.model_dump(exclude_none=True)
+    # Flatten structured address into top-level columns
+    if "address" in update_data:
+        addr = update_data.pop("address")
+        update_data.update(
+            {
+                "province": addr.get("province"),
+                "district": addr.get("district"),
+                "sector": addr.get("sector"),
+                "cell": addr.get("cell"),
+                "village": addr.get("village"),
+                "street_road": addr.get("street_road"),
+                "house_number": addr.get("house_number"),
+                "landmark": addr.get("landmark"),
+            }
+        )
+        if "location_label" not in update_data:
+            update_data["location_label"] = format_full_address(**{
+                k: addr.get(k) for k in [
+                    "province", "district", "sector", "cell", "village",
+                    "street_road", "house_number", "landmark",
+                ]
+            })
+
     if not update_data:
         raise HTTPException(status_code=400, detail="No fields to update.")
 

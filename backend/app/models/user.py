@@ -46,6 +46,7 @@ class User(Base):
     national_id: Mapped[str | None] = mapped_column(String(20), nullable=True)
 
     # Granular Rwanda address fields
+    province: Mapped[str | None] = mapped_column(String(100), nullable=True)
     district: Mapped[str | None] = mapped_column(String(100), nullable=True)
     sector: Mapped[str | None] = mapped_column(String(100), nullable=True)
     cell: Mapped[str | None] = mapped_column(String(100), nullable=True)

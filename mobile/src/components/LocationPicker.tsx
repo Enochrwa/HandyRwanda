@@ -42,17 +42,23 @@ export interface LocationResult {
   longitude: number;
   /** Human-readable full address string */
   formatted: string;
-  /** Rwanda-specific fields (undefined for international addresses) */
+  /** Rwanda-specific structured fields (undefined for international addresses) */
   rwanda?: {
     province: string;
     district: string;
     sector: string;
     cell: string;
+    village: string;
+    street_road: string;
+    house_number: string;
+    landmark: string;
   };
   /** Fields present for all locations */
   country: string;
   city: string;
   streetRoad: string;
+  houseNumber: string;
+  landmark: string;
 }
 
 interface Props {
@@ -137,11 +143,14 @@ export function LocationPicker({ initialCoords, onChange }: Props) {
   const [district, setDistrict] = useState('Gasabo');
   const [sector, setSector] = useState('');
   const [cell, setCell] = useState('');
+  const [village, setVillage] = useState('');
 
   // Shared fields
   const [country, setCountry] = useState('Rwanda');
   const [city, setCity] = useState('');
   const [streetRoad, setStreetRoad] = useState('');
+  const [houseNumber, setHouseNumber] = useState('');
+  const [landmark, setLandmark] = useState('');
 
   // Track previous district for zoom — avoids needing district in effect deps
   const prevDistrictRef = useRef('');
@@ -161,14 +170,20 @@ export function LocationPicker({ initialCoords, onChange }: Props) {
       dist: string,
       sec: string,
       cel: string,
+      vil: string,
       ctry: string,
       cty: string,
       sr: string,
+      hn: string,
+      lm: string,
       rw: boolean,
     ) => {
       const parts: string[] = [];
+      if (hn) parts.push(hn);
       if (sr) parts.push(sr);
+      if (lm) parts.push(`Near ${lm}`);
       if (rw) {
+        if (vil) parts.push(vil);
         if (cel) parts.push(cel);
         if (sec) parts.push(sec);
         if (dist) parts.push(dist);
@@ -186,8 +201,21 @@ export function LocationPicker({ initialCoords, onChange }: Props) {
         country: ctry,
         city: cty,
         streetRoad: sr,
+        houseNumber: hn,
+        landmark: lm,
         ...(rw && dist
-          ? { rwanda: { province: prov, district: dist, sector: sec, cell: cel } }
+          ? {
+              rwanda: {
+                province: prov,
+                district: dist,
+                sector: sec,
+                cell: cel,
+                village: vil,
+                street_road: sr,
+                house_number: hn,
+                landmark: lm,
+              },
+            }
           : {}),
       };
       onChangeRef.current(result);
@@ -204,12 +232,15 @@ export function LocationPicker({ initialCoords, onChange }: Props) {
       district,
       sector,
       cell,
+      village,
       country,
       city,
       streetRoad,
+      houseNumber,
+      landmark,
       isRwanda,
     );
-  }, [coords, province, district, sector, cell, country, city, streetRoad, isRwanda, notify]);
+  }, [coords, province, district, sector, cell, village, country, city, streetRoad, houseNumber, landmark, isRwanda, notify]);
 
   // ── Zoom map when district changes ────────────────────────────────────────
   useEffect(() => {
@@ -241,6 +272,9 @@ export function LocationPicker({ initialCoords, onChange }: Props) {
         setCountry(detectedCountry || 'Rwanda');
         setCity(addr.city ?? addr.town ?? addr.suburb ?? addr.village ?? '');
         setStreetRoad(addr.road ?? addr.pedestrian ?? addr.neighbourhood ?? '');
+        if ((addr as Record<string, string>).house_number) {
+          setHouseNumber((addr as Record<string, string>).house_number);
+        }
 
         if (rwandaDetected) {
           // Try to match returned state/county to our Rwanda data
@@ -283,17 +317,25 @@ export function LocationPicker({ initialCoords, onChange }: Props) {
     setDistrict('');
     setSector('');
     setCell('');
+    setVillage('');
   }, []);
 
   const onDistrictChange = useCallback((v: string) => {
     setDistrict(v);
     setSector('');
     setCell('');
+    setVillage('');
   }, []);
 
   const onSectorChange = useCallback((v: string) => {
     setSector(v);
     setCell('');
+    setVillage('');
+  }, []);
+
+  const onCellChange = useCallback((v: string) => {
+    setCell(v);
+    setVillage('');
   }, []);
 
   const pickerItemStyle = Platform.OS === 'ios' ? { color: '#111827' } : undefined;
@@ -397,8 +439,21 @@ export function LocationPicker({ initialCoords, onChange }: Props) {
                 value={cell}
                 items={cells}
                 pickerItemStyle={pickerItemStyle}
-                onValueChange={setCell}
+                onValueChange={onCellChange}
               />
+            ) : null}
+
+            {/* Village — free text */}
+            {cell ? (
+              <View style={styles.field}>
+                <Text style={styles.label}>Village</Text>
+                <TextInput
+                  style={styles.input}
+                  value={village}
+                  onChangeText={setVillage}
+                  placeholder="Village name (optional)"
+                />
+              </View>
             ) : null}
           </>
         ) : (
@@ -436,6 +491,31 @@ export function LocationPicker({ initialCoords, onChange }: Props) {
           />
         </View>
 
+        {/* House / Plot Number */}
+        <View style={styles.field}>
+          <Text style={styles.label}>House / Plot Number</Text>
+          <TextInput
+            style={styles.input}
+            value={houseNumber}
+            onChangeText={setHouseNumber}
+            placeholder="e.g. No. 14, Plot 7B, Apt 3F"
+          />
+          <Text style={styles.hint}>Helps artisan find the exact door</Text>
+        </View>
+
+        {/* Landmark */}
+        <View style={styles.field}>
+          <Text style={styles.label}>Nearby Landmark</Text>
+          <TextInput
+            style={[styles.input, { minHeight: 44 }]}
+            value={landmark}
+            onChangeText={setLandmark}
+            placeholder="e.g. Near Total petrol station, opposite MTN"
+            multiline
+          />
+          <Text style={styles.hint}>A reference point near your location</Text>
+        </View>
+
         {/* Coordinates display */}
         <View style={styles.coordsRow}>
           <Text style={styles.coordsText}>
@@ -448,7 +528,14 @@ export function LocationPicker({ initialCoords, onChange }: Props) {
           <View style={styles.preview}>
             <Text style={styles.previewLabel}>Full address</Text>
             <Text style={styles.previewText}>
-              {[streetRoad, ...(isRwanda ? [cell, sector, district, province] : [city, country])]
+              {[
+                houseNumber,
+                streetRoad,
+                landmark ? `Near ${landmark}` : '',
+                ...(isRwanda
+                  ? [village, cell, sector, district, province]
+                  : [city, country]),
+              ]
                 .filter(Boolean)
                 .join(', ')}
               {isRwanda ? ', Rwanda' : ''}
@@ -567,6 +654,7 @@ const styles = StyleSheet.create({
   // Fields
   field: { gap: 4 },
   label: { fontSize: 13, fontWeight: '600', color: '#374151' },
+  hint: { fontSize: 10, color: '#9CA3AF', marginTop: 2 },
   dimmed: { opacity: 0.45 },
   pickerWrapper: {
     borderWidth: 1,

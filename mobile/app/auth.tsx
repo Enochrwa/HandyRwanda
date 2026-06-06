@@ -1,8 +1,10 @@
 // File: mobile/app/auth.tsx
+// Updated: full cascading Rwanda address (Province→District→Sector→Cell→Village)
+// + house_number, landmark, street_road fields in registration step 2
 
 import { zodResolver } from '@hookform/resolvers/zod';
 import { useLocalSearchParams, useRouter } from 'expo-router';
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useMemo } from 'react';
 import { useForm, Controller } from 'react-hook-form';
 import {
   View,
@@ -13,22 +15,33 @@ import {
   ActivityIndicator,
   KeyboardAvoidingView,
   Platform,
+  Modal,
+  FlatList,
 } from 'react-native';
 import Toast from 'react-native-toast-message';
 import * as z from 'zod';
 
 import api from '../src/services/api';
 import { useAuthStore } from '../src/store/authStore';
+import RWANDA_ADDRESSES from '../src/data/rwanda-addresses';
+
+// ── Rwanda address helpers ─────────────────────────────────────────────────
+
+const getProvinces = (): string[] => Object.keys(RWANDA_ADDRESSES).sort();
+const getDistricts = (province: string): string[] =>
+  Object.keys((RWANDA_ADDRESSES as any)[province] ?? {}).sort();
+const getSectors = (province: string, district: string): string[] =>
+  Object.keys((RWANDA_ADDRESSES as any)[province]?.[district] ?? {}).sort();
+const getCells = (province: string, district: string, sector: string): string[] =>
+  Object.keys((RWANDA_ADDRESSES as any)[province]?.[district]?.[sector] ?? {}).sort();
+const getVillages = (province: string, district: string, sector: string, cell: string): string[] =>
+  [...((RWANDA_ADDRESSES as any)[province]?.[district]?.[sector]?.[cell] ?? [])].sort();
 
 // ── Schemas ────────────────────────────────────────────────────────────────
 
 const loginSchema = z.object({
   email: z.string().email('Invalid email address'),
 });
-
-// NOTE: otpSchema removed — OTP is managed via plain useState to avoid
-// React Hook Form Controller re-renders overwriting the TextInput value
-// on every parent state change (the "self-deleting input" bug).
 
 const reg1Schema = z.object({
   role: z.enum(['client', 'artisan']),
@@ -55,7 +68,14 @@ const reg2Schema = z.object({
     .string()
     .optional()
     .refine((v) => !v || /^\d{16}$/.test(v), 'NID must be exactly 16 digits'),
+  province: z.string().optional(),
   district: z.string().optional(),
+  sector: z.string().optional(),
+  cell: z.string().optional(),
+  village: z.string().optional(),
+  street_road: z.string().max(200).optional(),
+  house_number: z.string().max(50).optional(),
+  landmark: z.string().max(200).optional(),
 });
 
 const reg3Schema = z.object({
@@ -68,42 +88,8 @@ type LoginData = z.infer<typeof loginSchema>;
 type Reg1Data = z.infer<typeof reg1Schema>;
 type Reg2Data = z.infer<typeof reg2Schema>;
 type Reg3Data = z.infer<typeof reg3Schema>;
+type RegistrationData = Reg1Data & Reg2Data;
 
-type RegistrationData = z.infer<typeof reg1Schema> & z.infer<typeof reg2Schema>;
-
-const DISTRICTS = [
-  'Gasabo',
-  'Kicukiro',
-  'Nyarugenge',
-  'Bugesera',
-  'Gatsibo',
-  'Kayonza',
-  'Kirehe',
-  'Ngoma',
-  'Nyagatare',
-  'Rwamagana',
-  'Burera',
-  'Gakenke',
-  'Gicumbi',
-  'Musanze',
-  'Rulindo',
-  'Gisagara',
-  'Huye',
-  'Kamonyi',
-  'Muhanga',
-  'Nyamagabe',
-  'Nyanza',
-  'Nyaruguru',
-  'Ruhango',
-  'Karongi',
-  'Ngororero',
-  'Nyabihu',
-  'Rubavu',
-  'Rusizi',
-  'Rutsiro',
-].sort();
-
-/** Inline shadow — toggling NativeWind `shadow-sm` in className breaks navigation context. */
 const cardShadow = {
   shadowColor: '#000',
   shadowOffset: { width: 0, height: 1 },
@@ -120,19 +106,41 @@ function FieldError({ message }: { message?: string }) {
 }
 
 function StepDots({ current, total }: { current: number; total: number }) {
+  const labels = ['Identity', 'Location', 'Confirm'];
   return (
-    <View className="flex-row items-center gap-2 justify-center mb-6">
+    <View className="flex-row items-center justify-center mb-6 gap-1">
       {Array.from({ length: total }).map((_, i) => (
-        <View
-          key={i}
-          className={`rounded-full ${
-            i === current
-              ? 'w-6 h-2 bg-primary'
-              : i < current
-                ? 'w-2 h-2 bg-muted-foreground'
-                : 'w-2 h-2 bg-muted'
-          }`}
-        />
+        <React.Fragment key={i}>
+          <View className="items-center gap-1">
+            <View
+              className={`rounded-full items-center justify-center ${
+                i === current
+                  ? 'w-7 h-7 bg-primary'
+                  : i < current
+                    ? 'w-5 h-5 bg-primary/60'
+                    : 'w-5 h-5 bg-muted'
+              }`}
+            >
+              {i < current ? (
+                <Text className="text-white text-xs font-bold">✓</Text>
+              ) : (
+                <Text
+                  className={`text-xs font-bold ${i === current ? 'text-white' : 'text-muted-foreground'}`}
+                >
+                  {i + 1}
+                </Text>
+              )}
+            </View>
+            <Text
+              className={`text-[9px] ${i === current ? 'text-primary font-bold' : 'text-muted-foreground'}`}
+            >
+              {labels[i]}
+            </Text>
+          </View>
+          {i < total - 1 && (
+            <View className={`h-0.5 flex-1 mb-3 ${i < current ? 'bg-primary/60' : 'bg-muted'}`} />
+          )}
+        </React.Fragment>
       ))}
     </View>
   );
@@ -179,6 +187,283 @@ function InfoBox({
   );
 }
 
+// ── Inline dropdown picker ──────────────────────────────────────────────────
+
+function DropdownPicker({
+  label,
+  value,
+  options,
+  onSelect,
+  placeholder,
+  disabled,
+}: {
+  label: string;
+  value?: string;
+  options: string[];
+  onSelect: (v: string) => void;
+  placeholder?: string;
+  disabled?: boolean;
+}) {
+  const [open, setOpen] = useState(false);
+
+  return (
+    <View className="flex-1">
+      <Text className="text-xs font-semibold mb-1 text-foreground/80">{label}</Text>
+      <TouchableOpacity
+        onPress={() => !disabled && setOpen(true)}
+        className={`p-3 rounded-xl border flex-row justify-between items-center ${
+          disabled ? 'bg-muted/30 border-border/40' : 'bg-muted/50 border-border'
+        }`}
+        accessibilityLabel={`Select ${label}`}
+      >
+        <Text
+          className={`text-xs ${value ? 'text-foreground' : 'text-muted-foreground'} ${disabled ? 'opacity-40' : ''}`}
+          numberOfLines={1}
+        >
+          {value || placeholder || `Select ${label.toLowerCase()}`}
+        </Text>
+        <Text className={`text-muted-foreground text-xs ${disabled ? 'opacity-40' : ''}`}>▼</Text>
+      </TouchableOpacity>
+
+      <Modal visible={open} transparent animationType="slide" onRequestClose={() => setOpen(false)}>
+        <TouchableOpacity
+          className="flex-1 bg-black/40"
+          activeOpacity={1}
+          onPress={() => setOpen(false)}
+        />
+        <View
+          className="bg-card rounded-t-3xl max-h-72 border-t border-border"
+          style={{ ...cardShadow, position: 'absolute', bottom: 0, left: 0, right: 0 }}
+        >
+          <View className="p-4 border-b border-border flex-row justify-between items-center">
+            <Text className="font-bold text-base">Select {label}</Text>
+            <TouchableOpacity onPress={() => setOpen(false)}>
+              <Text className="text-primary font-semibold">Done</Text>
+            </TouchableOpacity>
+          </View>
+          <FlatList
+            data={options}
+            keyExtractor={(item) => item}
+            renderItem={({ item }) => (
+              <TouchableOpacity
+                onPress={() => {
+                  onSelect(item);
+                  setOpen(false);
+                }}
+                className={`p-4 border-b border-border/30 ${value === item ? 'bg-primary/10' : ''}`}
+                accessibilityLabel={item}
+              >
+                <Text
+                  className={`${value === item ? 'text-primary font-semibold' : 'text-foreground'} text-sm`}
+                >
+                  {item}
+                </Text>
+              </TouchableOpacity>
+            )}
+          />
+        </View>
+      </Modal>
+    </View>
+  );
+}
+
+// ── AddressSection ──────────────────────────────────────────────────────────
+
+function AddressSection({ form }: { form: ReturnType<typeof useForm<Reg2Data>> }) {
+  const province = form.watch('province') ?? '';
+  const district = form.watch('district') ?? '';
+  const sector = form.watch('sector') ?? '';
+  const cell = form.watch('cell') ?? '';
+
+  const provinces = useMemo(() => getProvinces(), []);
+  const districts = useMemo(() => (province ? getDistricts(province) : []), [province]);
+  const sectors = useMemo(
+    () => (province && district ? getSectors(province, district) : []),
+    [province, district],
+  );
+  const cells = useMemo(
+    () => (province && district && sector ? getCells(province, district, sector) : []),
+    [province, district, sector],
+  );
+  const villages = useMemo(
+    () =>
+      province && district && sector && cell ? getVillages(province, district, sector, cell) : [],
+    [province, district, sector, cell],
+  );
+
+  return (
+    <View>
+      <Text className="text-sm font-bold mb-3 text-foreground">📍 Administrative Address</Text>
+
+      {/* Province + District */}
+      <View className="flex-row gap-2 mb-3">
+        <Controller
+          control={form.control}
+          name="province"
+          render={({ field: { onChange, value } }) => (
+            <DropdownPicker
+              label="Province"
+              value={value}
+              options={provinces}
+              onSelect={(v) => {
+                onChange(v);
+                form.setValue('district', '');
+                form.setValue('sector', '');
+                form.setValue('cell', '');
+                form.setValue('village', '');
+              }}
+            />
+          )}
+        />
+        <Controller
+          control={form.control}
+          name="district"
+          render={({ field: { onChange, value } }) => (
+            <DropdownPicker
+              label="District"
+              value={value}
+              options={districts}
+              disabled={!province}
+              placeholder={province ? 'Select district' : 'Province first'}
+              onSelect={(v) => {
+                onChange(v);
+                form.setValue('sector', '');
+                form.setValue('cell', '');
+                form.setValue('village', '');
+              }}
+            />
+          )}
+        />
+      </View>
+
+      {/* Sector + Cell */}
+      <View className="flex-row gap-2 mb-3">
+        <Controller
+          control={form.control}
+          name="sector"
+          render={({ field: { onChange, value } }) => (
+            <DropdownPicker
+              label="Sector"
+              value={value}
+              options={sectors}
+              disabled={!district}
+              placeholder={district ? 'Select sector' : 'District first'}
+              onSelect={(v) => {
+                onChange(v);
+                form.setValue('cell', '');
+                form.setValue('village', '');
+              }}
+            />
+          )}
+        />
+        <Controller
+          control={form.control}
+          name="cell"
+          render={({ field: { onChange, value } }) => (
+            <DropdownPicker
+              label="Cell"
+              value={value}
+              options={cells}
+              disabled={!sector}
+              placeholder={sector ? 'Select cell' : 'Sector first'}
+              onSelect={(v) => {
+                onChange(v);
+                form.setValue('village', '');
+              }}
+            />
+          )}
+        />
+      </View>
+
+      {/* Village */}
+      <View className="mb-3">
+        <Controller
+          control={form.control}
+          name="village"
+          render={({ field: { onChange, value } }) => (
+            <DropdownPicker
+              label="Village"
+              value={value}
+              options={villages}
+              disabled={!cell}
+              placeholder={cell ? 'Select village' : 'Cell first'}
+              onSelect={onChange}
+            />
+          )}
+        />
+      </View>
+
+      <View className="h-px bg-border/50 my-2" />
+      <Text className="text-xs font-semibold text-muted-foreground mb-2">
+        🏠 Street Details (optional)
+      </Text>
+
+      {/* Street + House */}
+      <View className="flex-row gap-2 mb-3">
+        <View className="flex-1">
+          <Text className="text-xs font-semibold mb-1">Street / Road</Text>
+          <Controller
+            control={form.control}
+            name="street_road"
+            render={({ field: { onChange, value }, fieldState: { error } }) => (
+              <>
+                <TextInput
+                  className={`bg-muted/50 p-3 rounded-xl border text-xs ${error ? 'border-destructive' : 'border-border'}`}
+                  placeholder="e.g. KG 15 Ave"
+                  value={value}
+                  onChangeText={onChange}
+                />
+                <FieldError message={error?.message} />
+              </>
+            )}
+          />
+        </View>
+        <View className="flex-1">
+          <Text className="text-xs font-semibold mb-1">House / Plot No.</Text>
+          <Controller
+            control={form.control}
+            name="house_number"
+            render={({ field: { onChange, value }, fieldState: { error } }) => (
+              <>
+                <TextInput
+                  className={`bg-muted/50 p-3 rounded-xl border text-xs ${error ? 'border-destructive' : 'border-border'}`}
+                  placeholder="e.g. 42B"
+                  value={value}
+                  onChangeText={onChange}
+                />
+                <FieldError message={error?.message} />
+              </>
+            )}
+          />
+        </View>
+      </View>
+
+      {/* Landmark */}
+      <View className="mb-1">
+        <Text className="text-xs font-semibold mb-1">Landmark</Text>
+        <Controller
+          control={form.control}
+          name="landmark"
+          render={({ field: { onChange, value }, fieldState: { error } }) => (
+            <>
+              <TextInput
+                className={`bg-muted/50 p-3 rounded-xl border text-xs ${error ? 'border-destructive' : 'border-border'}`}
+                placeholder="e.g. Near Kigali Convention Centre"
+                value={value}
+                onChangeText={onChange}
+              />
+              <Text className="text-[10px] text-muted-foreground mt-1">
+                Helps artisans find you easily
+              </Text>
+              <FieldError message={error?.message} />
+            </>
+          )}
+        />
+      </View>
+    </View>
+  );
+}
+
 // ── Main screen ──────────────────────────────────────────────────────────────
 
 export default function AuthScreen() {
@@ -191,8 +476,6 @@ export default function AuthScreen() {
   const [email, setEmail] = useState('');
   const [loading, setLoading] = useState(false);
   const [otpCooldown, setOtpCooldown] = useState(0);
-
-  // ── OTP local state (replaces RHF Controller to prevent self-delete bug) ──
   const [otpValue, setOtpValue] = useState('');
   const [otpError, setOtpError] = useState('');
 
@@ -202,14 +485,9 @@ export default function AuthScreen() {
     phone: '',
     email: '',
     preferred_lang: 'rw',
-    gender: undefined,
-    date_of_birth: undefined,
-    national_id: undefined,
-    district: undefined,
   });
-  const [showDistrictPicker, setShowDistrictPicker] = useState(false);
-  const cooldownRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
+  const cooldownRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const router = useRouter();
   const setAuth = useAuthStore((state) => state.setAuth);
 
@@ -220,8 +498,6 @@ export default function AuthScreen() {
   });
   const reg2Form = useForm<Reg2Data>({ resolver: zodResolver(reg2Schema) });
   const reg3Form = useForm<Reg3Data>({ resolver: zodResolver(reg3Schema) });
-
-  // ── Cooldown ──────────────────────────────────────────────────────────
 
   const startCooldown = (seconds: number) => {
     setOtpCooldown(seconds);
@@ -236,8 +512,6 @@ export default function AuthScreen() {
       });
     }, 1000);
   };
-
-  // ── Login handlers ────────────────────────────────────────────────────
 
   const onSendOTP = async (data: LoginData) => {
     setLoading(true);
@@ -262,10 +536,8 @@ export default function AuthScreen() {
     }
   };
 
-  // Called directly — no RHF involved, so no re-render race condition.
   const onVerifyOTP = async () => {
-    // Manual validation
-    if (otpValue.length === 0) {
+    if (!otpValue) {
       setOtpError('Please enter the verification code');
       return;
     }
@@ -286,7 +558,15 @@ export default function AuthScreen() {
           email: user.email,
           role: user.role,
           avatarUrl: user.avatar_url ?? undefined,
+          province: user.province ?? null,
           district: user.district ?? null,
+          sector: user.sector ?? null,
+          cell: user.cell ?? null,
+          village: user.village ?? null,
+          streetRoad: user.street_road ?? null,
+          houseNumber: user.house_number ?? null,
+          landmark: user.landmark ?? null,
+          addressDetail: user.address_detail ?? null,
           preferredLang: user.preferred_lang ?? 'rw',
           accountStatus: user.account_status,
           emailVerified: user.email_verified ?? true,
@@ -321,27 +601,13 @@ export default function AuthScreen() {
     }
   };
 
-  // ── Registration handlers ─────────────────────────────────────────────
-
   const onReg1 = (data: Reg1Data) => {
-    setRegData((prev) => {
-      const filteredData = Object.entries(data).reduce(
-        (acc, [key, val]) => (val !== undefined ? { ...acc, [key]: val } : acc),
-        {} as Record<string, unknown>,
-      );
-      return { ...prev, ...filteredData };
-    });
+    setRegData((prev) => ({ ...prev, ...data }));
     setRegStep(1);
   };
 
   const onReg2 = (data: Reg2Data) => {
-    setRegData((prev) => {
-      const filteredData = Object.entries(data).reduce(
-        (acc, [key, val]) => (val !== undefined ? { ...acc, [key]: val } : acc),
-        {} as Record<string, unknown>,
-      );
-      return { ...prev, ...filteredData };
-    });
+    setRegData((prev) => ({ ...prev, ...data }));
     setRegStep(2);
   };
 
@@ -358,7 +624,14 @@ export default function AuthScreen() {
         gender: merged.gender ?? null,
         date_of_birth: merged.date_of_birth || null,
         national_id: merged.national_id || null,
+        province: merged.province || null,
         district: merged.district || null,
+        sector: merged.sector || null,
+        cell: merged.cell || null,
+        village: merged.village || null,
+        street_road: merged.street_road || null,
+        house_number: merged.house_number || null,
+        landmark: merged.landmark || null,
         agreed_to_terms: true,
         terms_version: 'v1.0',
       };
@@ -368,7 +641,6 @@ export default function AuthScreen() {
         text1: 'Account created!',
         text2: 'A verification code was sent to your email',
       });
-      // Transition to login OTP verify
       setEmail(merged.email);
       loginForm.setValue('email', merged.email);
       setOtpValue('');
@@ -377,20 +649,9 @@ export default function AuthScreen() {
       setLoginStep('verify');
       startCooldown(60);
       setRegStep(0);
-      setRegData({
-        role: 'client',
-        fullName: '',
-        phone: '',
-        email: '',
-        preferred_lang: 'rw',
-        gender: undefined,
-        date_of_birth: undefined,
-        national_id: undefined,
-        district: undefined,
-      });
+      setRegData({ role: 'client', fullName: '', phone: '', email: '', preferred_lang: 'rw' });
     } catch (err: any) {
       const detail = err.response?.data?.detail;
-
       if (Array.isArray(detail)) {
         Toast.show({
           type: 'error',
@@ -399,10 +660,8 @@ export default function AuthScreen() {
         });
         return;
       }
-
       const msg = typeof detail === 'string' ? detail : detail?.message;
       const field = typeof detail === 'object' ? detail?.field : null;
-
       if (field === 'email') {
         setRegStep(0);
         reg1Form.setError('email', { message: msg });
@@ -421,8 +680,6 @@ export default function AuthScreen() {
   };
 
   const role = reg1Form.watch('role');
-
-  // ── Render ────────────────────────────────────────────────────────────
 
   return (
     <KeyboardAvoidingView
@@ -456,9 +713,7 @@ export default function AuthScreen() {
               style={activeTab === tab ? cardShadow : undefined}
             >
               <Text
-                className={`text-center font-bold text-sm ${
-                  activeTab === tab ? 'text-primary' : 'text-muted-foreground'
-                }`}
+                className={`text-center font-bold text-sm ${activeTab === tab ? 'text-primary' : 'text-muted-foreground'}`}
               >
                 {tab === 'login' ? 'Sign In' : 'Register'}
               </Text>
@@ -466,7 +721,7 @@ export default function AuthScreen() {
           ))}
         </View>
 
-        {/* ── LOGIN ──────────────────────────────────────────────────── */}
+        {/* ── LOGIN ─────────────────────────────────────────────────────── */}
         {activeTab === 'login' && (
           <View className="bg-card p-6 rounded-3xl border border-border" style={cardShadow}>
             {loginStep === 'request' ? (
@@ -477,7 +732,6 @@ export default function AuthScreen() {
                   subtitle="Enter your email to receive a login code"
                 />
                 <InfoBox message="No password needed — we send a secure one-time code to your email." />
-
                 <Controller
                   control={loginForm.control}
                   name="email"
@@ -497,7 +751,6 @@ export default function AuthScreen() {
                     </View>
                   )}
                 />
-
                 <TouchableOpacity
                   accessibilityLabel="Send verification code"
                   onPress={loginForm.handleSubmit(onSendOTP)}
@@ -512,38 +765,31 @@ export default function AuthScreen() {
                 </TouchableOpacity>
               </View>
             ) : (
-              // ── OTP VERIFY — plain useState, no RHF Controller ─────────
               <View>
                 <SectionLabel emoji="🔒" title="Enter your code" subtitle={`Sent to ${email}`} />
                 <InfoBox
-                  message="Code expires in 5 minutes. Check your spam folder if you don't see it."
+                  message="Code expires in 5 minutes. Check your spam folder if needed."
                   variant="info"
                 />
-
                 <View className="mb-4">
                   <TextInput
-                    className={`bg-muted/50 p-4 rounded-xl border text-center text-3xl tracking-[0.5em] font-bold ${
-                      otpError ? 'border-destructive' : 'border-primary'
-                    }`}
+                    className={`bg-muted/50 p-4 rounded-xl border text-center text-3xl tracking-[0.5em] font-bold ${otpError ? 'border-destructive' : 'border-primary'}`}
                     placeholder="------"
-                    // value is driven ONLY by local state — no RHF re-render interference
                     value={otpValue}
                     onChangeText={(t) => {
-                      const cleaned = t.replace(/\D/g, '').slice(0, 6);
-                      setOtpValue(cleaned);
+                      const c = t.replace(/\D/g, '').slice(0, 6);
+                      setOtpValue(c);
                       if (otpError) setOtpError('');
                     }}
                     keyboardType="number-pad"
                     maxLength={6}
                     autoFocus
-                    // Prevent autocorrect / suggestions from clobbering digits
                     autoCorrect={false}
                     autoComplete="one-time-code"
                     textContentType="oneTimeCode"
                   />
                   <FieldError message={otpError} />
                 </View>
-
                 <TouchableOpacity
                   accessibilityLabel="Verify code and sign in"
                   onPress={onVerifyOTP}
@@ -556,7 +802,6 @@ export default function AuthScreen() {
                     <Text className="text-white font-bold">Verify & Sign In</Text>
                   )}
                 </TouchableOpacity>
-
                 <View className="flex-row justify-between items-center">
                   <TouchableOpacity
                     accessibilityLabel="Change email"
@@ -585,7 +830,7 @@ export default function AuthScreen() {
           </View>
         )}
 
-        {/* ── REGISTER ──────────────────────────────────────────────── */}
+        {/* ── REGISTER ──────────────────────────────────────────────────── */}
         {activeTab === 'register' && (
           <View className="bg-card p-6 rounded-3xl border border-border" style={cardShadow}>
             <StepDots current={regStep} total={3} />
@@ -595,7 +840,6 @@ export default function AuthScreen() {
               <View>
                 <SectionLabel emoji="👤" title="Your Identity" subtitle="Tell us who you are" />
 
-                {/* Role */}
                 <Controller
                   control={reg1Form.control}
                   name="role"
@@ -608,11 +852,7 @@ export default function AuthScreen() {
                             key={r}
                             accessibilityLabel={r === 'client' ? 'I need help' : 'I offer services'}
                             onPress={() => onChange(r)}
-                            className={`flex-1 p-4 rounded-2xl border-2 items-center ${
-                              value === r
-                                ? 'bg-primary/10 border-primary'
-                                : 'bg-muted/50 border-border'
-                            }`}
+                            className={`flex-1 p-4 rounded-2xl border-2 items-center ${value === r ? 'bg-primary/10 border-primary' : 'bg-muted/50 border-border'}`}
                           >
                             <Text className="text-2xl mb-1">{r === 'client' ? '🔍' : '🔨'}</Text>
                             <Text
@@ -630,81 +870,56 @@ export default function AuthScreen() {
                   )}
                 />
 
-                {/* Full Name */}
-                <Controller
-                  control={reg1Form.control}
-                  name="fullName"
-                  render={({ field: { onChange, value }, fieldState: { error } }) => (
-                    <View className="mb-4">
-                      <Text className="text-sm font-semibold mb-1">
-                        Full Name <Text className="text-destructive">*</Text>
-                      </Text>
-                      <TextInput
-                        className={`bg-muted/50 p-4 rounded-xl border ${error ? 'border-destructive' : 'border-border'}`}
-                        placeholder="Amina Uwimana"
-                        value={value}
-                        onChangeText={onChange}
-                        autoCapitalize="words"
-                      />
-                      <Text className="text-xs text-muted-foreground mt-1">
-                        As it appears on your ID — first and last name
-                      </Text>
-                      <FieldError message={error?.message} />
-                    </View>
-                  )}
-                />
+                {[
+                  {
+                    name: 'fullName' as const,
+                    label: 'Full Name',
+                    placeholder: 'Amina Uwimana',
+                    hint: 'First and last name as on your ID',
+                    cap: 'words' as const,
+                    keyboard: 'default' as const,
+                  },
+                  {
+                    name: 'phone' as const,
+                    label: 'Phone Number',
+                    placeholder: '+250780000000',
+                    hint: 'Rwanda number starting with +2507',
+                    cap: 'none' as const,
+                    keyboard: 'phone-pad' as const,
+                  },
+                  {
+                    name: 'email' as const,
+                    label: 'Email Address',
+                    placeholder: 'amina@example.com',
+                    hint: 'Used for verification codes',
+                    cap: 'none' as const,
+                    keyboard: 'email-address' as const,
+                  },
+                ].map(({ name, label, placeholder, hint, cap, keyboard }) => (
+                  <Controller
+                    key={name}
+                    control={reg1Form.control}
+                    name={name}
+                    render={({ field: { onChange, value }, fieldState: { error } }) => (
+                      <View className="mb-4">
+                        <Text className="text-sm font-semibold mb-1">
+                          {label} <Text className="text-destructive">*</Text>
+                        </Text>
+                        <TextInput
+                          className={`bg-muted/50 p-4 rounded-xl border ${error ? 'border-destructive' : 'border-border'}`}
+                          placeholder={placeholder}
+                          value={value}
+                          onChangeText={onChange}
+                          autoCapitalize={cap}
+                          keyboardType={keyboard}
+                        />
+                        <Text className="text-xs text-muted-foreground mt-1">{hint}</Text>
+                        <FieldError message={error?.message} />
+                      </View>
+                    )}
+                  />
+                ))}
 
-                {/* Phone */}
-                <Controller
-                  control={reg1Form.control}
-                  name="phone"
-                  render={({ field: { onChange, value }, fieldState: { error } }) => (
-                    <View className="mb-4">
-                      <Text className="text-sm font-semibold mb-1">
-                        Phone Number <Text className="text-destructive">*</Text>
-                      </Text>
-                      <TextInput
-                        className={`bg-muted/50 p-4 rounded-xl border ${error ? 'border-destructive' : 'border-border'}`}
-                        placeholder="+250780000000"
-                        value={value}
-                        onChangeText={onChange}
-                        keyboardType="phone-pad"
-                      />
-                      <Text className="text-xs text-muted-foreground mt-1">
-                        Rwanda number starting with +2507
-                      </Text>
-                      <FieldError message={error?.message} />
-                    </View>
-                  )}
-                />
-
-                {/* Email */}
-                <Controller
-                  control={reg1Form.control}
-                  name="email"
-                  render={({ field: { onChange, value }, fieldState: { error } }) => (
-                    <View className="mb-4">
-                      <Text className="text-sm font-semibold mb-1">
-                        Email Address <Text className="text-destructive">*</Text>
-                      </Text>
-                      <TextInput
-                        className={`bg-muted/50 p-4 rounded-xl border ${error ? 'border-destructive' : 'border-border'}`}
-                        placeholder="amina@example.com"
-                        value={value}
-                        onChangeText={onChange}
-                        autoCapitalize="none"
-                        keyboardType="email-address"
-                        autoComplete="email"
-                      />
-                      <Text className="text-xs text-muted-foreground mt-1">
-                        Used for verification codes — no spam
-                      </Text>
-                      <FieldError message={error?.message} />
-                    </View>
-                  )}
-                />
-
-                {/* Language */}
                 <Controller
                   control={reg1Form.control}
                   name="preferred_lang"
@@ -723,11 +938,7 @@ export default function AuthScreen() {
                             key={code}
                             accessibilityLabel={label}
                             onPress={() => onChange(code)}
-                            className={`flex-1 py-2.5 px-2 rounded-xl border items-center ${
-                              value === code
-                                ? 'bg-primary/10 border-primary'
-                                : 'bg-muted/50 border-border'
-                            }`}
+                            className={`flex-1 py-2.5 px-2 rounded-xl border items-center ${value === code ? 'bg-primary/10 border-primary' : 'bg-muted/50 border-border'}`}
                           >
                             <Text className="text-xs font-semibold">{label}</Text>
                           </TouchableOpacity>
@@ -753,17 +964,15 @@ export default function AuthScreen() {
                 <SectionLabel
                   emoji="📍"
                   title="Location & Identity"
-                  subtitle="Optional but helps us serve you better"
+                  subtitle="Optional — helps us find artisans near you"
                 />
-
                 <InfoBox
-                  message="Providing your district and NID helps verify trusted artisans and improves matching."
+                  message="Your full address helps artisans reach you precisely. The more detail, the better."
                   variant="info"
                 />
-
                 {role === 'artisan' && (
                   <InfoBox
-                    message="Artisans: your NID and district are required before accepting paid bookings."
+                    message="As an artisan, your location helps clients find you. NID required before accepting paid bookings."
                     variant="warn"
                   />
                 )}
@@ -787,11 +996,7 @@ export default function AuthScreen() {
                             key={v}
                             accessibilityLabel={label}
                             onPress={() => onChange(v)}
-                            className={`flex-1 py-2.5 px-1 rounded-xl border items-center ${
-                              value === v
-                                ? 'bg-primary/10 border-primary'
-                                : 'bg-muted/50 border-border'
-                            }`}
+                            className={`flex-1 py-2.5 px-1 rounded-xl border items-center ${value === v ? 'bg-primary/10 border-primary' : 'bg-muted/50 border-border'}`}
                           >
                             <Text
                               className={`text-xs font-semibold ${value === v ? 'text-primary' : 'text-foreground'}`}
@@ -837,7 +1042,7 @@ export default function AuthScreen() {
                       <Text className="text-sm font-semibold mb-1">National ID (Indangamuntu)</Text>
                       <TextInput
                         className={`bg-muted/50 p-4 rounded-xl border tracking-widest ${error ? 'border-destructive' : 'border-border'}`}
-                        placeholder="16 digits  e.g. 1200080000000000"
+                        placeholder="16-digit NID"
                         value={value}
                         onChangeText={(t) => onChange(t.replace(/\D/g, '').slice(0, 16))}
                         keyboardType="numeric"
@@ -855,64 +1060,23 @@ export default function AuthScreen() {
                   )}
                 />
 
-                {/* District picker */}
-                <Controller
-                  control={reg2Form.control}
-                  name="district"
-                  render={({ field: { onChange, value } }) => (
-                    <View className="mb-5">
-                      <Text className="text-sm font-semibold mb-1">District</Text>
-                      <TouchableOpacity
-                        accessibilityLabel="Select district"
-                        onPress={() => setShowDistrictPicker(true)}
-                        className="bg-muted/50 p-4 rounded-xl border border-border flex-row justify-between items-center"
-                      >
-                        <Text className={value ? 'text-foreground' : 'text-muted-foreground'}>
-                          {value || 'Select your district'}
-                        </Text>
-                        <Text className="text-muted-foreground">▼</Text>
-                      </TouchableOpacity>
-                      {showDistrictPicker && (
-                        <View className="bg-card border border-border rounded-xl mt-2 max-h-48 overflow-hidden">
-                          <ScrollView nestedScrollEnabled>
-                            {DISTRICTS.map((d) => (
-                              <TouchableOpacity
-                                key={d}
-                                accessibilityLabel={d}
-                                onPress={() => {
-                                  onChange(d);
-                                  setShowDistrictPicker(false);
-                                }}
-                                className={`p-3 border-b border-border/50 ${value === d ? 'bg-primary/10' : ''}`}
-                              >
-                                <Text
-                                  className={
-                                    value === d ? 'text-primary font-semibold' : 'text-foreground'
-                                  }
-                                >
-                                  {d}
-                                </Text>
-                              </TouchableOpacity>
-                            ))}
-                          </ScrollView>
-                        </View>
-                      )}
-                    </View>
-                  )}
-                />
+                {/* Full cascading address */}
+                <View className="bg-muted/20 rounded-2xl p-3 mb-2 border border-border/50">
+                  <AddressSection form={reg2Form} />
+                </View>
 
-                <View className="flex-row gap-3">
+                <View className="flex-row gap-3 mt-2">
                   <TouchableOpacity
-                    accessibilityLabel="Go back to previous step"
+                    accessibilityLabel="Go back"
                     onPress={() => setRegStep(0)}
                     className="flex-1 bg-muted p-4 rounded-xl items-center"
                   >
                     <Text className="font-bold text-foreground">← Back</Text>
                   </TouchableOpacity>
                   <TouchableOpacity
-                    accessibilityLabel="Continue to review step"
+                    accessibilityLabel="Continue to review"
                     onPress={reg2Form.handleSubmit(onReg2)}
-                    className="flex-2 flex-grow bg-primary p-4 rounded-xl items-center"
+                    className="flex-grow flex-2 bg-primary p-4 rounded-xl items-center"
                   >
                     <Text className="text-white font-bold">Continue →</Text>
                   </TouchableOpacity>
@@ -929,14 +1093,32 @@ export default function AuthScreen() {
                   subtitle="Check your details before creating account"
                 />
 
-                {/* Summary */}
                 <View className="bg-muted/50 rounded-2xl p-4 mb-4 gap-2">
                   {[
                     ['Name', regData.fullName],
                     ['Email', regData.email],
                     ['Phone', regData.phone],
-                    ['Role', regData.role.toUpperCase()],
+                    ['Role', regData.role?.toUpperCase()],
+                    ...(regData.province ? [['Province', regData.province]] : []),
                     ...(regData.district ? [['District', regData.district]] : []),
+                    ...(regData.sector || regData.cell || regData.village
+                      ? [
+                          [
+                            'Area',
+                            [regData.village, regData.cell, regData.sector]
+                              .filter(Boolean)
+                              .join(', '),
+                          ],
+                        ]
+                      : []),
+                    ...(regData.house_number || regData.street_road
+                      ? [
+                          [
+                            'Street',
+                            [regData.house_number, regData.street_road].filter(Boolean).join(', '),
+                          ],
+                        ]
+                      : []),
                     ...(regData.national_id
                       ? [
                           [
@@ -948,12 +1130,16 @@ export default function AuthScreen() {
                   ].map(([label, val]) => (
                     <View key={label} className="flex-row justify-between">
                       <Text className="text-muted-foreground text-sm">{label}</Text>
-                      <Text className="text-foreground font-semibold text-sm">{val}</Text>
+                      <Text
+                        className="text-foreground font-semibold text-sm flex-1 text-right ml-4"
+                        numberOfLines={1}
+                      >
+                        {val}
+                      </Text>
                     </View>
                   ))}
                 </View>
 
-                {/* Terms */}
                 <Controller
                   control={reg3Form.control}
                   name="agreed_to_terms"
@@ -979,8 +1165,8 @@ export default function AuthScreen() {
                           I agree to Terms & Privacy Policy
                         </Text>
                         <Text className="text-xs text-muted-foreground mt-1">
-                          By registering, you confirm you're at least 18 and agree to HandyRwanda's
-                          Terms of Service and Privacy Policy.
+                          You confirm you're at least 18 and agree to HandyRwanda's Terms of Service
+                          and Privacy Policy.
                         </Text>
                         <FieldError message={error?.message} />
                       </View>
@@ -995,7 +1181,7 @@ export default function AuthScreen() {
 
                 <View className="flex-row gap-3">
                   <TouchableOpacity
-                    accessibilityLabel="Go back to identity step"
+                    accessibilityLabel="Go back"
                     onPress={() => setRegStep(1)}
                     disabled={loading}
                     className="flex-1 bg-muted p-4 rounded-xl items-center"

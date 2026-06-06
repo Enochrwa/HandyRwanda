@@ -74,6 +74,7 @@ def _serialize_job(
 
 class RwandaAddressInput(BaseModel):
     """Structured Rwanda address — all fields optional except district."""
+
     province: str | None = Field(None, max_length=100)
     district: str = Field(..., min_length=2, max_length=100)
     sector: str | None = Field(None, max_length=100)
@@ -460,12 +461,21 @@ async def update_job(
             }
         )
         if "location_label" not in update_data:
-            update_data["location_label"] = format_full_address(**{
-                k: addr.get(k) for k in [
-                    "province", "district", "sector", "cell", "village",
-                    "street_road", "house_number", "landmark",
-                ]
-            })
+            update_data["location_label"] = format_full_address(
+                **{
+                    k: addr.get(k)
+                    for k in [
+                        "province",
+                        "district",
+                        "sector",
+                        "cell",
+                        "village",
+                        "street_road",
+                        "house_number",
+                        "landmark",
+                    ]
+                }
+            )
 
     if not update_data:
         raise HTTPException(status_code=400, detail="No fields to update.")

@@ -127,7 +127,7 @@ When a booking reaches `confirmed` status, schedule an APScheduler
 APScheduler is already in `requirements.txt`. Use `AsyncIOScheduler`
 with `AsyncSession` from `AsyncSessionLocal` (same pattern as
 `_notify_artisans_async` in `jobs.py`).
-
+ßßß
 ### 1.5 Mobile UI — Live Status Card
 **File:** `mobile/app/(tabs)/index.tsx` (home screen) and
 `mobile/app/messages/[bookingId].tsx`

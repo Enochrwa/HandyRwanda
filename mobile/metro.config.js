@@ -25,6 +25,9 @@ config.resolver.extraNodeModules = {
   'react-dom': path.resolve(root, 'node_modules/react-dom'),
   'react-native': path.resolve(root, 'node_modules/react-native'),
   '@icons': path.resolve(projectDir, 'src/icons.ts'),
+  // socket.io-client requires explicit resolution in React Native
+  'engine.io-client': path.resolve(projectDir, 'node_modules/engine.io-client'),
+  'socket.io-client': path.resolve(projectDir, 'node_modules/socket.io-client'),
 };
 
 // Ensure Metro only resolves supported source extensions

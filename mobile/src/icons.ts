@@ -46,5 +46,7 @@ export {
   Wallet,
   Wrench,
   X,
+  Wifi,
+  WifiOff,
   Zap,
 } from 'lucide-react-native';

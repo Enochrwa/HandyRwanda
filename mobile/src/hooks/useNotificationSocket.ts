@@ -1,37 +1,36 @@
 // File: mobile/src/hooks/useNotificationSocket.ts
 /**
- * Real-time WebSocket notification hook for Expo/React Native.
+ * Socket.IO hook for real-time notifications (React Native / Expo).
  *
- * Connects to /ws/notifications/{user_id} and pushes new notification
+ * Connects to the /notifications namespace and pushes new notification
  * payloads into the React Query cache so notification badges update instantly
  * without polling.
  *
+ * Key differences from web version:
+ *  - Uses React Native's AppState API to reconnect when foregrounded
+ *  - Forces polling transport first for Android WebView compatibility,
+ *    then upgrades to WebSocket (react-native doesn't support WS upgrades
+ *    from within some network environments)
+ *  - Auth token is passed in Socket.IO handshake `auth` object
+ *
  * Handles:
- *  - Auto-reconnect with exponential back-off
- *  - Keepalive pings every 25 seconds
- *  - Background/foreground transitions (reconnects when app comes to foreground)
+ *  - Auto-reconnect (delegated to socket.io-client built-in back-off)
+ *  - Background/foreground transitions
  *  - React Query cache invalidation on new notification
  */
+
 import { useQueryClient } from '@tanstack/react-query';
 import { useEffect, useRef } from 'react';
 import { AppState, AppStateStatus } from 'react-native';
+import { io, Socket } from 'socket.io-client';
 
-import { useAuthStore } from '../store/authStore';
-
-// Use the same base URL as api.ts (smart LAN detection on physical devices)
 import { API_BASE_URL } from '../services/api';
-const WS_BASE = API_BASE_URL.replace(/^http/, 'ws');
-
-const MAX_RECONNECT_DELAY_MS = 30_000;
-const PING_INTERVAL_MS = 25_000;
+import { useAuthStore } from '../store/authStore';
 
 export function useNotificationSocket() {
   const { user, isAuthenticated } = useAuthStore();
   const qc = useQueryClient();
-  const wsRef = useRef<WebSocket | null>(null);
-  const pingRef = useRef<ReturnType<typeof setInterval> | null>(null);
-  const reconnectRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const reconnectAttemptRef = useRef(0);
+  const socketRef = useRef<Socket | null>(null);
   const appStateRef = useRef<AppStateStatus>(AppState.currentState);
   const unmountedRef = useRef(false);
 
@@ -39,69 +38,66 @@ export function useNotificationSocket() {
     if (!isAuthenticated || !user?.id) return;
     unmountedRef.current = false;
 
+    const token = useAuthStore.getState().token ?? '';
+
     const connect = () => {
       if (unmountedRef.current) return;
-      const url = `${WS_BASE}/ws/notifications/${user.id}`;
-      const ws = new WebSocket(url);
-      wsRef.current = ws;
+      // Disconnect stale socket if any
+      socketRef.current?.disconnect();
 
-      ws.onopen = () => {
-        reconnectAttemptRef.current = 0;
-        pingRef.current = setInterval(() => {
-          if (ws.readyState === WebSocket.OPEN) {
-            ws.send(JSON.stringify({ type: 'ping' }));
-          }
-        }, PING_INTERVAL_MS);
-      };
+      const socket = io(`${API_BASE_URL}/notifications`, {
+        auth: { token },
+        // On React Native, start with polling then upgrade to websocket.
+        // Some Android network stacks block direct WS upgrades.
+        transports: ['polling', 'websocket'],
+        reconnection: true,
+        reconnectionAttempts: Infinity,
+        reconnectionDelay: 1000,
+        reconnectionDelayMax: 30_000,
+        path: '/socket.io',
+        forceNew: true,
+      });
 
-      ws.onmessage = (e) => {
-        try {
-          const msg = JSON.parse(e.data);
-          if (msg.type === 'notification' && msg.data) {
-            const notif = msg.data;
-            // Prepend to cache
-            qc.setQueryData(['notifications'], (old: (typeof notif)[] | undefined) => {
-              if (!old) return [notif];
-              if (old.some((n: typeof notif) => n.id === notif.id)) return old;
-              return [notif, ...old];
-            });
-            // Invalidate related queries based on event type
-            const et = notif.event_type ?? '';
-            if (et.includes('booking') || et.includes('job')) {
-              qc.invalidateQueries({ queryKey: ['bookings'] });
-            }
-            if (et.includes('bid')) {
-              qc.invalidateQueries({ queryKey: ['bids'] });
-            }
-          }
-        } catch {
-          /* ignore malformed messages */
+      socketRef.current = socket;
+
+      socket.on('connect', () => {
+        console.debug('[notifications] Socket.IO connected sid=%s', socket.id);
+      });
+
+      socket.on('notification', (payload: { type: string; data: any }) => {
+        if (payload.type !== 'notification' || !payload.data) return;
+        const notif = payload.data;
+        qc.setQueryData(['notifications'], (old: any[] | undefined) => {
+          if (!old) return [notif];
+          if (old.some((n: any) => n.id === notif.id)) return old;
+          return [notif, ...old];
+        });
+        // Invalidate related queries based on event type
+        const et: string = notif.event_type ?? '';
+        if (et.includes('booking') || et.includes('job')) {
+          qc.invalidateQueries({ queryKey: ['bookings'] });
         }
-      };
-
-      ws.onclose = (ev) => {
-        if (pingRef.current) {
-          clearInterval(pingRef.current);
-          pingRef.current = null;
+        if (et.includes('bid')) {
+          qc.invalidateQueries({ queryKey: ['bids'] });
         }
-        if (!unmountedRef.current && ev.code !== 1000) {
-          // Exponential back-off: 1s, 2s, 4s, 8s … max 30s
-          const delay = Math.min(1000 * 2 ** reconnectAttemptRef.current, MAX_RECONNECT_DELAY_MS);
-          reconnectAttemptRef.current += 1;
-          reconnectRef.current = setTimeout(connect, delay);
-        }
-      };
+      });
 
-      ws.onerror = () => ws.close();
+      socket.on('connect_error', (err) => {
+        console.warn('[notifications] connection error:', err.message);
+      });
+
+      socket.on('disconnect', (reason) => {
+        console.debug('[notifications] disconnected reason=%s', reason);
+      });
     };
 
     connect();
 
     // Re-connect when app comes to foreground
-    const appStateSub = AppState.addEventListener('change', (next) => {
-      if (appStateRef.current.match(/inactive|background/) && next === 'active') {
-        if (!wsRef.current || wsRef.current.readyState === WebSocket.CLOSED) {
-          reconnectAttemptRef.current = 0;
+    const appStateSub = AppState.addEventListener('change', (next: AppStateStatus) => {
+      const wasBackground = appStateRef.current.match(/inactive|background/);
+      if (wasBackground && next === 'active') {
+        if (!socketRef.current?.connected) {
           connect();
         }
       }
@@ -110,11 +106,9 @@ export function useNotificationSocket() {
 
     return () => {
       unmountedRef.current = true;
-      if (pingRef.current) clearInterval(pingRef.current);
-      if (reconnectRef.current) clearTimeout(reconnectRef.current);
       appStateSub.remove();
-      wsRef.current?.close(1000, 'component unmounted');
-      wsRef.current = null;
+      socketRef.current?.disconnect();
+      socketRef.current = null;
     };
-  }, [isAuthenticated, user?.id]);
+  }, [isAuthenticated, user?.id, qc]);
 }

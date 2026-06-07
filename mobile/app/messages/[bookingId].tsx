@@ -1,5 +1,5 @@
 // File: mobile/app/messages/[bookingId].tsx
-import { Send, ChevronLeft, Phone, CheckCircle, AlertTriangle } from '@icons';
+import { Send, ChevronLeft, Phone, CheckCircle, AlertTriangle, Wifi, WifiOff } from '@icons';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { format } from 'date-fns';
 import { useLocalSearchParams, usePathname, useRouter } from 'expo-router';
@@ -19,8 +19,9 @@ import {
 import Toast from 'react-native-toast-message';
 
 import { isOnAuthRoute } from '../../src/navigation';
-import api, { API_BASE_URL } from '../../src/services/api';
+import api from '../../src/services/api';
 import { useAuthStore } from '../../src/store/authStore';
+import { useMessageSocket } from '../../src/hooks/useMessageSocket';
 
 function formatRWF(n: number) {
   return new Intl.NumberFormat('rw-RW').format(n);
@@ -34,47 +35,21 @@ export default function ChatThread() {
   const qc = useQueryClient();
   const [content, setContent] = useState('');
   const flatListRef = useRef<FlatList>(null);
-  const wsRef = useRef<WebSocket | null>(null);
-  const [wsMessages, setWsMessages] = useState<any[]>([]);
+
+  // ── Socket.IO real-time messages ─────────────────────────────────────────
+  const { connected: wsConnected } = useMessageSocket(bookingId);
 
   useEffect(() => {
     if (!isAuthenticated && !isOnAuthRoute(pathname)) router.replace('/auth');
   }, [isAuthenticated, pathname, router]);
 
-  // WebSocket — real-time messages, falls back to polling if unavailable
-  useEffect(() => {
-    if (!bookingId || !isAuthenticated) return;
-    setWsMessages([]);
-
-    const apiBase = API_BASE_URL.replace(/^http/, 'ws');
-    const ws = new WebSocket(`${apiBase}/ws/messages/${bookingId}`);
-    wsRef.current = ws;
-
-    ws.onmessage = (e) => {
-      try {
-        const msg = JSON.parse(e.data);
-        if (msg.sender_id !== user?.id) {
-          setWsMessages((prev) => [...prev, msg]);
-          qc.invalidateQueries({ queryKey: ['conversations'] });
-        }
-      } catch {}
-    };
-    ws.onerror = () => {}; // silent — polling still runs as backup
-    return () => ws.close();
-  }, [bookingId, isAuthenticated, user?.id, qc]);
-
   const { data: rawMessages = [], isLoading } = useQuery({
     queryKey: ['messages', bookingId],
     queryFn: () => api.get(`/messages/${bookingId}`).then((r) => r.data),
-    refetchInterval: wsRef.current?.readyState === WebSocket.OPEN ? false : 8000,
+    // Fall back to polling if Socket.IO not connected
+    refetchInterval: wsConnected ? false : 8_000,
     enabled: isAuthenticated && !!bookingId,
   });
-
-  // Merge API messages with WebSocket-pushed messages (deduplicate by id)
-  const messages = [
-    ...rawMessages,
-    ...wsMessages.filter((wm: any) => !rawMessages.find((m: any) => m.id === wm.id)),
-  ].sort((a: any, b: any) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime());
 
   const { data: booking } = useQuery({
     queryKey: ['booking-detail', bookingId],
@@ -97,16 +72,13 @@ export default function ChatThread() {
       qc.setQueryData(['messages', bookingId], (old: any) => [...(old || []), optimistic]);
       return { prev };
     },
-    onSuccess: (res) => {
-      // Broadcast to other participant via WS
-      if (wsRef.current?.readyState === WebSocket.OPEN) {
-        wsRef.current.send(JSON.stringify(res.data));
-      }
+    onSuccess: () => {
+      // Server already emitted to Socket.IO room; just sync read state
       qc.invalidateQueries({ queryKey: ['messages', bookingId] });
       qc.invalidateQueries({ queryKey: ['conversations'] });
       setContent('');
     },
-    onError: (_err, _text, ctx) => {
+    onError: (_err: any, _text: string, ctx: any) => {
       if (ctx?.prev) qc.setQueryData(['messages', bookingId], ctx.prev);
     },
   });
@@ -129,7 +101,6 @@ export default function ChatThread() {
     onSuccess: () => {
       Toast.show({ type: 'success', text1: '✅ Job completed!' });
       qc.invalidateQueries({ queryKey: ['booking-detail', bookingId] });
-      // Prompt for review — navigate after short delay so toast shows
       setTimeout(() => {
         router.push({
           pathname: '/review',
@@ -197,6 +168,14 @@ export default function ChatThread() {
                   {status.replace('_', ' ')}
                 </Text>
               </View>
+            )}
+          </View>
+          {/* Real-time indicator */}
+          <View style={{ marginRight: 8, opacity: 0.7 }}>
+            {wsConnected ? (
+              <Wifi size={14} color="#1B5E3B" />
+            ) : (
+              <WifiOff size={14} color="#9CA3AF" />
             )}
           </View>
           {booking?.artisan?.phone_number && (
@@ -285,8 +264,8 @@ export default function ChatThread() {
       ) : (
         <FlatList
           ref={flatListRef}
-          data={messages ?? []}
-          keyExtractor={(item) => item.id}
+          data={rawMessages ?? []}
+          keyExtractor={(item: any) => item.id}
           contentContainerStyle={{ padding: 16, paddingBottom: 8 }}
           onContentSizeChange={() => flatListRef.current?.scrollToEnd({ animated: true })}
           ListEmptyComponent={
@@ -295,7 +274,7 @@ export default function ChatThread() {
               <Text className="text-muted-foreground text-sm">No messages yet. Say hello!</Text>
             </View>
           }
-          renderItem={({ item }) => {
+          renderItem={({ item }: { item: any }) => {
             const isMe = item.sender_id === user?.id;
             return (
               <View className={`mb-3 flex-row ${isMe ? 'justify-end' : 'justify-start'}`}>

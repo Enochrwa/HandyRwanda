@@ -1,13 +1,20 @@
 // File: web/src/hooks/useNotificationSocket.ts
 /**
- * WebSocket hook for real-time notifications.
- * Replaces the 30-second polling in Header.tsx.
+ * Socket.IO hook for real-time notifications (web).
  *
- * Connects to /ws/notifications/{user_id} and pushes new notifications
+ * Connects to the /notifications namespace and pushes new notifications
  * into the React Query cache so the bell badge updates instantly.
+ *
+ * Auth:       JWT passed in Socket.IO handshake `auth` object — never in URL.
+ * Reconnect:  Handled automatically by socket.io-client with exponential
+ *             back-off. We only need to manage connect/disconnect lifecycle.
+ * Cleanup:    Socket is disconnected when the user logs out or the component
+ *             unmounts, preventing memory leaks and stale connections.
  */
+
 import { useEffect, useRef } from "react";
 import { useQueryClient } from "@tanstack/react-query";
+import { io, Socket } from "socket.io-client";
 import { useAuthStore } from "@/store/authStore";
 import { getApiBaseUrl } from "@/services/api";
 
@@ -24,68 +31,56 @@ interface WsNotification {
 export function useNotificationSocket() {
   const { user, isAuthenticated } = useAuthStore();
   const qc = useQueryClient();
-  const wsRef = useRef<WebSocket | null>(null);
-  const reconnectTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const pingTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const socketRef = useRef<Socket | null>(null);
 
   useEffect(() => {
     if (!isAuthenticated || !user?.id) return;
 
-    const userId = user.id;
+    // Retrieve the JWT from the auth store / localStorage
+    const token = useAuthStore.getState().token ?? "";
+    const apiBase = getApiBaseUrl() || "http://localhost:8000";
 
-    const connect = () => {
-      const apiBase = getApiBaseUrl() || "http://localhost:8000";
-      const wsBase = apiBase.replace(/^http/, "ws");
-      const wsUrl = `${wsBase}/ws/notifications/${userId}`;
+    const socket = io(`${apiBase}/notifications`, {
+      // JWT in auth — NOT in query params / URL (security best practice)
+      auth: { token },
+      // Prefer WebSocket; fall back to polling if the network blocks upgrades
+      transports: ["websocket", "polling"],
+      // Automatic reconnect with exponential back-off (socket.io-client default)
+      reconnection: true,
+      reconnectionAttempts: Infinity,
+      reconnectionDelay: 1000,
+      reconnectionDelayMax: 30_000,
+      // Path must match server's socketio_path
+      path: "/socket.io",
+    });
 
-      const ws = new WebSocket(wsUrl);
-      wsRef.current = ws;
+    socketRef.current = socket;
 
-      ws.onopen = () => {
-        pingTimerRef.current = setInterval(() => {
-          if (ws.readyState === WebSocket.OPEN) {
-            ws.send(JSON.stringify({ type: "ping" }));
-          }
-        }, 25000);
-      };
+    socket.on("connect", () => {
+      console.debug("[notifications] Socket.IO connected sid=%s", socket.id);
+    });
 
-      ws.onmessage = (event) => {
-        try {
-          const msg = JSON.parse(event.data as string) as { type: string; data: WsNotification };
-          if (msg.type === "notification") {
-            const notif = msg.data;
-            qc.setQueryData(["notifications"], (old: WsNotification[] | undefined) => {
-              if (!old) return [notif];
-              if (old.some((n) => n.id === notif.id)) return old;
-              return [notif, ...old];
-            });
-          }
-        } catch {
-          // ignore malformed messages
-        }
-      };
+    socket.on("notification", (payload: { type: string; data: WsNotification }) => {
+      if (payload.type !== "notification" || !payload.data) return;
+      const notif = payload.data;
+      qc.setQueryData(["notifications"], (old: WsNotification[] | undefined) => {
+        if (!old) return [notif];
+        if (old.some((n) => n.id === notif.id)) return old;
+        return [notif, ...old];
+      });
+    });
 
-      ws.onclose = (ev) => {
-        if (pingTimerRef.current) clearInterval(pingTimerRef.current);
-        if (ev.code !== 1000) {
-          reconnectTimerRef.current = setTimeout(connect, 3000);
-        }
-      };
+    socket.on("connect_error", (err) => {
+      console.warn("[notifications] connection error:", err.message);
+    });
 
-      ws.onerror = () => {
-        ws.close();
-      };
-    };
-
-    connect();
+    socket.on("disconnect", (reason) => {
+      console.debug("[notifications] disconnected reason=%s", reason);
+    });
 
     return () => {
-      if (reconnectTimerRef.current) clearTimeout(reconnectTimerRef.current);
-      if (pingTimerRef.current) clearInterval(pingTimerRef.current);
-      if (wsRef.current) {
-        wsRef.current.close(1000, "component unmounted");
-        wsRef.current = null;
-      }
+      socket.disconnect();
+      socketRef.current = null;
     };
   }, [isAuthenticated, user?.id, qc]);
 }

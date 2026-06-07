@@ -3,7 +3,7 @@ import enum
 import uuid
 from datetime import datetime
 
-from sqlalchemy import DateTime, Enum, ForeignKey, Integer, String, func
+from sqlalchemy import DateTime, Enum, ForeignKey, Index, Integer, String, func
 from sqlalchemy.orm import Mapped, mapped_column
 
 from app.database import Base
@@ -21,6 +21,11 @@ class BookingStatus(str, enum.Enum):
 
 class Booking(Base):
     __tablename__ = "bookings"
+    __table_args__ = (
+        Index("ix_bookings_client_status", "client_id", "status"),
+        Index("ix_bookings_artisan_status", "artisan_id", "status"),
+        Index("ix_bookings_job_id", "job_id"),
+    )
     id: Mapped[uuid.UUID] = mapped_column(
         UUID(as_uuid=True), primary_key=True, default=uuid.uuid4
     )

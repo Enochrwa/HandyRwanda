@@ -235,9 +235,13 @@ async def get_booking(
         raise HTTPException(status_code=404, detail="Booking not found.")
     booking, job = row
 
-    # Get artisan info
-    artisan_user = await db.scalar(select(User).where(User.id == booking.artisan_id))
-    client_user = await db.scalar(select(User).where(User.id == booking.client_id))
+    # Single query for both users instead of two separate lookups
+    users_res = await db.execute(
+        select(User).where(User.id.in_([booking.artisan_id, booking.client_id]))
+    )
+    users_by_id = {u.id: u for u in users_res.scalars().all()}
+    artisan_user = users_by_id.get(booking.artisan_id)
+    client_user = users_by_id.get(booking.client_id)
 
     return {
         "id": str(booking.id),

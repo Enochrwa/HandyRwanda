@@ -135,7 +135,7 @@ async def notify_matching_artisans(
             },
         )
         db.add(n)
-        asyncio.ensure_future(
+        asyncio.create_task(
             send_push_notification(
                 db,
                 artisan_id,

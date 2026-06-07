@@ -1,5 +1,8 @@
-# File: backend/requirements-prod.txt
+# Inherits all dev deps
 -r requirements.txt
-psycopg2-binary
-upstash-redis
-resend
+
+# Production DB driver (sync, for Alembic migrations)
+psycopg2-binary>=2.9.10
+
+# Upstash Redis REST client
+upstash-redis>=1.1.0

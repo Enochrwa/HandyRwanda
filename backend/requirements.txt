@@ -1,25 +1,45 @@
-# File: backend/requirements.txt
-fastapi
-uvicorn[standard]
-sqlalchemy[asyncio]
-asyncpg
-pydantic[email]
-alembic
-python-jose[cryptography]
-passlib[bcrypt]
-python-multipart
-httpx
-slowapi
-python-dotenv
-pytest
-pytest-asyncio
-ruff
-mypy
-geoalchemy2
-aiosqlite
-apscheduler
-# google-auth — for Firebase FCM HTTP v1 API server-side token generation
-google-auth
-# psycopg2-binary  -- uncomment for direct psycopg2 usage
-# upstash-redis
-# resend
+# Core framework
+fastapi>=0.115.0
+uvicorn[standard]>=0.32.0
+
+# Database
+sqlalchemy[asyncio]>=2.0.36
+asyncpg>=0.30.0
+alembic>=1.14.0
+aiosqlite>=0.20.0
+geoalchemy2>=0.16.0
+
+# Pydantic / Validation
+pydantic[email]>=2.10.0
+
+# Auth
+python-jose[cryptography]>=3.3.0
+passlib[bcrypt]>=1.7.4
+python-multipart>=0.0.20
+
+# HTTP client
+httpx>=0.28.0
+
+# Rate limiting
+slowapi>=0.1.9
+
+# Config
+python-dotenv>=1.0.1
+
+# Email (Resend SDK)
+resend>=2.4.0
+
+# Scheduling
+apscheduler>=3.10.4
+
+# Google auth (FCM HTTP v1)
+google-auth>=2.36.0
+
+# Text processing for local category matching
+# (stdlib only – no extra install needed for TF-IDF baseline)
+
+# Dev / CI
+pytest>=8.3.0
+pytest-asyncio>=0.24.0
+ruff>=0.8.0
+mypy>=1.13.0

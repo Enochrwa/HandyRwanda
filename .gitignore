@@ -55,3 +55,32 @@ coverage/
 *.njsproj
 *.sln
 *.sw?
+
+# Firebase credentials (must NOT be committed — download from Firebase Console)
+mobile/android/app/google-services.json
+mobile/ios/GoogleService-Info.plist
+
+# Python artifacts
+backend/__pycache__/
+backend/**/__pycache__/
+backend/*.pyc
+backend/.mypy_cache/
+backend/.ruff_cache/
+backend/.pytest_cache/
+
+# Env files (example files ARE committed)
+.env
+.env.local
+.env.production
+.env.*.local
+backend/.env
+web/.env
+web/.env.production
+mobile/.env
+
+# Keep example files
+!.env.example
+!backend/.env.example
+!web/.env.example
+!web/.env.production.example
+!mobile/.env.example

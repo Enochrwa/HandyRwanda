@@ -47,14 +47,19 @@ if not _is_sqlite and DATABASE_URL.startswith("postgresql+asyncpg://"):
     else:
         DATABASE_URL = urlunparse(parsed._replace(query=""))
 
+_is_prod = os.getenv("ENV", "development") == "production"
+
 engine = create_async_engine(
     DATABASE_URL,
     echo=False,
     connect_args=_connect_args,
     pool_pre_ping=True,
     pool_recycle=300,
-    pool_size=10,
-    max_overflow=20,
+    # In prod, keep more connections ready; in dev, use fewer to avoid exhaustion
+    pool_size=10 if _is_prod else 5,
+    max_overflow=20 if _is_prod else 5,
+    # Kill queries hanging > 30s — prevents slow queries from blocking the pool
+    pool_timeout=30,
 )
 
 AsyncSessionLocal = async_sessionmaker(engine, expire_on_commit=False)

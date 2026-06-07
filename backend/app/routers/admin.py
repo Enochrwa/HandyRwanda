@@ -720,35 +720,43 @@ async def cron_pro_upgrade(
     - Average rating >= 4.0
     - completion_rate >= 0.8
     """
+    # Single SELECT to get eligible artisan IDs
     eligible = await db.execute(
-        select(ArtisanProfile).where(
+        select(ArtisanProfile.user_id).where(
             ArtisanProfile.verification_status == VerificationStatus.id_verified,
             ArtisanProfile.total_reviews >= 10,
             ArtisanProfile.average_rating >= 4.0,
             ArtisanProfile.completion_rate >= 0.8,
         )
     )
-    artisans = eligible.scalars().all()
-    upgraded = 0
-    for ap in artisans:
-        await db.execute(
-            update(ArtisanProfile)
-            .where(ArtisanProfile.user_id == ap.user_id)
-            .values(verification_status=VerificationStatus.pro_verified)
-        )
+    artisan_ids = [row[0] for row in eligible.all()]
+    upgraded = len(artisan_ids)
+
+    if not upgraded:
+        return {"upgraded": 0, "message": "No artisans eligible for pro upgrade."}
+
+    # Single batch UPDATE (1 query, not N)
+    await db.execute(
+        update(ArtisanProfile)
+        .where(ArtisanProfile.user_id.in_(artisan_ids))
+        .values(verification_status=VerificationStatus.pro_verified)
+    )
+
+    # Bulk INSERT notifications (1 query, not N)
+    import uuid as _uuid  # noqa: PLC0415
+    for uid in artisan_ids:
         db.add(
             Notification(
-                user_id=ap.user_id,
+                id=_uuid.uuid4(),
+                user_id=uid,
                 event_type="pro_verified",
                 title="You're now Pro Verified! 🌟",
                 body="Congratulations! You've earned the Pro Verified badge for your outstanding service.",
                 payload={"event_type": "pro_verified", "screen": "artisan_profile"},
             )
         )
-        upgraded += 1
 
-    if upgraded:
-        await db.commit()
+    await db.commit()
 
     return {
         "upgraded": upgraded,

@@ -3,7 +3,7 @@ import uuid
 from datetime import datetime
 from typing import Any
 
-from sqlalchemy import Boolean, DateTime, ForeignKey, String, func
+from sqlalchemy import Boolean, DateTime, ForeignKey, Index, String, func
 from sqlalchemy.orm import Mapped, mapped_column
 
 from app.database import Base
@@ -12,6 +12,10 @@ from app.db_compat import JSONB, UUID
 
 class Notification(Base):
     __tablename__ = "notifications"
+    __table_args__ = (
+        # Fetch unread notifications for a user sorted by time
+        Index("ix_notifications_user_read_created", "user_id", "is_read", "created_at"),
+    )
     id: Mapped[uuid.UUID] = mapped_column(
         UUID(as_uuid=True), primary_key=True, default=uuid.uuid4
     )

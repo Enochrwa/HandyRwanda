@@ -9,6 +9,7 @@ from sqlalchemy import (
     Enum,
     Float,
     ForeignKey,
+    Index,
     Integer,
     String,
     Text,
@@ -46,6 +47,14 @@ class BidStatus(str, enum.Enum):
 
 class Job(Base):
     __tablename__ = "jobs"
+    __table_args__ = (
+        # Common query: open jobs by category (artisan job-feed)
+        Index("ix_jobs_category_status", "category_id", "status"),
+        # Client dashboard: my jobs sorted by time
+        Index("ix_jobs_client_created", "client_id", "created_at"),
+        # District-based search
+        Index("ix_jobs_district_status", "district", "status"),
+    )
     id: Mapped[uuid.UUID] = mapped_column(
         UUID(as_uuid=True), primary_key=True, default=uuid.uuid4
     )
@@ -101,6 +110,11 @@ class Job(Base):
 
 class Bid(Base):
     __tablename__ = "bids"
+    __table_args__ = (
+        # Artisan's bid list + job bid list
+        Index("ix_bids_job_id", "job_id"),
+        Index("ix_bids_artisan_status", "artisan_id", "status"),
+    )
     id: Mapped[uuid.UUID] = mapped_column(
         UUID(as_uuid=True), primary_key=True, default=uuid.uuid4
     )

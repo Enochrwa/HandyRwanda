@@ -1,6 +1,8 @@
 # File: backend/app/main.py
 import asyncio
+import logging
 import os
+import time
 from collections.abc import AsyncGenerator
 from contextlib import asynccontextmanager
 from typing import Any
@@ -9,11 +11,14 @@ from uuid import UUID
 from fastapi import Depends, FastAPI, HTTPException, WebSocket, WebSocketDisconnect
 from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy import select
+from sqlalchemy import text as sa_text
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.database import get_db, init_db
 from app.dependencies.jwt_auth import get_current_user
+from app.integrations.upstash import redis_get, redis_set
 from app.integrations.ws_manager import notification_manager
+from app.logging_config import configure_logging
 from app.models.artisan import ArtisanProfile, Category, PortfolioPhoto, artisan_skills
 from app.models.review import Review
 from app.models.user import User, UserRole
@@ -36,6 +41,11 @@ from app.routers import (
     schedule,
     uploads,
 )
+
+configure_logging()
+
+_log = logging.getLogger(__name__)
+
 
 # ── Message WebSocket connection manager ──────────────────────────────────────
 
@@ -84,17 +94,73 @@ async def _auto_release_loop() -> None:
         await asyncio.sleep(1800)  # Run every 30 minutes
 
 
+def _validate_startup_config() -> None:
+    """
+    Fail fast with clear messages when critical configuration is missing.
+    Called at startup before accepting any requests.
+    """
+    required: dict[str, str] = {
+        "JWT_SECRET": "Required for all authentication. Generate with: openssl rand -hex 32",
+        "DATABASE_URL": "PostgreSQL connection string. Format: postgresql://user:pass@host:5432/dbname",
+    }
+    recommended: dict[str, str] = {
+        "SUPABASE_URL": "Required for file uploads (avatars, portfolio photos)",
+        "SUPABASE_SERVICE_ROLE_KEY": "Required for Supabase Storage API",
+        "RESEND_API_KEY": "Required for OTP email delivery (console fallback active in dev)",
+        "UPSTASH_REDIS_REST_URL": "Required for distributed rate limiting (in-memory fallback active)",
+        "UPSTASH_REDIS_REST_TOKEN": "Required for distributed rate limiting (in-memory fallback active)",
+    }
+
+    missing_required = []
+    for key, hint in required.items():
+        if not os.getenv(key):
+            missing_required.append(f"  ❌ {key}: {hint}")
+
+    missing_recommended = []
+    for key, hint in recommended.items():
+        if not os.getenv(key):
+            missing_recommended.append(f"  ⚠️  {key}: {hint}")
+
+    if missing_required:
+        msg = "CRITICAL: Missing required environment variables:\n" + "\n".join(missing_required)
+        _log.critical(msg)
+        raise RuntimeError(msg)
+
+    if missing_recommended:
+        _log.warning(
+            "Missing recommended environment variables (degraded functionality):\n%s",
+            "\n".join(missing_recommended),
+        )
+
+    _log.info("✅ Configuration validated — all required env vars present")
+
+
 @asynccontextmanager
 async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
+    _validate_startup_config()
+
+    _log.info("🚀 HandyRwanda API starting up…")
     await init_db()
+    _log.info("✅ Database initialised")
+
     # Start background escrow auto-release task
     bg_task = asyncio.create_task(_auto_release_loop())
+    _log.info("✅ Background tasks started")
+
     yield
+
+    # Graceful shutdown
+    _log.info("🛑 HandyRwanda API shutting down…")
     bg_task.cancel()
     try:
         await bg_task
     except asyncio.CancelledError:
         pass
+
+    # Close shared Redis HTTP client
+    from app.integrations.upstash import close_redis_client  # noqa: PLC0415
+    await close_redis_client()
+    _log.info("✅ Cleanup complete")
 
 
 app = FastAPI(title="HandyRwanda API", version="2.1.0", lifespan=lifespan)
@@ -108,6 +174,7 @@ _ALLOW_ORIGINS = [
     "http://localhost:19006",
     "http://10.0.2.2:5173",
     "http://10.0.2.2:8081",
+    # Production web app — set CORS_ORIGINS=https://handyrwanda.com in prod
     *_EXTRA_ORIGINS,
 ]
 
@@ -343,10 +410,42 @@ async def root() -> dict[str, str]:
     return {"message": "Welcome to HandyRwanda API v2.1"}
 
 
-@app.get("/health")
-async def health() -> dict[str, str]:
+@app.get("/health", tags=["monitoring"])
+async def health() -> dict[str, Any]:
+    """Basic health check — always fast, no DB/Redis queries."""
     return {
         "status": "ok",
         "version": "2.1.0",
-        "ws_users": str(notification_manager.active_user_count()),
+        "ws_users": notification_manager.active_user_count(),
     }
+
+
+@app.get("/health/db", tags=["monitoring"])
+async def health_db(db: AsyncSession = Depends(get_db)) -> dict[str, Any]:
+    """Deep health check — verifies DB connectivity."""
+    t0 = time.monotonic()
+    try:
+        await db.execute(sa_text("SELECT 1"))
+        latency_ms = round((time.monotonic() - t0) * 1000, 1)
+        return {"status": "ok", "db_latency_ms": latency_ms}
+    except Exception:
+        _log.exception("Health DB check failed")
+        return {"status": "error", "detail": "Database unreachable"}
+
+
+@app.get("/health/redis", tags=["monitoring"])
+async def health_redis() -> dict[str, Any]:
+    """Deep health check — verifies Redis connectivity."""
+    t0 = time.monotonic()
+    try:
+        await redis_set("__health__", "1", ttl_seconds=5)
+        val = await redis_get("__health__")
+        latency_ms = round((time.monotonic() - t0) * 1000, 1)
+        return {
+            "status": "ok" if val == "1" else "degraded",
+            "latency_ms": latency_ms,
+            "backend": "upstash" if os.getenv("UPSTASH_REDIS_REST_URL") else "in-memory",
+        }
+    except Exception:
+        _log.exception("Health Redis check failed")
+        return {"status": "error", "detail": "Redis unreachable"}

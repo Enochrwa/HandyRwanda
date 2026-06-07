@@ -1,5 +1,6 @@
 # File: backend/app/routers/jobs.py
 import asyncio
+import logging
 from datetime import datetime
 from typing import Any, cast
 from uuid import UUID
@@ -21,6 +22,7 @@ from app.services.price_anchor_service import get_price_anchor
 from app.utils.rwanda_address import format_full_address
 
 router = APIRouter(prefix="/jobs", tags=["jobs"])
+logger = logging.getLogger(__name__)
 
 
 def _serialize_job(
@@ -227,7 +229,7 @@ async def create_job(
 
     # Trigger smart matching: notify top-5 artisans in background
     assert job.id is not None, "Job ID must be set after commit"
-    asyncio.ensure_future(_notify_artisans_async(job.id, cat.name_en if cat else ""))
+    asyncio.create_task(_notify_artisans_async(job.id, cat.name_en if cat else ""))
 
     return _serialize_job(job, cat, 0)
 
@@ -243,7 +245,7 @@ async def _notify_artisans_async(job_id: UUID, category_name: str) -> None:
                 await notify_matching_artisans(session, job, category_name)
                 await session.commit()
     except Exception as e:
-        print(f"[MatchingService] Error notifying artisans for job {job_id}: {e}")
+        logger.error("[MatchingService] Error notifying artisans for job %s: %s", job_id, e)
 
 
 @router.get("/mine")
@@ -261,13 +263,21 @@ async def list_my_jobs(
     if status:
         query = query.where(Job.status == status)
     result = await db.execute(query.order_by(Job.created_at.desc()))
-    jobs = []
-    for job, cat in result:
-        bid_count = (
-            await db.scalar(select(func.count(Bid.id)).where(Bid.job_id == job.id)) or 0
-        )
-        jobs.append(_serialize_job(job, cat, bid_count))
-    return jobs
+    rows = result.all()
+
+    if not rows:
+        return []
+
+    # Single query for all bid counts (no N+1)
+    job_ids = [job.id for job, _ in rows]
+    bid_counts_res = await db.execute(
+        select(Bid.job_id, func.count(Bid.id).label("cnt"))
+        .where(Bid.job_id.in_(job_ids))
+        .group_by(Bid.job_id)
+    )
+    bid_count_map: dict[object, int] = {row.job_id: row.cnt for row in bid_counts_res.all()}
+
+    return [_serialize_job(job, cat, bid_count_map.get(job.id, 0)) for job, cat in rows]
 
 
 @router.get("/available")
@@ -360,7 +370,6 @@ async def list_open_jobs(
         query = query.where(Job.category_id == category_id)
     if urgency:
         query = query.where(Job.urgency == urgency)
-    # Prefer structured district field, fall back to label search
     if district:
         query = query.where(
             (Job.district == district) | Job.location_label.ilike(f"%{district}%")
@@ -370,13 +379,21 @@ async def list_open_jobs(
     query = query.order_by(Job.created_at.desc()).limit(limit)
 
     result = await db.execute(query)
-    jobs = []
-    for job, cat in result:
-        bid_count = (
-            await db.scalar(select(func.count(Bid.id)).where(Bid.job_id == job.id)) or 0
-        )
-        jobs.append(_serialize_job(job, cat, bid_count))
-    return jobs
+    rows = result.all()
+
+    if not rows:
+        return []
+
+    # Single query for all bid counts (no N+1)
+    job_ids = [job.id for job, _ in rows]
+    bid_counts_res = await db.execute(
+        select(Bid.job_id, func.count(Bid.id).label("cnt"))
+        .where(Bid.job_id.in_(job_ids))
+        .group_by(Bid.job_id)
+    )
+    bid_count_map: dict[object, int] = {row.job_id: row.cnt for row in bid_counts_res.all()}
+
+    return [_serialize_job(job, cat, bid_count_map.get(job.id, 0)) for job, cat in rows]
 
 
 @router.get("/{job_id}")

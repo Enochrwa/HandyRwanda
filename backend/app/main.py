@@ -447,6 +447,5 @@ async def health_redis() -> dict[str, Any]:
             "latency_ms": latency_ms,
             "backend": "upstash" if os.getenv("UPSTASH_REDIS_REST_URL") else "in-memory",
         }
-        logging.exception("Health Redis check failed", exc_info=exc)
-        return {"status": "error", "detail": "Internal server error"}
+    except Exception as exc:
         return {"status": "error", "detail": str(exc)}

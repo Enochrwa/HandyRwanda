@@ -39,7 +39,11 @@ export default function JobLocation() {
     let mounted = true;
     (async () => {
       try {
-        const { status } = await Location.requestForegroundPermissionsAsync();
+        const { status: _ex } = await Location.getForegroundPermissionsAsync();
+        const status =
+          _ex !== 'undetermined'
+            ? _ex
+            : (await Location.requestForegroundPermissionsAsync()).status;
         if (status === 'granted') {
           const loc = await Location.getCurrentPositionAsync({
             accuracy: Location.Accuracy.Balanced,

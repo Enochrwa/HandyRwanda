@@ -172,6 +172,7 @@ class UserBase(BaseModel):
     role: UserRole
     account_status: AccountStatus
     email_verified: bool
+    avatar_url: str | None = None
     province: str | None = None
     district: str | None = None
     sector: str | None = None

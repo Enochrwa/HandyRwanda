@@ -195,6 +195,47 @@ function ArtisanOnboarding() {
                 />
                 <p className="text-[10px] mt-1 text-muted-foreground">Minimum 10 characters.</p>
               </div>
+              <div>
+                <label className="text-sm font-semibold">Years of Experience</label>
+                <input
+                  type="number"
+                  min="0"
+                  max="50"
+                  className="mt-2 w-full rounded-xl border border-border bg-muted/20 p-3 focus:border-primary focus:ring-1 focus:ring-primary"
+                  placeholder="e.g. 5"
+                  value={formData.years_experience}
+                  onChange={(e) => setFormData({ ...formData, years_experience: e.target.value })}
+                />
+              </div>
+              <div>
+                <label className="text-sm font-semibold">Languages Spoken</label>
+                <div className="mt-2 flex flex-wrap gap-2">
+                  {[
+                    { code: "rw", label: "🇷🇼 Kinyarwanda" },
+                    { code: "en", label: "🇬🇧 English" },
+                    { code: "fr", label: "🇫🇷 Français" },
+                    { code: "sw", label: "🇰🇪 Swahili" },
+                  ].map((lang) => (
+                    <button
+                      key={lang.code}
+                      type="button"
+                      onClick={() => {
+                        const langs = formData.languages.includes(lang.code)
+                          ? formData.languages.filter((l) => l !== lang.code)
+                          : [...formData.languages, lang.code];
+                        setFormData({ ...formData, languages: langs });
+                      }}
+                      className={`rounded-full border px-4 py-1.5 text-sm font-medium transition-colors ${
+                        formData.languages.includes(lang.code)
+                          ? "border-primary bg-primary text-white"
+                          : "border-border bg-muted/20 text-foreground hover:border-primary/50"
+                      }`}
+                    >
+                      {lang.label}
+                    </button>
+                  ))}
+                </div>
+              </div>
               <button
                 onClick={handleNext}
                 disabled={loading || !isStep1Valid}

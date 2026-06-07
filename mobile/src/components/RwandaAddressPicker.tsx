@@ -9,7 +9,15 @@
  */
 import { Picker } from '@react-native-picker/picker';
 import React, { useCallback, useEffect, useRef, useState } from 'react';
-import { Platform, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
+import {
+  ActivityIndicator,
+  Platform,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TextInput,
+  View,
+} from 'react-native';
 
 import { useRwandaLocation } from '../hooks/useRwandaLocation';
 
@@ -46,15 +54,24 @@ export function RwandaAddressPicker({ value, onChange }: Props) {
     onChangeRef.current = onChange;
   });
 
-  const { getProvinces, getDistrictByProvince, getSectors, getCells, getVillages } =
+  const { loading, getProvinces, getDistrictByProvince, getSectors, getCells, getVillages } =
     useRwandaLocation();
 
   // All computed synchronously — no async, no re-renders from data loading
-  const provinces = getProvinces();
-  const districts = province ? getDistrictByProvince(province) : [];
-  const sectors = district ? getSectors(province, district) : [];
-  const cells = sector ? getCells(province, district, sector) : [];
-  const villages = cell ? getVillages(province, district, sector, cell) : [];
+  const provinces = loading ? [] : getProvinces();
+  const districts = !loading && province ? getDistrictByProvince(province) : [];
+  const sectors = !loading && district ? getSectors(province, district) : [];
+  const cells = !loading && sector ? getCells(province, district, sector) : [];
+  const villages = !loading && cell ? getVillages(province, district, sector, cell) : [];
+
+  if (loading) {
+    return (
+      <View style={styles.loadingContainer}>
+        <ActivityIndicator size="small" color="#1B5E3B" />
+        <Text style={styles.loadingText}>Loading address data…</Text>
+      </View>
+    );
+  }
 
   const pickerItemStyle = Platform.OS === 'ios' ? { color: '#111827' } : undefined;
 
@@ -253,6 +270,14 @@ function PickerRow({
 const styles = StyleSheet.create({
   scroll: { flexGrow: 0 },
   container: { gap: 12 },
+  loadingContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    padding: 16,
+    justifyContent: 'center',
+  },
+  loadingText: { fontSize: 13, color: '#6B7280' },
   field: { gap: 4 },
   label: { fontSize: 13, fontWeight: '600', color: '#374151' },
   hint: { fontSize: 10, color: '#9CA3AF', marginTop: 2 },

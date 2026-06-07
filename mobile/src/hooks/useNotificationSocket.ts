@@ -14,19 +14,13 @@
  */
 import { useQueryClient } from '@tanstack/react-query';
 import { useEffect, useRef } from 'react';
-import { AppState, AppStateStatus, Platform } from 'react-native';
+import { AppState, AppStateStatus } from 'react-native';
 
 import { useAuthStore } from '../store/authStore';
 
-const API_BASE = (() => {
-  if (Platform.OS === 'android') return 'ws://10.0.2.2:8000';
-  return 'ws://localhost:8000';
-})();
-
-// In production, derive from your EXPO_PUBLIC_API_URL env var
-const WS_BASE = process.env.EXPO_PUBLIC_API_URL
-  ? process.env.EXPO_PUBLIC_API_URL.replace(/^http/, 'ws')
-  : API_BASE;
+// Use the same base URL as api.ts (smart LAN detection on physical devices)
+import { API_BASE_URL } from '../services/api';
+const WS_BASE = API_BASE_URL.replace(/^http/, 'ws');
 
 const MAX_RECONNECT_DELAY_MS = 30_000;
 const PING_INTERVAL_MS = 25_000;

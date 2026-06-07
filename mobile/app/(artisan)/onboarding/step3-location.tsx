@@ -57,25 +57,41 @@ export default function LocationStep() {
     formatted: 'Gasabo, Kigali City, Rwanda',
   });
 
-  const getCurrentLocation = async () => {
-    const { status } = await Location.requestForegroundPermissionsAsync();
-    if (status !== 'granted') {
-      Toast.show({
-        type: 'error',
-        text1: 'Permission denied',
-        text2: 'Cannot access your location. Please pick manually.',
-      });
+  const getCurrentLocation = async (forceRequest = false) => {
+    // Check existing status first — only call requestForegroundPermissionsAsync
+    // when truly undetermined, because requesting triggers an Android Activity
+    // restart which unmounts and remounts the screen (causing a freeze loop).
+    const { status: existing } = await Location.getForegroundPermissionsAsync();
+    let finalStatus = existing;
+    if (existing === 'undetermined' || forceRequest) {
+      const { status } = await Location.requestForegroundPermissionsAsync();
+      finalStatus = status;
+    }
+    if (finalStatus !== 'granted') {
+      if (forceRequest) {
+        Toast.show({
+          type: 'error',
+          text1: 'Permission denied',
+          text2: 'Cannot access your location. Please pick manually.',
+        });
+      }
       return;
     }
-    const loc = await Location.getCurrentPositionAsync({});
-    const newCoords = { latitude: loc.coords.latitude, longitude: loc.coords.longitude };
-    setMarker(newCoords);
-    setRegion({ ...KIGALI_CENTER, ...newCoords });
+    try {
+      const loc = await Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.Balanced });
+      const newCoords = { latitude: loc.coords.latitude, longitude: loc.coords.longitude };
+      setMarker(newCoords);
+      setRegion({ ...KIGALI_CENTER, ...newCoords });
+    } catch {
+      // Non-fatal — user can pick location manually on the map
+    }
   };
 
   useEffect(() => {
-    getCurrentLocation();
-  }, []);
+    // On mount: silently use location if already granted, never prompt automatically.
+    // User taps "📍 My Location" to explicitly trigger the permission prompt.
+    getCurrentLocation(false);
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   const handleNext = async () => {
     if (!address.district) {
@@ -167,7 +183,7 @@ export default function LocationStep() {
               <Text className="text-base font-bold text-foreground">
                 Service Radius: {radiusKm} km
               </Text>
-              <TouchableOpacity onPress={getCurrentLocation}>
+              <TouchableOpacity onPress={() => getCurrentLocation(true)}>
                 <Text className="text-primary font-semibold text-sm">📍 My Location</Text>
               </TouchableOpacity>
             </View>

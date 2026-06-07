@@ -15,7 +15,6 @@
       "supportsTablet": true,
       "scheme": "handyrwanda",
       "bundleIdentifier": "com.handyrwanda.app",
-      "googleServicesFile": "./GoogleService-Info.plist",
       "infoPlist": {
         "UIBackgroundModes": ["fetch", "remote-notification"]
       }
@@ -26,7 +25,6 @@
       "adaptiveIcon": {
         "backgroundColor": "#FF6B35"
       },
-      "googleServicesFile": "./android/app/google-services.json",
       "permissions": [
         "NOTIFICATIONS",
         "RECEIVE_BOOT_COMPLETED",

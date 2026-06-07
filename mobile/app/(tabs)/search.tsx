@@ -176,16 +176,23 @@ export default function SearchScreen() {
 
   // Request location on mount — gracefully falls back to Kigali center
   useEffect(() => {
-    Location.requestForegroundPermissionsAsync()
-      .then(({ status }) => {
-        if (status !== 'granted') return;
-        Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.Balanced })
-          .then((loc) => {
-            setUserCoords({ latitude: loc.coords.latitude, longitude: loc.coords.longitude });
-          })
-          .catch(() => {});
-      })
-      .catch(() => {});
+    (async () => {
+      try {
+        const { status: ex } = await Location.getForegroundPermissionsAsync();
+        const finalStatus =
+          ex !== 'undetermined' ? ex : (await Location.requestForegroundPermissionsAsync()).status;
+        if (finalStatus !== 'granted') return;
+        const loc = await Location.getCurrentPositionAsync({
+          accuracy: Location.Accuracy.Balanced,
+        });
+        setUserCoords({ latitude: loc.coords.latitude, longitude: loc.coords.longitude });
+      } catch {
+        // ignore
+      }
+    })();
+
+    // Only run on mount. Using an IIFE to handle async logic safely in useEffect.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const [filters, setFilters] = useState({

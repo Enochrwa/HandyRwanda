@@ -32,7 +32,11 @@ export default function ArtisanMapSearch() {
 
   useEffect(() => {
     (async () => {
-      const { status } = await Location.requestForegroundPermissionsAsync();
+      const { status: _existing } = await Location.getForegroundPermissionsAsync();
+      const status =
+        _existing !== 'undetermined'
+          ? _existing
+          : (await Location.requestForegroundPermissionsAsync()).status;
       if (status !== 'granted') return;
       const loc = await Location.getCurrentPositionAsync({});
       const initialRegion = {

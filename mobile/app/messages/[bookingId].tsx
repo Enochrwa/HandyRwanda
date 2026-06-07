@@ -19,7 +19,7 @@ import {
 import Toast from 'react-native-toast-message';
 
 import { isOnAuthRoute } from '../../src/navigation';
-import api from '../../src/services/api';
+import api, { API_BASE_URL } from '../../src/services/api';
 import { useAuthStore } from '../../src/store/authStore';
 
 function formatRWF(n: number) {
@@ -46,10 +46,7 @@ export default function ChatThread() {
     if (!bookingId || !isAuthenticated) return;
     setWsMessages([]);
 
-    const apiBase = (process.env.EXPO_PUBLIC_API_URL || 'http://localhost:8000').replace(
-      /^http/,
-      'ws',
-    );
+    const apiBase = API_BASE_URL.replace(/^http/, 'ws');
     const ws = new WebSocket(`${apiBase}/ws/messages/${bookingId}`);
     wsRef.current = ws;
 

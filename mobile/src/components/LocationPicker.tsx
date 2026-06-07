@@ -155,11 +155,11 @@ export function LocationPicker({ initialCoords, onChange }: Props) {
   // Track previous district for zoom — avoids needing district in effect deps
   const prevDistrictRef = useRef('');
 
-  // Derived dropdown lists from offline data
-  const provinces = rwandaHook.getProvinces();
-  const districts = province ? rwandaHook.getDistrictByProvince(province) : [];
-  const sectors = district ? rwandaHook.getSectors(province, district) : [];
-  const cells = sector ? rwandaHook.getCells(province, district, sector) : [];
+  // Derived dropdown lists from offline data (guard on loading)
+  const provinces = rwandaHook.loading ? [] : rwandaHook.getProvinces();
+  const districts = !rwandaHook.loading && province ? rwandaHook.getDistrictByProvince(province) : [];
+  const sectors = !rwandaHook.loading && district ? rwandaHook.getSectors(province, district) : [];
+  const cells = !rwandaHook.loading && sector ? rwandaHook.getCells(province, district, sector) : [];
 
   // ── Notify parent (stable: uses ref so never causes child re-renders) ─────
   const notify = useCallback(

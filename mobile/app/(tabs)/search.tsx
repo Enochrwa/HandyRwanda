@@ -176,7 +176,7 @@ export default function SearchScreen() {
 
   // Request location on mount — gracefully falls back to Kigali center
   useEffect(() => {
-    Location.requestForegroundPermissionsAsync()
+    Location.getForegroundPermissionsAsync().then(({ status: ex }) => ex !== 'undetermined' ? Promise.resolve({ status: ex }) : Location.requestForegroundPermissionsAsync())
       .then(({ status }) => {
         if (status !== 'granted') return;
         Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.Balanced })

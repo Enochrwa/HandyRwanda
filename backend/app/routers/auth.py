@@ -238,6 +238,7 @@ async def verify_otp(
             role=UserRole(user.role),
             account_status=AccountStatus(user.account_status),
             email_verified=bool(user.email_verified),
+            avatar_url=str(user.avatar_url) if user.avatar_url else None,
             province=str(user.province) if user.province else None,
             district=str(user.district) if user.district is not None else None,
             sector=str(user.sector) if user.sector else None,
@@ -366,6 +367,37 @@ async def update_profile(
         return {"message": "No fields to update.", "updated_fields": []}
 
     # Use explicit UPDATE to avoid uuid = varchar cast error on PostgreSQL
+    await db.execute(update(User).where(User.id == user.id).values(**update_data))
+    await db.commit()
+    await db.refresh(user)
+    return {
+        "message": "Profile updated successfully.",
+        "updated_fields": list(update_data.keys()),
+    }
+
+
+# ── Convenience alias: PATCH /auth/profile (authenticated user updates own profile) ──
+# Both mobile (step3-location) and web (onboarding/artisan) call this endpoint.
+# Previously missing — only /auth/users/{user_id}/profile existed.
+
+@router.patch("/profile")
+async def update_own_profile(
+    payload: ProfileUpdate,
+    db: AsyncSession = Depends(get_db),
+    current_user: dict[str, Any] = Depends(get_current_user),
+) -> Any:
+    """Update the currently authenticated user's profile fields."""
+    from uuid import UUID as _UUID
+
+    user_id = _UUID(str(current_user["sub"]))
+    user = await db.scalar(select(User).where(User.id == user_id))
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found.")
+
+    update_data = payload.model_dump(exclude_none=True)
+    if not update_data:
+        return {"message": "No fields to update.", "updated_fields": []}
+
     await db.execute(update(User).where(User.id == user.id).values(**update_data))
     await db.commit()
     await db.refresh(user)

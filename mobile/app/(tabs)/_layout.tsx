@@ -3,12 +3,11 @@ import { Home, Search, MessageCircle, User, LayoutDashboard, Bell, Plus } from '
 import { useQuery } from '@tanstack/react-query';
 import { Tabs, useRouter } from 'expo-router';
 import { useEffect } from 'react';
-import { Platform, TouchableOpacity, Text, View } from 'react-native';
+import { TouchableOpacity, Text, View } from 'react-native';
 
 import { OfflineBanner } from '../../src/components/OfflineBanner';
 import { useNotificationSocket } from '../../src/hooks/useNotificationSocket';
 import api from '../../src/services/api';
-import { proService } from '../../src/services/proService';
 import { useAuthStore } from '../../src/store/authStore';
 
 export default function TabsLayout() {
@@ -29,47 +28,9 @@ export default function TabsLayout() {
   });
   const unreadCount = (notifications as any[]).filter((n) => !n.is_read).length;
 
-  // Register FCM + Expo push tokens after login
-  useEffect(() => {
-    if (!isAuthenticated) return;
-
-    (async () => {
-      try {
-        if (Platform.OS === 'web') return;
-
-        // Try FCM first (preferred on native)
-        try {
-          const { getMessaging, getToken } = await import('@react-native-firebase/messaging');
-          const messaging = getMessaging();
-          const fcmToken = await getToken(messaging);
-          if (fcmToken) {
-            await proService.registerFCMToken(fcmToken);
-            return; // FCM registered — skip Expo token
-          }
-        } catch {
-          // Firebase not available (Expo Go) — fall through to Expo token
-        }
-
-        // Fallback: Expo push token
-        const Notifications = await import('expo-notifications');
-        const { status: existing } = await Notifications.getPermissionsAsync();
-        const finalStatus =
-          existing === 'granted'
-            ? existing
-            : (await Notifications.requestPermissionsAsync()).status;
-        if (finalStatus !== 'granted') return;
-
-        const tokenData = await Notifications.getExpoPushTokenAsync({
-          projectId: process.env.EXPO_PUBLIC_EAS_PROJECT_ID,
-        });
-        if (tokenData?.data) {
-          await proService.registerPushToken(tokenData.data);
-        }
-      } catch {
-        // Non-fatal — app works without push tokens
-      }
-    })();
-  }, [isAuthenticated]);
+  // NOTE: Push token registration is handled centrally in app/_layout.tsx
+  // (PushTokenRegistrar). We do NOT register here to avoid double-requesting
+  // permissions, which causes an Android Activity restart → logout loop.
 
   // Onboarding gate: artisans without profiles go to onboarding
   useEffect(() => {

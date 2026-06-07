@@ -21,6 +21,24 @@ const queryClient = new QueryClient({
 });
 
 // ── Push token registration & deep-link notification handler ─────────────────
+//
+// KEY FIX: On Android, granting a permission causes the Activity to restart,
+// which re-mounts the entire React tree. If we request permissions inside a
+// useEffect that runs on every mount, we get a loop: mount → request → restart
+// → mount → request → restart …
+//
+// Fix: we use a module-level variable `pushRegistered` so that even after an
+// Activity restart (which re-runs JS but keeps the module cache) the effect
+// is a no-op after the first successful registration.
+//
+// We also completely drop @react-native-firebase/messaging from the push
+// registration path here — it requires native linking that is not present in
+// plain Expo builds. Expo push tokens work reliably via expo-notifications.
+// FCM integration should only be used in a custom dev-client / production
+// EAS build where the Firebase native modules are properly linked.
+
+let pushRegistered = false;
+
 function PushTokenRegistrar() {
   const { isAuthenticated, user } = useAuthStore();
   const notifListenerRef = useRef<{ remove: () => void } | null>(null);
@@ -28,13 +46,13 @@ function PushTokenRegistrar() {
 
   useEffect(() => {
     if (!isAuthenticated) return;
+    if (pushRegistered) return; // already done — skip after Activity restart
+    if (Platform.OS === 'web') return;
 
     let mounted = true;
 
     (async () => {
       try {
-        if (Platform.OS === 'web') return;
-
         const Notifications = await import('expo-notifications');
 
         // Set notification handler so foreground notifications show banners
@@ -48,12 +66,17 @@ function PushTokenRegistrar() {
           }),
         });
 
+        // Check existing permission status FIRST — only prompt if not yet decided
         const { status: existingStatus } = await Notifications.getPermissionsAsync();
         let finalStatus = existingStatus;
-        if (existingStatus !== 'granted') {
+
+        if (existingStatus === 'undetermined') {
+          // Only call requestPermissionsAsync() once — it triggers the system
+          // dialog which restarts the Activity on Android.
           const { status } = await Notifications.requestPermissionsAsync();
           finalStatus = status;
         }
+
         if (finalStatus !== 'granted') return;
 
         // Android: create default notification channel
@@ -66,46 +89,18 @@ function PushTokenRegistrar() {
           });
         }
 
-        // Try FCM token first (preferred for native builds).
-        // @react-native-firebase requires native linking; it throws a synchronous
-        // error in Expo Go ("RNFBAppModule not found"). We wrap both the import
-        // AND the usage in a Promise so any thrown error — sync or async — is caught.
-        let fcmRegistered = false;
+        // Register Expo push token (works in Expo Go + custom builds)
         try {
-          fcmRegistered = await new Promise<boolean>((resolve) => {
-            // Wrapping in Promise.resolve().then() defers execution to a
-            // microtask, converting sync throws into rejections that our
-            // outer try/catch can catch without crashing the JS thread.
-            Promise.resolve()
-              .then(() => import('@react-native-firebase/messaging'))
-              .then(async ({ getMessaging, getToken }) => {
-                const fcmToken = await getToken(getMessaging());
-                if (fcmToken && mounted) {
-                  await proService.registerFCMToken(fcmToken);
-                  resolve(true);
-                } else {
-                  resolve(false);
-                }
-              })
-              .catch(() => resolve(false)); // Firebase not available in Expo Go
+          const tokenData = await Notifications.getExpoPushTokenAsync({
+            projectId: process.env.EXPO_PUBLIC_EAS_PROJECT_ID,
           });
-        } catch {
-          // Defensive outer catch — fall through to Expo push token
-          fcmRegistered = false;
-        }
-
-        // Fallback to Expo push token
-        if (!fcmRegistered && mounted) {
-          try {
-            const tokenData = await Notifications.getExpoPushTokenAsync({
-              projectId: process.env.EXPO_PUBLIC_EAS_PROJECT_ID,
-            });
-            if (tokenData?.data && mounted) {
-              await proService.registerPushToken(tokenData.data);
-            }
-          } catch {
-            // Non-critical — app works without push tokens
+          if (tokenData?.data && mounted) {
+            await proService.registerPushToken(tokenData.data);
+            // Mark as done so Activity restart doesn't re-register
+            pushRegistered = true;
           }
+        } catch {
+          // Non-critical — app works without push tokens
         }
 
         // Handle notification taps when app is in background/closed
@@ -130,7 +125,6 @@ function PushTokenRegistrar() {
 
     return () => {
       mounted = false;
-      // Subscription objects have a .remove() method
       if (notifListenerRef.current) {
         notifListenerRef.current.remove();
         notifListenerRef.current = null;

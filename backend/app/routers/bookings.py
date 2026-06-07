@@ -66,9 +66,6 @@ async def _notify(
 # ── Endpoints ─────────────────────────────────────────────────────────────────
 
 
-# ── Endpoints ─────────────────────────────────────────────────────────────────
-
-
 @router.post("", status_code=201)
 async def create_direct_booking(
     payload: DirectBookingCreate,

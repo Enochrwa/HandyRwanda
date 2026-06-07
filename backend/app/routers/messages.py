@@ -268,7 +268,7 @@ async def send_message(
     )
     # Store detected language if the model has the column
     if hasattr(message, "detected_lang"):
-        message.detected_lang = detected_lang  # type: ignore[attr-defined]
+        message.detected_lang = detected_lang  # type: ignore[assignment]
 
     db.add(message)
     await db.commit()

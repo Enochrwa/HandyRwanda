@@ -275,7 +275,7 @@ async def list_my_jobs(
         .where(Bid.job_id.in_(job_ids))
         .group_by(Bid.job_id)
     )
-    bid_count_map: dict = {row.job_id: row.cnt for row in bid_counts_res.all()}
+    bid_count_map: dict[object, int] = {row.job_id: row.cnt for row in bid_counts_res.all()}
 
     return [_serialize_job(job, cat, bid_count_map.get(job.id, 0)) for job, cat in rows]
 
@@ -391,7 +391,7 @@ async def list_open_jobs(
         .where(Bid.job_id.in_(job_ids))
         .group_by(Bid.job_id)
     )
-    bid_count_map: dict = {row.job_id: row.cnt for row in bid_counts_res.all()}
+    bid_count_map: dict[object, int] = {row.job_id: row.cnt for row in bid_counts_res.all()}
 
     return [_serialize_job(job, cat, bid_count_map.get(job.id, 0)) for job, cat in rows]
 

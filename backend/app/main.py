@@ -429,7 +429,8 @@ async def health_db(db: AsyncSession = Depends(get_db)) -> dict[str, Any]:
         latency_ms = round((time.monotonic() - t0) * 1000, 1)
         return {"status": "ok", "db_latency_ms": latency_ms}
     except Exception as exc:
-        logging.exception("Database health check failed", exc_info=exc)
+        logging.exception("Health DB check failed", exc_info=exc)
+        return {"status": "error", "detail": "Internal server error"}
         return {"status": "error", "detail": "Database health check failed"}
 
 
@@ -446,5 +447,6 @@ async def health_redis() -> dict[str, Any]:
             "latency_ms": latency_ms,
             "backend": "upstash" if os.getenv("UPSTASH_REDIS_REST_URL") else "in-memory",
         }
-    except Exception as exc:
+        logging.exception("Health Redis check failed", exc_info=exc)
+        return {"status": "error", "detail": "Internal server error"}
         return {"status": "error", "detail": str(exc)}

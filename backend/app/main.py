@@ -1,4 +1,17 @@
 # File: backend/app/main.py
+"""
+HandyRwanda FastAPI application.
+
+Real-time layer:
+  - Migrated from raw WebSockets to Socket.IO (python-socketio 5.x).
+  - Two namespaces:
+      /notifications  – per-user notification push (auth via JWT in handshake)
+      /messages       – per-booking real-time chat (auth via JWT in handshake)
+  - The combined ASGI app (FastAPI + Socket.IO) is created at module level
+    via socket_manager.create_combined_asgi() and exposed as `application`.
+    Uvicorn / gunicorn should point at  backend.app.main:application.
+"""
+
 import asyncio
 import logging
 import os
@@ -8,7 +21,7 @@ from contextlib import asynccontextmanager
 from typing import Any
 from uuid import UUID
 
-from fastapi import Depends, FastAPI, HTTPException, WebSocket, WebSocketDisconnect
+from fastapi import Depends, FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy import select
 from sqlalchemy import text as sa_text
@@ -16,6 +29,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.database import get_db, init_db
 from app.dependencies.jwt_auth import get_current_user
+from app.integrations.socket_manager import create_combined_asgi, sio
 from app.integrations.upstash import redis_get, redis_set
 from app.integrations.ws_manager import notification_manager
 from app.logging_config import configure_logging
@@ -45,33 +59,6 @@ from app.routers import (
 configure_logging()
 
 _log = logging.getLogger(__name__)
-
-
-# ── Message WebSocket connection manager ──────────────────────────────────────
-
-
-class MessageConnectionManager:
-    def __init__(self) -> None:
-        self._connections: dict[str, list[WebSocket]] = {}
-
-    async def connect(self, booking_id: str, ws: WebSocket) -> None:
-        await ws.accept()
-        self._connections.setdefault(booking_id, []).append(ws)
-
-    def disconnect(self, booking_id: str, ws: WebSocket) -> None:
-        conns = self._connections.get(booking_id, [])
-        if ws in conns:
-            conns.remove(ws)
-
-    async def broadcast(self, booking_id: str, data: dict[str, object]) -> None:
-        for ws in list(self._connections.get(booking_id, [])):
-            try:
-                await ws.send_json(data)
-            except Exception:
-                self.disconnect(booking_id, ws)
-
-
-message_manager = MessageConnectionManager()
 
 
 # ── Background task: auto-release escrow every 30 minutes ────────────────────
@@ -146,6 +133,7 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
     # Start background escrow auto-release task
     bg_task = asyncio.create_task(_auto_release_loop())
     _log.info("✅ Background tasks started")
+    _log.info("✅ Socket.IO server ready — namespaces: /notifications, /messages")
 
     yield
 
@@ -163,7 +151,7 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
     _log.info("✅ Cleanup complete")
 
 
-app = FastAPI(title="HandyRwanda API", version="2.1.0", lifespan=lifespan)
+app = FastAPI(title="HandyRwanda API", version="2.2.0", lifespan=lifespan)
 
 _CORS_ORIGINS = os.getenv("CORS_ORIGINS", "").split(",")
 _EXTRA_ORIGINS = [o.strip() for o in _CORS_ORIGINS if o.strip()]
@@ -174,7 +162,6 @@ _ALLOW_ORIGINS = [
     "http://localhost:19006",
     "http://10.0.2.2:5173",
     "http://10.0.2.2:8081",
-    # Production web app — set CORS_ORIGINS=https://handyrwanda.com in prod
     *_EXTRA_ORIGINS,
 ]
 
@@ -205,6 +192,7 @@ app.include_router(payments.router)
 app.include_router(reviews.router)
 app.include_router(schedule.router)
 app.include_router(uploads.router)
+
 
 # ── Public categories endpoint ────────────────────────────────────────────────
 
@@ -303,7 +291,6 @@ async def get_artisan_public(
         for r in reviews_result
     ]
 
-    # Full formatted address
     from app.utils.rwanda_address import format_address  # noqa: PLC0415
 
     full_address = format_address(
@@ -365,49 +352,12 @@ async def get_recommended(
     return await get_recommended_artisans(db, client_id)
 
 
-# ── WebSockets ────────────────────────────────────────────────────────────────
-
-
-@app.websocket("/ws/messages/{booking_id}")
-async def websocket_messages(websocket: WebSocket, booking_id: str) -> None:
-    """Real-time messaging for a booking conversation."""
-    await message_manager.connect(booking_id, websocket)
-    try:
-        while True:
-            data = await websocket.receive_json()
-            await message_manager.broadcast(booking_id, data)
-    except WebSocketDisconnect:
-        message_manager.disconnect(booking_id, websocket)
-
-
-@app.websocket("/ws/notifications/{user_id}")
-async def websocket_notifications(websocket: WebSocket, user_id: str) -> None:
-    """
-    Real-time notification push for a user.
-
-    Client connects here after auth. Server pushes notification payloads
-    as JSON whenever a new notification is created for this user.
-
-    Message format:
-      { "type": "notification", "data": { id, event_type, title, body, payload, created_at } }
-    """
-    await notification_manager.connect(user_id, websocket)
-    try:
-        while True:
-            # Keep connection alive — client sends {"type": "ping"} every 30s
-            msg = await websocket.receive_json()
-            if msg.get("type") == "ping":
-                await websocket.send_json({"type": "pong"})
-    except WebSocketDisconnect:
-        await notification_manager.disconnect(user_id, websocket)
-
-
 # ── Health ────────────────────────────────────────────────────────────────────
 
 
 @app.get("/")
 async def root() -> dict[str, str]:
-    return {"message": "Welcome to HandyRwanda API v2.1"}
+    return {"message": "Welcome to HandyRwanda API v2.2"}
 
 
 @app.get("/health", tags=["monitoring"])
@@ -415,7 +365,8 @@ async def health() -> dict[str, Any]:
     """Basic health check — always fast, no DB/Redis queries."""
     return {
         "status": "ok",
-        "version": "2.1.0",
+        "version": "2.2.0",
+        "realtime": "socket.io",
         "ws_users": notification_manager.active_user_count(),
     }
 
@@ -449,3 +400,37 @@ async def health_redis() -> dict[str, Any]:
     except Exception:
         _log.exception("Health Redis check failed")
         return {"status": "error", "detail": "Redis unreachable"}
+
+
+# ── Socket.IO connection stats endpoint ──────────────────────────────────────
+
+
+@app.get("/health/socketio", tags=["monitoring"])
+async def health_socketio() -> dict[str, Any]:
+    """Returns Socket.IO namespace connection counts."""
+    try:
+        notif_rooms = sio.manager.rooms.get("/notifications", {})
+        msg_rooms = sio.manager.rooms.get("/messages", {})
+        # Count unique sids across all rooms (excluding the default '' room)
+        notif_sids = {sid for room, sids in notif_rooms.items() if room != "" for sid in sids}
+        msg_sids = {sid for room, sids in msg_rooms.items() if room != "" for sid in sids}
+        return {
+            "status": "ok",
+            "notifications_connected": len(notif_sids),
+            "messages_connected": len(msg_sids),
+            "notifications_rooms": len([r for r in notif_rooms if r.startswith("user:")]),
+            "messages_rooms": len([r for r in msg_rooms if r.startswith("booking:")]),
+        }
+    except Exception as exc:
+        return {"status": "error", "detail": str(exc)}
+
+
+# ── Combined ASGI application (FastAPI + Socket.IO) ───────────────────────────
+#
+# Uvicorn must be pointed at  `app.main:application`  (not `app.main:app`).
+# The socket_manager.ASGIApp intercepts /socket.io/* requests before they
+# reach FastAPI, so no route collision occurs.
+#
+# server.py already handles this; no changes needed there.
+
+application = create_combined_asgi(app)

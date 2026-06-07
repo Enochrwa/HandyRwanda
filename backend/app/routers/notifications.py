@@ -2,15 +2,15 @@
 """
 Notifications router.
 
-GET    /notifications            — list user notifications (newest first)
-PATCH  /notifications/read-all   — mark all as read
-PATCH  /notifications/{id}/read  — mark single as read
+GET    /notifications             — list user notifications (newest first)
+PATCH  /notifications/read-all    — mark all as read
+PATCH  /notifications/{id}/read   — mark single as read
 PATCH  /notifications/preferences — update notification preferences
 GET    /notifications/preferences — get current preferences
 
-WebSocket real-time delivery is handled in main.py at /ws/notifications/{user_id}.
-This module also exposes a helper used by other routers to create notifications
-AND push them over WebSocket immediately.
+Real-time delivery is handled by Socket.IO (namespace /notifications).
+This module exposes create_and_push_notification() used by all other routers
+to persist a notification AND push it instantly over Socket.IO.
 """
 
 import json
@@ -24,7 +24,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.database import get_db
 from app.dependencies.jwt_auth import get_current_user
-from app.integrations.ws_manager import notification_manager
+from app.integrations.socket_manager import push_notification
 from app.models.notification import Notification
 from app.models.user import User
 
@@ -40,8 +40,10 @@ async def create_and_push_notification(
     payload: dict[str, Any] | None = None,
 ) -> Notification:
     """
-    Create a notification record in DB and push it over WebSocket immediately.
-    Use this instead of directly instantiating Notification where possible.
+    Create a notification record in DB and push it over Socket.IO immediately.
+
+    Use this helper instead of directly instantiating Notification everywhere.
+    The Socket.IO emit is fire-and-forget — it never blocks the DB transaction.
     """
     n = Notification(
         user_id=user_id,
@@ -53,23 +55,20 @@ async def create_and_push_notification(
     db.add(n)
     await db.flush()
 
-    # Push over WebSocket (fire-and-forget, don't block)
+    # Fire-and-forget Socket.IO push
     import asyncio  # noqa: PLC0415
 
     asyncio.ensure_future(
-        notification_manager.push(
+        push_notification(
             str(user_id),
             {
-                "type": "notification",
-                "data": {
-                    "id": str(n.id),
-                    "event_type": event_type,
-                    "title": title,
-                    "body": body,
-                    "payload": payload or {},
-                    "is_read": False,
-                    "created_at": n.created_at.isoformat() if n.created_at else None,
-                },
+                "id": str(n.id),
+                "event_type": event_type,
+                "title": title,
+                "body": body,
+                "payload": payload or {},
+                "is_read": False,
+                "created_at": n.created_at.isoformat() if n.created_at else None,
             },
         )
     )

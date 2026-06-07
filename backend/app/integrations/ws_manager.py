@@ -1,65 +1,50 @@
-# File: backend/app/integrations/ws_manager.py
 """
-WebSocket connection manager for real-time notifications.
+ws_manager.py — Legacy compatibility shim.
 
-Maintains per-user WebSocket connections so notifications are pushed
-immediately rather than polling every 30 seconds.
+The real-time layer has been migrated from raw WebSockets to Socket.IO.
+This module now re-exports the Socket.IO push helpers under the original
+API so existing callers (notifications router, etc.) require zero changes.
 
-Usage:
-    # In main.py WebSocket endpoint:
-    await notification_manager.connect(user_id, websocket)
+Original API:
+    notification_manager.push(user_id, data)   →  push_notification(user_id, data)
+    notification_manager.active_user_count()   →  sio connected count
 
-    # When creating a notification anywhere:
-    await notification_manager.push(user_id, notification_dict)
+All new code should import directly from socket_manager.
 """
 
 from __future__ import annotations
 
-import asyncio
+import logging
 from typing import Any
 
-from fastapi import WebSocket
+from app.integrations.socket_manager import push_notification, sio
+
+_log = logging.getLogger(__name__)
 
 
-class NotificationManager:
-    """Thread-safe per-user WebSocket pool for real-time notification delivery."""
+class _SocketIONotificationManager:
+    """
+    Drop-in replacement for the old NotificationManager.
+    Delegates to Socket.IO under the hood.
+    """
 
-    def __init__(self) -> None:
-        # user_id (str) → list of active WebSocket connections
-        self._connections: dict[str, list[WebSocket]] = {}
-        self._lock = asyncio.Lock()
+    async def connect(self, user_id: str, ws: Any) -> None:  # noqa: ARG002
+        """No-op: Socket.IO manages connections internally."""
 
-    async def connect(self, user_id: str, ws: WebSocket) -> None:
-        await ws.accept()
-        async with self._lock:
-            self._connections.setdefault(user_id, []).append(ws)
-
-    async def disconnect(self, user_id: str, ws: WebSocket) -> None:
-        async with self._lock:
-            conns = self._connections.get(user_id, [])
-            if ws in conns:
-                conns.remove(ws)
-            if not conns:
-                self._connections.pop(user_id, None)
+    async def disconnect(self, user_id: str, ws: Any) -> None:  # noqa: ARG002
+        """No-op: Socket.IO manages disconnects internally."""
 
     async def push(self, user_id: str, data: dict[str, Any]) -> None:
-        """Push a notification to all connected WebSocket sessions for a user."""
-        conns = list(self._connections.get(str(user_id), []))
-        dead: list[WebSocket] = []
-        for ws in conns:
-            try:
-                await ws.send_json(data)
-            except Exception:
-                dead.append(ws)
-        # Clean up dead connections
-        if dead:
-            async with self._lock:
-                live = self._connections.get(str(user_id), [])
-                self._connections[str(user_id)] = [w for w in live if w not in dead]
+        """Push notification to all sessions for user_id."""
+        await push_notification(str(user_id), data)
 
     def active_user_count(self) -> int:
-        return len(self._connections)
+        """Return approximate connected socket count across all namespaces."""
+        try:
+            return len(sio.manager.rooms.get("/notifications", {}).get("", set()))
+        except Exception:
+            return 0
 
 
-# Singleton instance
-notification_manager = NotificationManager()
+# Singleton — matches original usage pattern
+notification_manager = _SocketIONotificationManager()

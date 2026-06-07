@@ -3,10 +3,15 @@
 Messages router.
 
 Optimisations vs original:
-- get_conversations: replaced N+1 loop (2 queries × N bookings) with a single
-  lateral subquery that fetches latest_message + unread_count in one round-trip.
-- send_message: triggers background translation task (non-blocking).
+- get_conversations: replaced N+1 loop with a single lateral subquery.
+- send_message: broadcasts new message over Socket.IO (/messages namespace)
+  AND triggers background translation (non-blocking).
 - Language detection on message send — stored as detected_lang on message.
+
+Socket.IO broadcast:
+  When a message is persisted, it is immediately emitted to the
+  "booking:{booking_id}" room in the /messages namespace so all connected
+  participants receive it without polling.
 """
 
 from __future__ import annotations
@@ -22,6 +27,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.database import get_db
 from app.dependencies.jwt_auth import get_current_user
+from app.integrations.socket_manager import broadcast_message
 from app.integrations.translation import create_translation_task, detect_language
 from app.models.booking import Booking
 from app.models.message import Message
@@ -64,9 +70,6 @@ async def get_conversations(
 ) -> Any:
     user_id = UUID(current_user["sub"])
 
-    # Single query: join bookings → other_user, lateral-style subqueries for
-    # latest message and unread count per booking.
-    # Using raw SQL for the LATERAL + aggregation pattern (cleaner than ORM).
     stmt = text("""
         SELECT
             b.id                    AS booking_id,
@@ -231,7 +234,7 @@ async def get_messages(
 
 
 # ---------------------------------------------------------------------------
-# POST /messages/{booking_id}  — send + background translation
+# POST /messages/{booking_id}  — send + Socket.IO broadcast + background translation
 # ---------------------------------------------------------------------------
 
 @router.post("/{booking_id}")
@@ -266,7 +269,6 @@ async def send_message(
         sender_id=user_id,
         content=payload.content,
     )
-    # Store detected language (column added in migration i1j2k3l4m5n6)
     if hasattr(message, "detected_lang"):
         message.detected_lang = detected_lang
 
@@ -274,8 +276,15 @@ async def send_message(
     await db.commit()
     await db.refresh(message)
 
+    msg_data = _msg_dict(message)
+
+    # ── Socket.IO broadcast (fire-and-forget) ────────────────────────────────
+    # Push to all participants in the booking room so the OTHER party's
+    # client receives the message instantly without any polling.
+    import asyncio  # noqa: PLC0415
+    asyncio.ensure_future(broadcast_message(str(booking_id), msg_data))
+
     # ── Background translation (non-blocking) ────────────────────────────────
-    # Determine recipient language: fetch the other party's preferred_lang
     other_id = (
         booking.artisan_id if booking.client_id == user_id else booking.client_id
     )
@@ -286,7 +295,6 @@ async def send_message(
         msg_id = message.id
 
         async def _update_translation(translated: str) -> None:
-            """Persist translation back to the message row."""
             from app.database import AsyncSessionLocal  # noqa: PLC0415
             try:
                 async with AsyncSessionLocal() as session:
@@ -307,10 +315,9 @@ async def send_message(
                 on_complete=_update_translation,
             )
         except RuntimeError:
-            # No running event loop — skip background task
             pass
 
-    return _msg_dict(message)
+    return msg_data
 
 
 # ---------------------------------------------------------------------------

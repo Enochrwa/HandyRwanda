@@ -4,7 +4,7 @@ import { Header } from "@/components/Header";
 import { useState, useEffect, useRef, useCallback } from "react";
 import { useAuthStore } from "@/store/authStore";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import api, { getApiBaseUrl } from "@/services/api";
+import api from "@/services/api";
 import { ReviewDialog } from "@/components/ReviewDialog";
 import {
   Send,
@@ -14,14 +14,15 @@ import {
   Phone,
   CheckCircle,
   AlertTriangle,
-  Clock,
+  Wifi,
+  WifiOff,
 } from "lucide-react";
 import { formatDistanceToNow } from "date-fns";
 import { toast } from "sonner";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { Badge } from "@/components/ui/badge";
+import { useMessageSocket } from "@/hooks/useMessageSocket";
 
 export const Route = createFileRoute("/messages")({
   validateSearch: (search: Record<string, unknown>): { booking?: string } => ({
@@ -68,7 +69,6 @@ function PaymentPanel({ bookingId, amount }: { bookingId: string; amount: number
   const [txId, setTxId] = useState("");
   const [loading, setLoading] = useState(false);
 
-  // Check existing payment
   useEffect(() => {
     api
       .get(`/payments/booking/${bookingId}`)
@@ -173,7 +173,6 @@ function PaymentPanel({ bookingId, amount }: { bookingId: string; amount: number
     );
   }
 
-  // select step
   return (
     <div className="flex items-center gap-3 flex-wrap py-1">
       <span className="text-sm font-semibold text-amber-700">
@@ -212,10 +211,11 @@ function MessagesPage() {
   const { booking: selectedBookingId } = useSearch({ from: "/messages" });
   const [text, setText] = useState("");
   const bottomRef = useRef<HTMLDivElement>(null);
-  const wsRef = useRef<WebSocket | null>(null);
   const qc = useQueryClient();
-  const [wsMessages, setWsMessages] = useState<Message[]>([]);
   const [reviewOpen, setReviewOpen] = useState(false);
+
+  // ── Socket.IO real-time messages ─────────────────────────────────────────
+  const { connected: wsConnected } = useMessageSocket(selectedBookingId);
 
   useEffect(() => {
     if (!isAuthenticated) {
@@ -226,7 +226,8 @@ function MessagesPage() {
   const { data: conversations = [], isLoading: loadingConvs } = useQuery({
     queryKey: ["conversations"],
     queryFn: () => api.get("/messages/conversations").then((r) => r.data),
-    refetchInterval: 15000,
+    // Poll as fallback but Socket.IO keeps this fresh in real-time
+    refetchInterval: wsConnected ? false : 15_000,
     enabled: isAuthenticated,
   });
 
@@ -235,7 +236,8 @@ function MessagesPage() {
     queryFn: () =>
       selectedBookingId ? api.get(`/messages/${selectedBookingId}`).then((r) => r.data) : [],
     enabled: !!selectedBookingId,
-    refetchInterval: false,
+    // Disable polling when Socket.IO is connected
+    refetchInterval: wsConnected ? false : 8_000,
   });
 
   const { data: bookingDetail } = useQuery({
@@ -245,53 +247,16 @@ function MessagesPage() {
     enabled: !!selectedBookingId,
   });
 
-  // WebSocket for real-time messages
-  useEffect(() => {
-    if (!selectedBookingId) {
-      wsRef.current?.close();
-      return;
-    }
-    setWsMessages([]);
-
-    const wsUrl =
-      (getApiBaseUrl() || "http://localhost:8000").replace(/^http/, "ws") +
-      `/ws/messages/${selectedBookingId}`;
-
-    const ws = new WebSocket(wsUrl);
-    wsRef.current = ws;
-    ws.onmessage = (e) => {
-      try {
-        const msg = JSON.parse(e.data) as Message;
-        setWsMessages((prev) => [...prev, msg]);
-        qc.invalidateQueries({ queryKey: ["conversations"] });
-      } catch {
-        // silently ignore parse errors
-      }
-    };
-    ws.onerror = () => {}; // silent — fallback to polling
-    return () => ws.close();
-  }, [selectedBookingId, qc]);
-
-  // Combine API messages with WebSocket messages
-  const allMessages = [
-    ...messages,
-    ...wsMessages.filter((wm) => !messages.find((m: Message) => m.id === wm.id)),
-  ];
-  allMessages.sort((a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime());
-
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: "smooth" });
-  }, [allMessages.length]);
+  }, [(messages as Message[]).length]);
 
   const sendMsg = useMutation({
     mutationFn: (content: string) =>
       api.post(`/messages/${selectedBookingId}`, { content }).then((r) => r.data),
-    onSuccess: (msg) => {
+    onSuccess: () => {
       setText("");
-      // Broadcast via WebSocket for real-time
-      if (wsRef.current?.readyState === WebSocket.OPEN) {
-        wsRef.current.send(JSON.stringify(msg));
-      }
+      // Server already broadcast via Socket.IO; invalidate to sync read status
       qc.invalidateQueries({ queryKey: ["messages", selectedBookingId] });
       qc.invalidateQueries({ queryKey: ["conversations"] });
     },
@@ -311,7 +276,6 @@ function MessagesPage() {
     onSuccess: () => {
       toast.success("Job marked as complete!");
       qc.invalidateQueries({ queryKey: ["booking-detail", selectedBookingId] });
-      // Show review prompt — only for the client
       if (bookingDetail?.is_client) setReviewOpen(true);
     },
   });
@@ -446,6 +410,17 @@ function MessagesPage() {
                   </span>
                 )}
               </div>
+              {/* Real-time connection indicator */}
+              <div
+                title={wsConnected ? "Real-time connected" : "Connecting…"}
+                className="flex items-center"
+              >
+                {wsConnected ? (
+                  <Wifi className="h-3.5 w-3.5 text-success" />
+                ) : (
+                  <WifiOff className="h-3.5 w-3.5 text-muted-foreground" />
+                )}
+              </div>
               {bookingDetail?.artisan?.phone_number && (
                 <a
                   href={`tel:${bookingDetail.artisan.phone_number}`}
@@ -508,13 +483,13 @@ function MessagesPage() {
                 <div className="flex items-center justify-center h-32">
                   <Loader2 className="h-6 w-6 animate-spin text-primary" />
                 </div>
-              ) : allMessages.length === 0 ? (
+              ) : (messages as Message[]).length === 0 ? (
                 <div className="flex flex-col items-center justify-center h-full text-center text-muted-foreground">
                   <MessageCircle className="h-10 w-10 mb-2" />
                   <p>No messages yet. Say hello!</p>
                 </div>
               ) : (
-                allMessages.map((msg: Message) => {
+                (messages as Message[]).map((msg) => {
                   const isMine = msg.sender_id === user?.id;
                   return (
                     <div

@@ -21,7 +21,7 @@ export const getApiBaseUrl = (): string => {
     // Production build without VITE_API_URL — fail loudly so devs notice.
     console.error(
       "[HandyRwanda] VITE_API_URL is not set in production build. " +
-        "API calls will fail. Set it in .env.production."
+        "API calls will fail. Set it in .env.production.",
     );
     return "";
   }
@@ -72,7 +72,7 @@ api.interceptors.response.use(
       }
     }
     return Promise.reject(error);
-  }
+  },
 );
 
 export default api;

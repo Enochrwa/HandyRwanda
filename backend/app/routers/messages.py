@@ -11,7 +11,6 @@ Optimisations vs original:
 
 from __future__ import annotations
 
-import asyncio
 import logging
 from typing import Any
 from uuid import UUID

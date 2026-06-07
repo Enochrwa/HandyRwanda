@@ -150,7 +150,7 @@ _STOP_WORDS = {
     "of", "with", "by", "from", "is", "are", "was", "were", "be", "been",
     "have", "has", "had", "do", "does", "did", "will", "would", "can", "could",
     "need", "want", "get", "help", "please", "thank", "very", "some", "any",
-    "my", "our", "your", "their", "its", "new", "good", "best", "also",
+    "our", "your", "their", "its", "new", "good", "best", "also",
 }
 
 

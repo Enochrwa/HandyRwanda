@@ -95,7 +95,7 @@ HF_NLLB_URL = (
 # Kinyarwanda distinctive trigrams (high precision for RW vs EN/FR)
 _RW_TRIGRAMS = {
     "nde", "rwa", "ndi", "nta", "aba", "iki", "iri", "izi", "ubu", "umu",
-    "ibi", "ama", "aka", "ugu", "ngo", "rwa", "nga", "nyi", "sha", "twa",
+    "ibi", "ama", "aka", "ugu", "ngo", "nga", "nyi", "sha", "twa",
     "mwe", "mba", "gus", "kub", "kur", "kug", "kuw", "ntw", "guk",
 }
 
@@ -291,7 +291,7 @@ def create_translation_task(
     src_lang: str,
     tgt_lang: str,
     on_complete: Any = None,
-) -> "asyncio.Task[str]":
+) -> asyncio.Task[str]:
     """
     Fire-and-forget background translation task.
     Optionally calls on_complete(translated_text) when done.

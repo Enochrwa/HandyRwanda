@@ -61,17 +61,23 @@ async def redis_set(key: str, value: str, ttl_seconds: int) -> None:
         _local_store[key] = (value, time.monotonic() + ttl_seconds)
 
 
+def _local_get(key: str) -> str | None:
+    """Read from in-memory store, evicting expired entries."""
+    entry = _local_store.get(key)
+    if entry is None:
+        return None
+    value, expires_at = entry
+    if time.monotonic() > expires_at:
+        _local_store.pop(key, None)
+        return None
+    return value
+
+
 async def redis_get(key: str) -> str | None:
     """Retrieve key. Returns None if expired or missing."""
     if _use_local():
-        entry = _local_store.get(key)
-        if entry is None:
-            return None
-        value, expires_at = entry
-        if time.monotonic() > expires_at:
-            del _local_store[key]
-            return None
-        return value
+        return _local_get(key)
+
     try:
         client = _get_client()
         r = await client.get(f"{UPSTASH_URL}/get/{key}")
@@ -80,15 +86,7 @@ async def redis_get(key: str) -> str | None:
         return str(result) if result is not None else None
     except Exception as exc:
         logger.warning("Redis GET failed, checking in-memory fallback: %s", exc)
-        # Fallback to local if Upstash is unreachable
-        entry = _local_store.get(key)
-        if entry is None:
-            return None
-        value, expires_at = entry
-        if time.monotonic() > expires_at:
-            _local_store.pop(key, None)
-            return None
-        return value
+        return _local_get(key)
 
 
 async def redis_del(key: str) -> None:

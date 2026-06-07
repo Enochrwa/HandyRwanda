@@ -2,23 +2,23 @@
 import asyncio
 import logging
 import os
+import time
 from collections.abc import AsyncGenerator
 from contextlib import asynccontextmanager
-
-from app.logging_config import configure_logging
-
-configure_logging()
 from typing import Any
 from uuid import UUID
 
 from fastapi import Depends, FastAPI, HTTPException, WebSocket, WebSocketDisconnect
 from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy import select
+from sqlalchemy import text as sa_text
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.database import get_db, init_db
 from app.dependencies.jwt_auth import get_current_user
+from app.integrations.upstash import redis_get, redis_set
 from app.integrations.ws_manager import notification_manager
+from app.logging_config import configure_logging
 from app.models.artisan import ArtisanProfile, Category, PortfolioPhoto, artisan_skills
 from app.models.review import Review
 from app.models.user import User, UserRole
@@ -41,6 +41,11 @@ from app.routers import (
     schedule,
     uploads,
 )
+
+configure_logging()
+
+_log = logging.getLogger(__name__)
+
 
 # ── Message WebSocket connection manager ──────────────────────────────────────
 
@@ -94,9 +99,6 @@ def _validate_startup_config() -> None:
     Fail fast with clear messages when critical configuration is missing.
     Called at startup before accepting any requests.
     """
-    import logging  # noqa: PLC0415
-    _log = logging.getLogger("handyrwanda.startup")
-
     required: dict[str, str] = {
         "JWT_SECRET": "Required for all authentication. Generate with: openssl rand -hex 32",
         "DATABASE_URL": "PostgreSQL connection string. Format: postgresql://user:pass@host:5432/dbname",
@@ -135,9 +137,6 @@ def _validate_startup_config() -> None:
 
 @asynccontextmanager
 async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
-    import logging  # noqa: PLC0415
-    _log = logging.getLogger("handyrwanda.startup")
-
     _validate_startup_config()
 
     _log.info("🚀 HandyRwanda API starting up…")
@@ -424,8 +423,6 @@ async def health() -> dict[str, Any]:
 @app.get("/health/db", tags=["monitoring"])
 async def health_db(db: AsyncSession = Depends(get_db)) -> dict[str, Any]:
     """Deep health check — verifies DB connectivity."""
-    from sqlalchemy import text as sa_text  # noqa: PLC0415
-    import time  # noqa: PLC0415
     t0 = time.monotonic()
     try:
         await db.execute(sa_text("SELECT 1"))
@@ -438,8 +435,6 @@ async def health_db(db: AsyncSession = Depends(get_db)) -> dict[str, Any]:
 @app.get("/health/redis", tags=["monitoring"])
 async def health_redis() -> dict[str, Any]:
     """Deep health check — verifies Redis connectivity."""
-    from app.integrations.upstash import redis_get, redis_set  # noqa: PLC0415
-    import time  # noqa: PLC0415
     t0 = time.monotonic()
     try:
         await redis_set("__health__", "1", ttl_seconds=5)

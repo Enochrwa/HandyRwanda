@@ -210,13 +210,18 @@ function ArtisanOnboarding() {
               <div>
                 <label className="text-sm font-semibold">Languages Spoken</label>
                 <div className="mt-2 flex flex-wrap gap-2">
-                  {[{code:"rw",label:"🇷🇼 Kinyarwanda"},{code:"en",label:"🇬🇧 English"},{code:"fr",label:"🇫🇷 Français"},{code:"sw",label:"🇰🇪 Swahili"}].map(lang => (
+                  {[
+                    { code: "rw", label: "🇷🇼 Kinyarwanda" },
+                    { code: "en", label: "🇬🇧 English" },
+                    { code: "fr", label: "🇫🇷 Français" },
+                    { code: "sw", label: "🇰🇪 Swahili" },
+                  ].map((lang) => (
                     <button
                       key={lang.code}
                       type="button"
                       onClick={() => {
                         const langs = formData.languages.includes(lang.code)
-                          ? formData.languages.filter(l => l !== lang.code)
+                          ? formData.languages.filter((l) => l !== lang.code)
                           : [...formData.languages, lang.code];
                         setFormData({ ...formData, languages: langs });
                       }}

@@ -157,9 +157,11 @@ export function LocationPicker({ initialCoords, onChange }: Props) {
 
   // Derived dropdown lists from offline data (guard on loading)
   const provinces = rwandaHook.loading ? [] : rwandaHook.getProvinces();
-  const districts = !rwandaHook.loading && province ? rwandaHook.getDistrictByProvince(province) : [];
+  const districts =
+    !rwandaHook.loading && province ? rwandaHook.getDistrictByProvince(province) : [];
   const sectors = !rwandaHook.loading && district ? rwandaHook.getSectors(province, district) : [];
-  const cells = !rwandaHook.loading && sector ? rwandaHook.getCells(province, district, sector) : [];
+  const cells =
+    !rwandaHook.loading && sector ? rwandaHook.getCells(province, district, sector) : [];
 
   // ── Notify parent (stable: uses ref so never causes child re-renders) ─────
   const notify = useCallback(

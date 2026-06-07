@@ -40,7 +40,10 @@ export default function JobLocation() {
     (async () => {
       try {
         const { status: _ex } = await Location.getForegroundPermissionsAsync();
-        const status = _ex !== 'undetermined' ? _ex : (await Location.requestForegroundPermissionsAsync()).status;
+        const status =
+          _ex !== 'undetermined'
+            ? _ex
+            : (await Location.requestForegroundPermissionsAsync()).status;
         if (status === 'granted') {
           const loc = await Location.getCurrentPositionAsync({
             accuracy: Location.Accuracy.Balanced,

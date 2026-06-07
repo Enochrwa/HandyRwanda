@@ -380,6 +380,7 @@ async def update_profile(
 # Both mobile (step3-location) and web (onboarding/artisan) call this endpoint.
 # Previously missing — only /auth/users/{user_id}/profile existed.
 
+
 @router.patch("/profile")
 async def update_own_profile(
     payload: ProfileUpdate,
@@ -387,9 +388,7 @@ async def update_own_profile(
     current_user: dict[str, Any] = Depends(get_current_user),
 ) -> Any:
     """Update the currently authenticated user's profile fields."""
-    from uuid import UUID as _UUID
-
-    user_id = _UUID(str(current_user["sub"]))
+    user_id = UUID(str(current_user["sub"]))
     user = await db.scalar(select(User).where(User.id == user_id))
     if not user:
         raise HTTPException(status_code=404, detail="User not found.")

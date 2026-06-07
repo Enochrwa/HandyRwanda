@@ -9,7 +9,15 @@
  */
 import { Picker } from '@react-native-picker/picker';
 import React, { useCallback, useEffect, useRef, useState } from 'react';
-import { ActivityIndicator, Platform, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
+import {
+  ActivityIndicator,
+  Platform,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TextInput,
+  View,
+} from 'react-native';
 
 import { useRwandaLocation } from '../hooks/useRwandaLocation';
 

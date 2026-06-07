@@ -7,15 +7,10 @@
  * chat view updates instantly without polling.
  *
  * Usage:
- *   const { sendSocketMessage, connected } = useMessageSocket(bookingId);
- *
- * The hook manages:
- *   - Connect / join booking room on mount
- *   - Leave old room / join new room when bookingId changes
- *   - Disconnect cleanly on unmount
+ *   const { connected } = useMessageSocket(bookingId);
  */
 
-import { useEffect, useRef, useState, useCallback } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { io, Socket } from "socket.io-client";
 import { useAuthStore } from "@/store/authStore";
@@ -33,11 +28,6 @@ export interface ChatMessage {
 interface UseMessageSocketReturn {
   /** Whether the socket is currently connected */
   connected: boolean;
-  /**
-   * Emit a locally-composed message to the booking room.
-   * Use AFTER persisting via REST so the server is the source of truth.
-   */
-  sendSocketMessage: (msg: ChatMessage) => void;
 }
 
 export function useMessageSocket(bookingId: string | undefined): UseMessageSocketReturn {
@@ -47,7 +37,6 @@ export function useMessageSocket(bookingId: string | undefined): UseMessageSocke
   const [connected, setConnected] = useState(false);
   const bookingIdRef = useRef<string | undefined>(undefined);
 
-  // Stable reference to the booking-room join helper
   const joinRoom = useCallback((socket: Socket, bid: string) => {
     socket.emit("join", { booking_id: bid });
   }, []);
@@ -128,14 +117,5 @@ export function useMessageSocket(bookingId: string | undefined): UseMessageSocke
     };
   }, [isAuthenticated, bookingId, qc, joinRoom]);
 
-  const sendSocketMessage = useCallback(
-    (msg: ChatMessage) => {
-      // Nothing to broadcast — the server already emitted to the room
-      // when the REST POST was handled. This is a no-op kept for API compat.
-      void msg;
-    },
-    [],
-  );
-
-  return { connected, sendSocketMessage };
+  return { connected };
 }

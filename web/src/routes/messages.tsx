@@ -247,9 +247,10 @@ function MessagesPage() {
     enabled: !!selectedBookingId,
   });
 
+  const msgCount = (messages as Message[]).length;
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: "smooth" });
-  }, [(messages as Message[]).length]);
+  }, [msgCount]);
 
   const sendMsg = useMutation({
     mutationFn: (content: string) =>

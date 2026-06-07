@@ -72,7 +72,7 @@ def _decode_token(token: str | None) -> dict[str, Any] | None:
         from jose import JWTError, jwt  # noqa: PLC0415
 
         secret = os.getenv("JWT_SECRET", "")
-        payload = jwt.decode(token, secret, algorithms=["HS256"])
+        payload: dict[str, Any] = jwt.decode(token, secret, algorithms=["HS256"])
         return payload
     except JWTError:
         return None
@@ -86,7 +86,7 @@ notif_ns = socketio.AsyncNamespace("/notifications")
 
 
 @notif_ns.on("connect")
-async def notif_connect(sid: str, environ: dict, auth: dict | None = None) -> bool:
+async def notif_connect(sid: str, environ: dict[str, Any], auth: dict[str, Any] | None = None) -> bool:
     """
     Authenticate the client and join their personal room.
 
@@ -135,7 +135,7 @@ msg_ns = socketio.AsyncNamespace("/messages")
 
 
 @msg_ns.on("connect")
-async def msg_connect(sid: str, environ: dict, auth: dict | None = None) -> bool:
+async def msg_connect(sid: str, environ: dict[str, Any], auth: dict[str, Any] | None = None) -> bool:
     """
     Authenticate and hold sid until the client emits 'join'.
     Auth payload expected:  { "token": "<jwt>", "booking_id": "<uuid>" }
@@ -163,7 +163,7 @@ async def msg_connect(sid: str, environ: dict, auth: dict | None = None) -> bool
 
 
 @msg_ns.on("join")
-async def msg_join(sid: str, data: dict) -> None:
+async def msg_join(sid: str, data: dict[str, Any]) -> None:
     """
     Client emits 'join' with { booking_id } to subscribe to a booking room.
     Allows switching rooms without reconnecting.
@@ -185,7 +185,7 @@ async def msg_join(sid: str, data: dict) -> None:
 
 
 @msg_ns.on("leave")
-async def msg_leave(sid: str, data: dict) -> None:
+async def msg_leave(sid: str, data: dict[str, Any]) -> None:
     booking_id = str(data.get("booking_id", ""))
     if booking_id:
         await msg_ns.leave_room(sid, f"booking:{booking_id}")
@@ -231,7 +231,7 @@ async def broadcast_message(booking_id: str, data: dict[str, Any]) -> None:
 
 # ── Utility ───────────────────────────────────────────────────────────────────
 
-def _extract_qs_token(environ: dict) -> str | None:
+def _extract_qs_token(environ: dict[str, Any]) -> str | None:
     """
     Extract JWT from ASGI query string as a fallback for clients that cannot
     set Socket.IO auth (e.g. some React Native environments).

@@ -266,9 +266,9 @@ async def send_message(
         sender_id=user_id,
         content=payload.content,
     )
-    # Store detected language if the model has the column
+    # Store detected language (column added in migration i1j2k3l4m5n6)
     if hasattr(message, "detected_lang"):
-        message.detected_lang = detected_lang  # type: ignore[assignment]
+        message.detected_lang = detected_lang
 
     db.add(message)
     await db.commit()

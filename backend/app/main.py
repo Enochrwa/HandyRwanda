@@ -429,7 +429,8 @@ async def health_db(db: AsyncSession = Depends(get_db)) -> dict[str, Any]:
         latency_ms = round((time.monotonic() - t0) * 1000, 1)
         return {"status": "ok", "db_latency_ms": latency_ms}
     except Exception as exc:
-        return {"status": "error", "detail": str(exc)}
+        logging.exception("Database health check failed", exc_info=exc)
+        return {"status": "error", "detail": "Database health check failed"}
 
 
 @app.get("/health/redis", tags=["monitoring"])

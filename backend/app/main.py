@@ -151,7 +151,7 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
     _log.info("✅ Cleanup complete")
 
 
-app = FastAPI(title="HandyRwanda API", version="2.2.0", lifespan=lifespan)
+app = FastAPI(title="HandyRwanda API", version="2.1.0", lifespan=lifespan)
 
 _CORS_ORIGINS = os.getenv("CORS_ORIGINS", "").split(",")
 _EXTRA_ORIGINS = [o.strip() for o in _CORS_ORIGINS if o.strip()]
@@ -357,7 +357,7 @@ async def get_recommended(
 
 @app.get("/")
 async def root() -> dict[str, str]:
-    return {"message": "Welcome to HandyRwanda API v2.2"}
+    return {"message": "Welcome to HandyRwanda API v2.1"}
 
 
 @app.get("/health", tags=["monitoring"])
@@ -365,7 +365,7 @@ async def health() -> dict[str, Any]:
     """Basic health check — always fast, no DB/Redis queries."""
     return {
         "status": "ok",
-        "version": "2.2.0",
+        "version": "2.1.0",
         "realtime": "socket.io",
         "ws_users": notification_manager.active_user_count(),
     }
@@ -421,8 +421,9 @@ async def health_socketio() -> dict[str, Any]:
             "notifications_rooms": len([r for r in notif_rooms if r.startswith("user:")]),
             "messages_rooms": len([r for r in msg_rooms if r.startswith("booking:")]),
         }
-    except Exception as exc:
-        return {"status": "error", "detail": str(exc)}
+    except Exception:
+        _log.exception("Health Socket.IO check failed")
+        return {"status": "error", "detail": "Socket.IO health check failed"}
 
 
 # ── Combined ASGI application (FastAPI + Socket.IO) ───────────────────────────

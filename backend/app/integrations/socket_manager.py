@@ -52,12 +52,12 @@ def _decode_token(token: str | None) -> dict[str, Any] | None:
     if not token:
         return None
     try:
-        from jose import JWTError, jwt  # noqa: PLC0415
+        from jose import jwt  # noqa: PLC0415
 
         secret = os.getenv("JWT_SECRET", "")
         payload: dict[str, Any] = jwt.decode(token, secret, algorithms=["HS256"])
         return payload
-    except (Exception,):  # JWTError and any jose import error
+    except Exception:  # jwt decode or jose import error
         return None
 
 

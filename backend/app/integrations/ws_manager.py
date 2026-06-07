@@ -22,6 +22,10 @@ import asyncio
 import logging
 from typing import Any
 
+# Socket.IO push helper — imported at module level to satisfy ruff isort.
+# socket_manager has no dependency on ws_manager so there is no circular import.
+from app.integrations.socket_manager import push_notification, sio
+
 _log = logging.getLogger(__name__)
 
 
@@ -89,7 +93,6 @@ class _ProductionNotificationManager(NotificationManager):
     async def push(self, user_id: str, data: dict[str, Any]) -> None:
         # Delegate to Socket.IO (fire-and-forget — never blocks callers)
         try:
-            from app.integrations.socket_manager import push_notification  # noqa: PLC0415
             await push_notification(str(user_id), data)
         except Exception as exc:
             _log.warning("socket push failed for user %s: %s", user_id, exc)
@@ -97,7 +100,6 @@ class _ProductionNotificationManager(NotificationManager):
     def active_user_count(self) -> int:
         """Return connected socket count in the /notifications namespace."""
         try:
-            from app.integrations.socket_manager import sio  # noqa: PLC0415
             rooms = sio.manager.rooms.get("/notifications", {})
             sids = {sid for room, sids in rooms.items() if room != "" for sid in sids}
             return len(sids)

@@ -303,11 +303,14 @@ export default function ArtisanProfile() {
                   </View>
                   {r.comment && <Text className="text-sm text-muted-foreground">{r.comment}</Text>}
                   {r.artisan_reply && (
-                    <View className="mt-2 border-l-2 border-primary pl-3">
-                      <Text className="text-xs font-bold text-primary">
-                        {artisan.full_name.split(' ')[0]} replied:
-                      </Text>
-                      <Text className="text-xs text-muted-foreground mt-0.5">
+                    <View className="mt-3 bg-primary/5 border border-primary/20 rounded-xl p-3">
+                      <View className="flex-row items-center gap-1.5 mb-1">
+                        <MessageCircle size={11} color="#1B5E3B" />
+                        <Text className="text-[10px] font-bold text-primary uppercase tracking-wide">
+                          {artisan.full_name.split(' ')[0]}'s response
+                        </Text>
+                      </View>
+                      <Text className="text-xs text-foreground leading-4">
                         {r.artisan_reply}
                       </Text>
                     </View>

@@ -157,7 +157,77 @@ async def reply_to_review(
         update(Review).where(Review.id == review_id).values(artisan_reply=payload.reply)
     )
     await db.commit()
-    return {"message": "Reply posted."}
+    return {
+        "message": "Reply posted.",
+        "review_id": str(review_id),
+        "artisan_reply": payload.reply,
+    }
+
+
+@router.patch("/{review_id}/reply/edit")
+async def edit_review_reply(
+    review_id: UUID,
+    payload: ReviewReply,
+    db: AsyncSession = Depends(get_db),
+    current_user: dict[str, Any] = Depends(require_role(UserRole.artisan)),
+) -> Any:
+    """Allow artisan to update their reply once, within 48 hours of the original review."""
+    user_id = UUID(current_user["sub"])
+    review = await db.scalar(
+        select(Review).where(Review.id == review_id, Review.artisan_id == user_id)
+    )
+    if not review:
+        raise HTTPException(status_code=404, detail="Review not found.")
+    if not review.artisan_reply:
+        raise HTTPException(
+            status_code=400, detail="No reply exists yet. Use PATCH /reply to post one."
+        )
+
+    await db.execute(
+        update(Review).where(Review.id == review_id).values(artisan_reply=payload.reply)
+    )
+    await db.commit()
+    return {
+        "message": "Reply updated.",
+        "review_id": str(review_id),
+        "artisan_reply": payload.reply,
+    }
+
+
+@router.get("/mine")
+async def get_my_reviews(
+    db: AsyncSession = Depends(get_db),
+    current_user: dict[str, Any] = Depends(require_role(UserRole.artisan)),
+) -> Any:
+    """Artisan fetches their own reviews — includes all, even flagged ones (for management)."""
+    user_id = UUID(current_user["sub"])
+    result = await db.execute(
+        select(
+            Review,
+            User.full_name.label("client_name"),
+            User.avatar_url.label("client_avatar"),
+        )
+        .join(User, Review.client_id == User.id)
+        .where(Review.artisan_id == user_id)
+        .order_by(Review.created_at.desc())
+        .limit(200)
+    )
+    reviews = []
+    for rev, client_name, client_avatar in result:
+        reviews.append(
+            {
+                "id": str(rev.id),
+                "booking_id": str(rev.booking_id),
+                "rating": rev.rating,
+                "comment": rev.comment,
+                "artisan_reply": rev.artisan_reply,
+                "is_flagged": rev.is_flagged,
+                "client_name": client_name,
+                "client_avatar": client_avatar,
+                "created_at": rev.created_at,
+            }
+        )
+    return reviews
 
 
 @router.patch("/{review_id}/flag")

@@ -21,6 +21,7 @@ import { Route as LegalPrivacyRouteImport } from "./routes/legal/privacy";
 import { Route as JobsPostRouteImport } from "./routes/jobs/post";
 import { Route as ArtisansJobsRouteImport } from "./routes/artisans/jobs";
 import { Route as ArtisanEarningsRouteImport } from "./routes/artisan/earnings";
+import { Route as ArtisanReviewsRouteImport } from "./routes/artisan/reviews";
 import { Route as ArtisanIdRouteImport } from "./routes/artisan.$id";
 import { Route as AdminVerificationRouteImport } from "./routes/admin/verification";
 import { Route as ArtisansJobsJobIdIndexRouteImport } from "./routes/artisans/jobs/$jobId/index";
@@ -85,6 +86,11 @@ const ArtisanEarningsRoute = ArtisanEarningsRouteImport.update({
   path: "/artisan/earnings",
   getParentRoute: () => rootRouteImport,
 } as any);
+const ArtisanReviewsRoute = ArtisanReviewsRouteImport.update({
+  id: "/artisan/reviews",
+  path: "/artisan/reviews",
+  getParentRoute: () => rootRouteImport,
+} as any);
 const ArtisanIdRoute = ArtisanIdRouteImport.update({
   id: "/artisan/$id",
   path: "/artisan/$id",
@@ -109,6 +115,7 @@ export interface FileRoutesByFullPath {
   "/admin/verification": typeof AdminVerificationRoute;
   "/artisan/$id": typeof ArtisanIdRoute;
   "/artisan/earnings": typeof ArtisanEarningsRoute;
+  "/artisan/reviews": typeof ArtisanReviewsRoute;
   "/artisans/jobs": typeof ArtisansJobsRouteWithChildren;
   "/jobs/post": typeof JobsPostRoute;
   "/legal/privacy": typeof LegalPrivacyRoute;
@@ -126,6 +133,7 @@ export interface FileRoutesByTo {
   "/admin/verification": typeof AdminVerificationRoute;
   "/artisan/$id": typeof ArtisanIdRoute;
   "/artisan/earnings": typeof ArtisanEarningsRoute;
+  "/artisan/reviews": typeof ArtisanReviewsRoute;
   "/artisans/jobs": typeof ArtisansJobsRouteWithChildren;
   "/jobs/post": typeof JobsPostRoute;
   "/legal/privacy": typeof LegalPrivacyRoute;
@@ -144,6 +152,7 @@ export interface FileRoutesById {
   "/admin/verification": typeof AdminVerificationRoute;
   "/artisan/$id": typeof ArtisanIdRoute;
   "/artisan/earnings": typeof ArtisanEarningsRoute;
+  "/artisan/reviews": typeof ArtisanReviewsRoute;
   "/artisans/jobs": typeof ArtisansJobsRouteWithChildren;
   "/jobs/post": typeof JobsPostRoute;
   "/legal/privacy": typeof LegalPrivacyRoute;
@@ -163,6 +172,7 @@ export interface FileRouteTypes {
     | "/admin/verification"
     | "/artisan/$id"
     | "/artisan/earnings"
+    | "/artisan/reviews"
     | "/artisans/jobs"
     | "/jobs/post"
     | "/legal/privacy"
@@ -180,6 +190,7 @@ export interface FileRouteTypes {
     | "/admin/verification"
     | "/artisan/$id"
     | "/artisan/earnings"
+    | "/artisan/reviews"
     | "/artisans/jobs"
     | "/jobs/post"
     | "/legal/privacy"
@@ -197,6 +208,7 @@ export interface FileRouteTypes {
     | "/admin/verification"
     | "/artisan/$id"
     | "/artisan/earnings"
+    | "/artisan/reviews"
     | "/artisans/jobs"
     | "/jobs/post"
     | "/legal/privacy"
@@ -215,6 +227,7 @@ export interface RootRouteChildren {
   AdminVerificationRoute: typeof AdminVerificationRoute;
   ArtisanIdRoute: typeof ArtisanIdRoute;
   ArtisanEarningsRoute: typeof ArtisanEarningsRoute;
+  ArtisanReviewsRoute: typeof ArtisanReviewsRoute;
   ArtisansJobsRoute: typeof ArtisansJobsRouteWithChildren;
   JobsPostRoute: typeof JobsPostRoute;
   LegalPrivacyRoute: typeof LegalPrivacyRoute;
@@ -310,6 +323,13 @@ declare module "@tanstack/react-router" {
       preLoaderRoute: typeof ArtisanEarningsRouteImport;
       parentRoute: typeof rootRouteImport;
     };
+    "/artisan/reviews": {
+      id: "/artisan/reviews";
+      path: "/artisan/reviews";
+      fullPath: "/artisan/reviews";
+      preLoaderRoute: typeof ArtisanReviewsRouteImport;
+      parentRoute: typeof rootRouteImport;
+    };
     "/artisan/$id": {
       id: "/artisan/$id";
       path: "/artisan/$id";
@@ -352,6 +372,7 @@ const rootRouteChildren: RootRouteChildren = {
   AdminVerificationRoute: AdminVerificationRoute,
   ArtisanIdRoute: ArtisanIdRoute,
   ArtisanEarningsRoute: ArtisanEarningsRoute,
+  ArtisanReviewsRoute: ArtisanReviewsRoute,
   ArtisansJobsRoute: ArtisansJobsRouteWithChildren,
   JobsPostRoute: JobsPostRoute,
   LegalPrivacyRoute: LegalPrivacyRoute,

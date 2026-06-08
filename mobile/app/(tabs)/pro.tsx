@@ -164,7 +164,7 @@ export default function ProDashboard() {
         </View>
 
         {/* Stats */}
-        <View className="flex-row mb-6">
+        <View className="flex-row mb-4">
           <StatCard
             title="Earnings"
             value={`${dashboard?.earnings_this_month?.toLocaleString() ?? 0} RWF`}
@@ -184,6 +184,23 @@ export default function ProDashboard() {
             color="#E8A020"
           />
         </View>
+
+        {/* Reviews shortcut */}
+        <TouchableOpacity
+          onPress={() => router.push('/(artisan)/reviews')}
+          className="flex-row items-center bg-card border border-border rounded-2xl p-4 mb-6"
+        >
+          <View className="w-10 h-10 rounded-full bg-amber-50 items-center justify-center">
+            <Star size={20} color="#E8A020" fill="#E8A020" />
+          </View>
+          <View className="ml-3 flex-1">
+            <Text className="font-bold text-foreground">My Reviews</Text>
+            <Text className="text-xs text-muted-foreground">
+              Reply to client feedback · build trust
+            </Text>
+          </View>
+          <Text className="text-muted-foreground text-lg">›</Text>
+        </TouchableOpacity>
 
         {/* Active Bookings with Actions */}
         {activeBookings.length > 0 && (

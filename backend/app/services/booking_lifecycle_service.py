@@ -66,7 +66,7 @@ async def _db_notify(
     event_type: str,
     title: str,
     body: str,
-    payload: dict | None = None,
+    payload: dict[str, object] | None = None,
 ) -> None:
     n = Notification(
         user_id=user_id,
@@ -265,8 +265,10 @@ async def update_completion_rate(artisan_id: UUID, db: AsyncSession) -> None:
         {"aid": str(artisan_id)},
     )
     r = row.fetchone()
+    if r is None:
+        return
     denom = (r.completed or 0) + (r.cancelled_by_artisan or 0)
-    if r and denom > 0:
+    if denom > 0:
         rate = round(r.completed / denom, 4)
         await db.execute(
             update(ArtisanProfile)

@@ -22,6 +22,7 @@ Existing endpoints:
 
 import asyncio
 import logging
+from collections.abc import Callable, Coroutine
 from datetime import datetime, timedelta, timezone
 from typing import Any
 from uuid import UUID
@@ -902,7 +903,10 @@ async def cancel_booking(
 # ── Private async helper for rate updates ─────────────────────────────────────
 
 
-async def _update_rate_async(fn, artisan_id: UUID) -> None:
+async def _update_rate_async(
+    fn: Callable[[UUID, AsyncSession], Coroutine[object, object, None]],
+    artisan_id: UUID,
+) -> None:
     """Run a rate-update function in its own DB session (fire-and-forget)."""
     try:
         async with AsyncSessionLocal() as session:
@@ -934,7 +938,7 @@ async def admin_set_status(
         raise HTTPException(status_code=404, detail="Booking not found.")
 
     old_status = booking.status
-    values: dict = {"status": payload.status}
+    values: dict[str, object] = {"status": payload.status}
 
     # Auto-populate timestamps for Sprint 1 statuses
     now = datetime.now(timezone.utc)

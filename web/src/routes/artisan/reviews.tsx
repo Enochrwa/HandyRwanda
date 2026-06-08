@@ -63,11 +63,7 @@ function StarDisplay({ rating, size = 14 }: { rating: number; size?: number }) {
         <Star
           key={i}
           style={{ width: size, height: size }}
-          className={
-            i < rating
-              ? "fill-amber-400 text-amber-400"
-              : "fill-muted text-muted-foreground"
-          }
+          className={i < rating ? "fill-amber-400 text-amber-400" : "fill-muted text-muted-foreground"}
         />
       ))}
     </div>
@@ -93,9 +89,7 @@ function MetricsSummary({ reviews }: { reviews: Review[] }) {
       <Card className="rounded-2xl border-border shadow-sm">
         <CardContent className="p-5">
           <div className="flex items-end gap-3">
-            <div className="text-5xl font-black text-foreground tabular-nums">
-              {avg.toFixed(1)}
-            </div>
+            <div className="text-5xl font-black text-foreground tabular-nums">{avg.toFixed(1)}</div>
             <div className="pb-1">
               <StarDisplay rating={Math.round(avg)} />
               <p className="text-xs text-muted-foreground mt-1">
@@ -159,9 +153,7 @@ function MetricsSummary({ reviews }: { reviews: Review[] }) {
             <span className="text-sm font-semibold">Awaiting Reply</span>
           </div>
           <div>
-            <div className="text-4xl font-black text-foreground">
-              {reviews.length - replied}
-            </div>
+            <div className="text-4xl font-black text-foreground">{reviews.length - replied}</div>
             <p className="text-xs text-muted-foreground mt-1">reviews without response</p>
           </div>
           <div className="mt-4">
@@ -271,11 +263,7 @@ function ReviewCard({ review, onReply, isSubmitting, optimisticReply }: ReviewCa
       <div className="flex items-start gap-3">
         <div className="grid h-10 w-10 shrink-0 place-items-center rounded-full bg-accent/20 font-bold text-foreground text-sm overflow-hidden">
           {review.client_avatar ? (
-            <img
-              src={review.client_avatar}
-              alt=""
-              className="h-full w-full object-cover"
-            />
+            <img src={review.client_avatar} alt="" className="h-full w-full object-cover" />
           ) : (
             (review.client_name?.[0] ?? "?").toUpperCase()
           )}
@@ -395,7 +383,7 @@ function ArtisanReviewsDashboard() {
   );
 
   const pending = reviews.filter(
-    (r) => !optimisticReplies[r.id] && !r.artisan_reply,
+    (r) => !optimisticReplies[r.id] && !r.artisan_reply
   ).length;
 
   const filteredReviews = reviews.filter((r) => {

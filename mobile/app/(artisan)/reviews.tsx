@@ -7,7 +7,7 @@
  * Already-replied reviews show the reply in a distinct quoted block.
  */
 
-import { MessageCircle, Star, ChevronLeft, X, Send, ThumbsUp } from '@icons';
+import { MessageCircle, Star, ChevronLeft, X, Send } from '@icons';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { formatDistanceToNow } from 'date-fns';
 import { useRouter } from 'expo-router';

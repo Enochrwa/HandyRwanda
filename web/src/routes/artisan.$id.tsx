@@ -1,5 +1,17 @@
 // File: web/src/routes/artisan.$id.tsx
-import { useState } from "react";
+/**
+ * Sprint 4 enhanced Artisan Profile Page.
+ *
+ * New additions:
+ *  - "Book Again ⚡" button prominently shown when the viewing client
+ *    has a completed booking with this artisan
+ *  - InstantBookModal: inline modal for instant re-booking (no bid flow)
+ *  - 10-minute countdown shown after instant booking is submitted
+ *  - Fallback "Get Bids Instead" link always visible in instant book modal
+ *  - Previous booking details pre-filled (last price, last job title)
+ */
+
+import { useState, useEffect, useCallback } from "react";
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import {
   Star,
@@ -15,12 +27,16 @@ import {
   Loader2,
   AlertCircle,
   Calendar,
+  Zap,
+  X,
+  Timer,
+  RefreshCw,
 } from "lucide-react";
 import { Header } from "@/components/Header";
 import { BookingSheet } from "@/components/BookingSheet";
 import { formatRWF } from "@/services/artisanService";
 import { useAuthStore } from "@/store/authStore";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import api from "@/services/api";
 import { toast } from "sonner";
 import { AuthModal } from "@/components/AuthModal";
@@ -34,12 +50,400 @@ export const Route = createFileRoute("/artisan/$id")({
   component: Profile,
 });
 
+// ── Types ─────────────────────────────────────────────────────────────────────
+
+interface PreviousArtisanInfo {
+  artisan_id: string;
+  last_price: number;
+  last_job_title: string;
+  last_category: string;
+  last_booked_at: string;
+  instant_book_eligible: boolean;
+  is_available: boolean;
+  verification_status: string;
+}
+
+interface InstantBookResult {
+  id: string;
+  job_id: string;
+  status: string;
+  agreed_price: number;
+  artisan_name: string;
+  message: string;
+  expires_at: string;
+}
+
+// ── Countdown timer component ─────────────────────────────────────────────────
+
+function ExpiryCountdown({ expiresAt }: { expiresAt: string }) {
+  const [secondsLeft, setSecondsLeft] = useState(() =>
+    Math.max(0, Math.floor((new Date(expiresAt).getTime() - Date.now()) / 1000)),
+  );
+
+  useEffect(() => {
+    if (secondsLeft <= 0) return;
+    const id = setInterval(() => setSecondsLeft((s) => Math.max(0, s - 1)), 1000);
+    return () => clearInterval(id);
+  }, []);
+
+  const mins = Math.floor(secondsLeft / 60);
+  const secs = secondsLeft % 60;
+  const expired = secondsLeft <= 0;
+  const urgent = secondsLeft <= 120; // last 2 min
+
+  if (expired) {
+    return (
+      <p className="mt-2 text-sm text-amber-600 font-medium">
+        Response time expired. Your job has been opened for bids.
+      </p>
+    );
+  }
+
+  return (
+    <div className="mt-3 flex flex-col items-center">
+      <p className="text-xs text-muted-foreground mb-1">Artisan has</p>
+      <div
+        className={`text-3xl font-extrabold tabular-nums tracking-widest transition-colors ${
+          urgent ? "text-red-500" : "text-primary"
+        }`}
+      >
+        {String(mins).padStart(2, "0")}:{String(secs).padStart(2, "0")}
+      </div>
+      <p className="text-xs text-muted-foreground mt-1">to confirm your booking</p>
+    </div>
+  );
+}
+
+// ── Instant Book Modal ────────────────────────────────────────────────────────
+
+function InstantBookModal({
+  artisan,
+  previousInfo,
+  open,
+  onClose,
+  onSuccess,
+}: {
+  artisan: { id: string; full_name: string; avatar_url?: string; categories?: { name_en: string }[] };
+  previousInfo: PreviousArtisanInfo;
+  open: boolean;
+  onClose: () => void;
+  onSuccess: (result: InstantBookResult) => void;
+}) {
+  const queryClient = useQueryClient();
+  const [description, setDescription] = useState("");
+  const [budget, setBudget] = useState(String(previousInfo.last_price));
+  const [useLastPrice, setUseLastPrice] = useState(true);
+  const [descError, setDescError] = useState("");
+  const [result, setResult] = useState<InstantBookResult | null>(null);
+
+  // Reset when modal closes
+  useEffect(() => {
+    if (!open) {
+      const timer = setTimeout(() => {
+        setDescription("");
+        setBudget(String(previousInfo.last_price));
+        setUseLastPrice(true);
+        setDescError("");
+        setResult(null);
+      }, 300);
+      return () => clearTimeout(timer);
+    }
+  }, [open, previousInfo.last_price]);
+
+  const mutation = useMutation<InstantBookResult, Error, object>({
+    mutationFn: (body) => api.post("/bookings/instant", body).then((r) => r.data),
+    onSuccess: (data) => {
+      setResult(data);
+      queryClient.invalidateQueries({ queryKey: ["my-bookings"] });
+      onSuccess(data);
+      toast.success(`⚡ Instant booking sent to ${data.artisan_name}!`);
+    },
+    onError: (err: any) => {
+      toast.error(err?.response?.data?.detail ?? "Booking failed. Please try again.");
+    },
+  });
+
+  const handleSubmit = useCallback(
+    (e: React.FormEvent) => {
+      e.preventDefault();
+      const trimmed = description.trim();
+      if (trimmed.length < 10) {
+        setDescError("Please describe what you need done (at least 10 characters).");
+        return;
+      }
+      setDescError("");
+
+      const agreedPrice = useLastPrice
+        ? previousInfo.last_price
+        : parseInt(budget.replace(/[^0-9]/g, ""), 10);
+
+      if (!useLastPrice && (!agreedPrice || agreedPrice < 1)) {
+        toast.error("Please enter a valid budget amount.");
+        return;
+      }
+
+      mutation.mutate({
+        artisan_id: artisan.id,
+        category_id: "00000000-0000-0000-0000-000000000000",
+        description: trimmed,
+        budget: agreedPrice,
+        use_last_price: useLastPrice,
+      });
+    },
+    [artisan.id, description, budget, useLastPrice, previousInfo.last_price, mutation],
+  );
+
+  if (!open) return null;
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4">
+      {/* Backdrop */}
+      <div
+        className="absolute inset-0 bg-black/50 backdrop-blur-sm"
+        onClick={onClose}
+        aria-hidden="true"
+      />
+
+      {/* Panel */}
+      <div className="relative z-10 w-full max-w-lg rounded-t-3xl sm:rounded-3xl bg-card border border-border shadow-2xl overflow-hidden animate-in slide-in-from-bottom-4 duration-300">
+        {/* Drag handle (mobile) */}
+        <div className="flex justify-center pt-3 pb-1 sm:hidden">
+          <div className="h-1 w-10 rounded-full bg-border" />
+        </div>
+
+        {/* Header */}
+        <div className="flex items-start justify-between px-5 pt-4 pb-0">
+          <div>
+            <h2 className="text-lg font-extrabold text-foreground flex items-center gap-2">
+              <Zap className="h-5 w-5 text-primary" />
+              Book Again
+            </h2>
+            <p className="text-xs text-muted-foreground mt-0.5">
+              Skip the bidding — instant re-booking
+            </p>
+          </div>
+          <button
+            onClick={onClose}
+            className="ml-4 rounded-full bg-muted p-2 text-muted-foreground hover:bg-muted/80 transition-colors"
+            aria-label="Close"
+          >
+            <X className="h-4 w-4" />
+          </button>
+        </div>
+
+        <div className="px-5 pb-6 overflow-y-auto max-h-[80vh]">
+          {/* ── SUCCESS STATE ──────────────────────────────────────────── */}
+          {result ? (
+            <div className="py-4 flex flex-col items-center text-center">
+              <div className="h-16 w-16 rounded-full bg-primary/10 flex items-center justify-center mb-4">
+                <CheckCircle2 className="h-9 w-9 text-primary" />
+              </div>
+              <h3 className="text-xl font-extrabold text-foreground">Booking Sent! ⚡</h3>
+              <p className="text-sm text-muted-foreground mt-1">
+                {result.artisan_name} has been notified and must confirm within:
+              </p>
+              <ExpiryCountdown expiresAt={result.expires_at} />
+              <div className="mt-5 w-full space-y-2">
+                <Link
+                  to="/messages"
+                  search={{ booking: result.id }}
+                  className="flex w-full items-center justify-center gap-2 rounded-2xl bg-primary px-4 py-3 font-bold text-white hover:brightness-95 transition"
+                  onClick={onClose}
+                >
+                  View Booking <ArrowRight className="h-4 w-4" />
+                </Link>
+                <button
+                  onClick={onClose}
+                  className="w-full py-2 text-sm text-muted-foreground hover:text-foreground transition-colors"
+                >
+                  Close
+                </button>
+              </div>
+            </div>
+          ) : (
+            /* ── FORM STATE ──────────────────────────────────────────── */
+            <form onSubmit={handleSubmit} className="space-y-4 mt-4">
+              {/* Artisan summary card */}
+              <div className="rounded-2xl bg-primary/5 border border-primary/15 p-4">
+                <div className="flex items-center gap-3">
+                  <img
+                    src={
+                      artisan.avatar_url ??
+                      `https://api.dicebear.com/7.x/avataaars/svg?seed=${artisan.id}`
+                    }
+                    alt={artisan.full_name}
+                    className="h-12 w-12 rounded-xl object-cover"
+                  />
+                  <div className="flex-1 min-w-0">
+                    <p className="font-bold text-foreground truncate">{artisan.full_name}</p>
+                    <p className="text-xs text-muted-foreground">
+                      {previousInfo.last_category} ·{" "}
+                      {formatDistanceToNow(new Date(previousInfo.last_booked_at), {
+                        addSuffix: true,
+                      })}
+                    </p>
+                  </div>
+                </div>
+                <div className="mt-3 pt-3 border-t border-primary/10 flex justify-between text-sm">
+                  <div>
+                    <p className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
+                      Last Job
+                    </p>
+                    <p className="font-semibold text-foreground truncate max-w-[160px]">
+                      {previousInfo.last_job_title}
+                    </p>
+                  </div>
+                  <div className="text-right">
+                    <p className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
+                      Last Price
+                    </p>
+                    <p className="font-bold text-primary">{formatRWF(previousInfo.last_price)}</p>
+                  </div>
+                </div>
+              </div>
+
+              {/* Eligibility warning */}
+              {!previousInfo.instant_book_eligible && (
+                <div className="rounded-2xl bg-amber-50 border border-amber-200 p-3 flex items-start gap-2 text-sm text-amber-800">
+                  <AlertCircle className="h-4 w-4 shrink-0 mt-0.5" />
+                  <p>
+                    {!previousInfo.is_available
+                      ? `${artisan.full_name} is currently unavailable.`
+                      : "This artisan is not eligible for instant booking right now."}{" "}
+                    You can still post an open job to receive bids.
+                  </p>
+                </div>
+              )}
+
+              {/* Description */}
+              <div>
+                <label className="text-sm font-semibold text-foreground block mb-1.5">
+                  Describe your job <span className="text-red-500">*</span>
+                </label>
+                <textarea
+                  value={description}
+                  onChange={(e) => {
+                    setDescription(e.target.value);
+                    if (e.target.value.trim().length >= 10) setDescError("");
+                  }}
+                  placeholder={`What do you need ${artisan.full_name.split(" ")[0]} to do?`}
+                  rows={4}
+                  maxLength={2000}
+                  className={`w-full rounded-2xl border bg-background px-3 py-2.5 text-sm text-foreground placeholder:text-muted-foreground resize-none focus:outline-none focus:ring-2 focus:ring-primary/40 transition ${
+                    descError ? "border-red-400" : "border-border"
+                  }`}
+                />
+                {descError ? (
+                  <p className="mt-1 text-xs text-red-500">{descError}</p>
+                ) : (
+                  <p className="mt-1 text-xs text-muted-foreground text-right">
+                    {description.length}/2000
+                  </p>
+                )}
+              </div>
+
+              {/* Budget */}
+              <div>
+                <label className="text-sm font-semibold text-foreground block mb-1.5">
+                  Agreed Price
+                </label>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setUseLastPrice(!useLastPrice);
+                    if (!useLastPrice) setBudget(String(previousInfo.last_price));
+                  }}
+                  className={`w-full flex items-center justify-between rounded-2xl border p-3 text-left transition-colors ${
+                    useLastPrice
+                      ? "border-primary/30 bg-primary/5"
+                      : "border-border bg-background hover:bg-muted/30"
+                  }`}
+                >
+                  <div>
+                    <p className="text-sm font-semibold text-foreground">Use last price</p>
+                    <p className="text-xs text-muted-foreground">
+                      {formatRWF(previousInfo.last_price)} — same as your last booking
+                    </p>
+                  </div>
+                  <div
+                    className={`h-5 w-5 rounded-full border-2 flex items-center justify-center transition-colors ${
+                      useLastPrice ? "border-primary bg-primary" : "border-border bg-background"
+                    }`}
+                  >
+                    {useLastPrice && <div className="h-2 w-2 rounded-full bg-white" />}
+                  </div>
+                </button>
+
+                {!useLastPrice && (
+                  <div className="mt-2 flex items-center gap-2 rounded-2xl border border-border bg-background px-3 py-2.5">
+                    <span className="text-sm font-semibold text-muted-foreground">RWF</span>
+                    <input
+                      type="number"
+                      value={budget}
+                      onChange={(e) => setBudget(e.target.value)}
+                      placeholder="Enter amount"
+                      min={1}
+                      className="flex-1 bg-transparent text-sm text-foreground focus:outline-none"
+                    />
+                  </div>
+                )}
+              </div>
+
+              {/* Schedule note */}
+              <p className="flex items-center gap-1.5 text-xs text-muted-foreground">
+                <Clock className="h-3.5 w-3.5 shrink-0" />
+                Scheduled time is optional — {artisan.full_name.split(" ")[0]} will contact you to confirm a time.
+              </p>
+
+              {/* CTAs */}
+              <button
+                type="submit"
+                disabled={mutation.isPending || !previousInfo.instant_book_eligible}
+                className={`w-full flex items-center justify-center gap-2 rounded-2xl py-3.5 font-bold text-base transition ${
+                  previousInfo.instant_book_eligible && !mutation.isPending
+                    ? "bg-primary text-white hover:brightness-95"
+                    : "bg-muted text-muted-foreground cursor-not-allowed"
+                }`}
+              >
+                {mutation.isPending ? (
+                  <Loader2 className="h-5 w-5 animate-spin" />
+                ) : (
+                  <>
+                    <Zap className="h-5 w-5" />
+                    {previousInfo.instant_book_eligible ? "Book Now ⚡" : "Not Available Right Now"}
+                  </>
+                )}
+              </button>
+
+              <Link
+                to="/jobs/post"
+                className="flex items-center justify-center gap-1 text-sm text-muted-foreground hover:text-primary transition-colors py-2"
+                onClick={onClose}
+              >
+                Prefer to get bids instead?
+                <span className="font-semibold text-primary"> Post as open job</span>
+                <ArrowRight className="h-3.5 w-3.5 text-primary" />
+              </Link>
+            </form>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ── Main Profile Component ────────────────────────────────────────────────────
+
 function Profile() {
   const { id } = Route.useParams();
   const [open, setOpen] = useState(false);
   const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
-  const { isAuthenticated } = useAuthStore();
+  const [instantBookOpen, setInstantBookOpen] = useState(false);
+  const [instantBookResult, setInstantBookResult] = useState<InstantBookResult | null>(null);
+  const { isAuthenticated, user } = useAuthStore();
   const navigate = useNavigate();
+
+  const isClient = isAuthenticated && (user as any)?.role !== "artisan";
 
   const {
     data: artisan,
@@ -55,6 +459,18 @@ function Profile() {
     queryFn: () => api.get("/messages/conversations").then((res) => res.data),
     enabled: isAuthenticated,
   });
+
+  // Sprint 4: fetch previous artisans to see if this artisan qualifies for instant book
+  const { data: previousArtisans } = useQuery<PreviousArtisanInfo[]>({
+    queryKey: ["previous-artisans"],
+    queryFn: () => api.get("/artisans/previous").then((r) => r.data),
+    enabled: isClient,
+    staleTime: 5 * 60 * 1000,
+  });
+
+  // Find if this artisan was previously used by this client
+  const previousInfo = previousArtisans?.find((a) => a.artisan_id === id);
+  const hasWorkedBefore = !!previousInfo;
 
   const handleMessageClick = () => {
     if (!isAuthenticated) {
@@ -190,12 +606,58 @@ function Profile() {
               )}
               {p.is_available && (
                 <span className="inline-flex items-center gap-1 rounded-full bg-success/10 px-2.5 py-0.5 text-xs font-bold text-success">
-                  <span className="h-1.5 w-1.5 rounded-full bg-success animate-pulse" /> Available
-                  Now
+                  <span className="h-1.5 w-1.5 rounded-full bg-success animate-pulse" /> Available Now
                 </span>
               )}
             </div>
           </div>
+
+          {/* ── Sprint 4: "Book Again" prompt (shown if client has prior relationship) */}
+          {isClient && hasWorkedBefore && previousInfo && (
+            <div className="mt-4 rounded-2xl border border-primary/20 bg-gradient-to-r from-primary/5 to-primary/10 p-4">
+              <div className="flex items-start justify-between gap-3">
+                <div className="flex-1">
+                  <div className="flex items-center gap-1.5 mb-1">
+                    <RefreshCw className="h-4 w-4 text-primary" />
+                    <span className="text-sm font-extrabold text-primary">You've worked together before</span>
+                  </div>
+                  <p className="text-xs text-muted-foreground">
+                    Last booked{" "}
+                    {formatDistanceToNow(new Date(previousInfo.last_booked_at), {
+                      addSuffix: true,
+                    })}{" "}
+                    · {previousInfo.last_category} · {formatRWF(previousInfo.last_price)}
+                  </p>
+                  {previousInfo.instant_book_eligible ? (
+                    <p className="text-xs text-primary font-semibold mt-1">
+                      ⚡ Available for instant booking right now
+                    </p>
+                  ) : (
+                    <p className="text-xs text-amber-600 font-semibold mt-1">
+                      ⚠️ Currently unavailable for instant booking
+                    </p>
+                  )}
+                </div>
+                <button
+                  onClick={() => {
+                    if (!isAuthenticated) {
+                      setIsAuthModalOpen(true);
+                      return;
+                    }
+                    setInstantBookOpen(true);
+                  }}
+                  className={`flex shrink-0 items-center gap-1.5 rounded-xl px-4 py-2.5 text-sm font-bold transition ${
+                    previousInfo.instant_book_eligible
+                      ? "bg-primary text-white hover:brightness-95 shadow-sm"
+                      : "bg-muted text-muted-foreground"
+                  }`}
+                >
+                  <Zap className="h-4 w-4" />
+                  Book Again
+                </button>
+              </div>
+            </div>
+          )}
 
           {/* Trust metrics */}
           <div className="mt-6 grid grid-cols-3 gap-3 rounded-2xl bg-muted/50 p-4">
@@ -217,12 +679,22 @@ function Profile() {
           </div>
 
           <div className="mt-4 flex flex-wrap items-center gap-x-4 gap-y-2 text-sm">
-            <span className="inline-flex items-center gap-1.5 text-muted-foreground">
-              <Clock className="h-4 w-4" /> Responds quickly
-            </span>
-            {p.completion_rate > 0 && (
-              <span className="inline-flex items-center gap-1.5 font-semibold text-foreground">
-                ✅ {Math.round(p.completion_rate * 100)}% completion rate
+            {p.hourly_rate && (
+              <span className="inline-flex items-center gap-1.5 text-muted-foreground">
+                <Clock className="h-4 w-4" />
+                {formatRWF(p.hourly_rate)}/hr
+              </span>
+            )}
+            {p.years_experience > 0 && (
+              <span className="inline-flex items-center gap-1.5 text-muted-foreground">
+                <Award className="h-4 w-4" />
+                {p.years_experience} yrs experience
+              </span>
+            )}
+            {artisan.district && (
+              <span className="inline-flex items-center gap-1.5 text-muted-foreground">
+                <MapPin className="h-4 w-4" />
+                {artisan.district}
               </span>
             )}
           </div>
@@ -378,6 +850,21 @@ function Profile() {
               <span className="text-sm font-semibold text-muted-foreground">RWF</span>
             </div>
           </div>
+
+          {/* Sprint 4: Show "Book Again" button in footer if eligible */}
+          {isClient && hasWorkedBefore && previousInfo?.instant_book_eligible && (
+            <button
+              onClick={() => {
+                if (!isAuthenticated) { setIsAuthModalOpen(true); return; }
+                setInstantBookOpen(true);
+              }}
+              className="flex items-center gap-1.5 rounded-2xl border-2 border-primary bg-primary/10 px-4 py-3 font-bold text-primary transition hover:bg-primary/20"
+            >
+              <Zap className="h-4 w-4" />
+              Book Again
+            </button>
+          )}
+
           <button
             onClick={() => {
               if (!isAuthenticated) {
@@ -388,13 +875,27 @@ function Profile() {
             }}
             className="flex min-h-12 items-center gap-2 rounded-2xl bg-accent px-6 py-3.5 font-bold text-accent-foreground transition hover:brightness-95"
           >
-            Book Now <ArrowRight className="h-4 w-4" />
+            {hasWorkedBefore ? "Get a Quote" : "Book Now"} <ArrowRight className="h-4 w-4" />
           </button>
         </div>
       </div>
 
       <BookingSheet a={artisanForBooking} open={open} onClose={() => setOpen(false)} />
       <AuthModal isOpen={isAuthModalOpen} onClose={() => setIsAuthModalOpen(false)} />
+
+      {/* Sprint 4: Instant Book Modal */}
+      {previousInfo && (
+        <InstantBookModal
+          artisan={artisan}
+          previousInfo={previousInfo}
+          open={instantBookOpen}
+          onClose={() => setInstantBookOpen(false)}
+          onSuccess={(result) => {
+            setInstantBookResult(result);
+            // Keep modal open to show success state
+          }}
+        />
+      )}
     </div>
   );
 }

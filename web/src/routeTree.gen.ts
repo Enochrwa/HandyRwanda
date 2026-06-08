@@ -27,6 +27,7 @@ import { Route as AdminVerificationRouteImport } from "./routes/admin/verificati
 import { Route as ArtisansJobsJobIdIndexRouteImport } from "./routes/artisans/jobs/$jobId/index";
 import { Route as JobsMineRouteImport } from "./routes/jobs/mine";
 import { Route as JobsJobIdBidsRouteImport } from "./routes/jobs/$jobId/bids";
+import { Route as BookingsBookingIdRouteImport } from "./routes/bookings/$bookingId";
 
 const SearchRoute = SearchRouteImport.update({
   id: "/search",
@@ -118,6 +119,11 @@ const JobsJobIdBidsRoute = JobsJobIdBidsRouteImport.update({
   path: "/jobs/$jobId/bids",
   getParentRoute: () => rootRouteImport,
 } as any);
+const BookingsBookingIdRoute = BookingsBookingIdRouteImport.update({
+  id: "/bookings/$bookingId",
+  path: "/bookings/$bookingId",
+  getParentRoute: () => rootRouteImport,
+} as any);
 
 export interface FileRoutesByFullPath {
   "/": typeof IndexRoute;
@@ -138,6 +144,7 @@ export interface FileRoutesByFullPath {
   "/artisans/jobs/$jobId/": typeof ArtisansJobsJobIdIndexRoute;
   "/jobs/mine": typeof JobsMineRoute;
   "/jobs/$jobId/bids": typeof JobsJobIdBidsRoute;
+  "/bookings/$bookingId": typeof BookingsBookingIdRoute;
 }
 export interface FileRoutesByTo {
   "/": typeof IndexRoute;
@@ -158,6 +165,7 @@ export interface FileRoutesByTo {
   "/artisans/jobs/$jobId": typeof ArtisansJobsJobIdIndexRoute;
   "/jobs/mine": typeof JobsMineRoute;
   "/jobs/$jobId/bids": typeof JobsJobIdBidsRoute;
+  "/bookings/$bookingId": typeof BookingsBookingIdRoute;
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport;
@@ -179,6 +187,7 @@ export interface FileRoutesById {
   "/artisans/jobs/$jobId/": typeof ArtisansJobsJobIdIndexRoute;
   "/jobs/mine": typeof JobsMineRoute;
   "/jobs/$jobId/bids": typeof JobsJobIdBidsRoute;
+  "/bookings/$bookingId": typeof BookingsBookingIdRoute;
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath;
@@ -195,6 +204,7 @@ export interface FileRouteTypes {
     | "/jobs/post"
     | "/jobs/mine"
     | "/jobs/$jobId/bids"
+    | "/bookings/$bookingId"
     | "/legal/privacy"
     | "/legal/terms"
     | "/onboarding/artisan"
@@ -215,6 +225,7 @@ export interface FileRouteTypes {
     | "/jobs/post"
     | "/jobs/mine"
     | "/jobs/$jobId/bids"
+    | "/bookings/$bookingId"
     | "/legal/privacy"
     | "/legal/terms"
     | "/onboarding/artisan"
@@ -235,6 +246,7 @@ export interface FileRouteTypes {
     | "/jobs/post"
     | "/jobs/mine"
     | "/jobs/$jobId/bids"
+    | "/bookings/$bookingId"
     | "/legal/privacy"
     | "/legal/terms"
     | "/onboarding/artisan"
@@ -416,6 +428,7 @@ const rootRouteChildren: RootRouteChildren = {
   ArtisansJobsRoute: ArtisansJobsRouteWithChildren,
   JobsPostRoute: JobsPostRoute,
   JobsMineRoute: JobsMineRoute,
+  BookingsBookingIdRoute: BookingsBookingIdRoute,
   JobsJobIdBidsRoute: JobsJobIdBidsRoute,
   LegalPrivacyRoute: LegalPrivacyRoute,
   LegalTermsRoute: LegalTermsRoute,

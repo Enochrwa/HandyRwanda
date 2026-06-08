@@ -1,14 +1,19 @@
 // File: mobile/app/(tabs)/index.tsx
 /**
- * Sprint 1 enhanced Home Screen
+ * Sprint 1 + Sprint 4 enhanced Home Screen
  *
- * Changes:
- *  - Upcoming bookings now show live status with animated badges
- *  - Active bookings (en route, arrived) get a pulsing live indicator
+ * Sprint 1 additions:
+ *  - Upcoming bookings with animated live status badges
+ *  - Active booking urgent banner (en route / arrived / in progress)
  *  - ETA shown inline when artisan is en route
+ *
+ * Sprint 4 additions:
+ *  - "Book Again 🔄" horizontal scroll row (client-only)
+ *  - InstantBookSheet bottom sheet for one-tap re-booking
+ *  - Real-time `instant_book_eligible` indicator on each artisan avatar
  */
 
-import { Search, MapPin, Clock, ChevronRight, User, Star, Plus } from '@icons';
+import { Search, MapPin, Clock, ChevronRight, User, Star, Plus, Zap } from '@icons';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useQuery } from '@tanstack/react-query';
 import { useRouter } from 'expo-router';
@@ -20,8 +25,10 @@ import {
   TouchableOpacity,
   Image,
   ActivityIndicator,
+  FlatList,
 } from 'react-native';
 import Animated, {
+  FadeInDown,
   useAnimatedStyle,
   useSharedValue,
   withRepeat,
@@ -31,6 +38,9 @@ import Animated, {
 
 import api from '../../src/services/api';
 import { useAuthStore } from '../../src/store/authStore';
+import { InstantBookSheet } from '../../src/components/InstantBookSheet';
+import type { PreviousArtisan } from '../../src/components/InstantBookSheet';
+import { usePreviousArtisans } from '../../src/hooks/usePreviousArtisans';
 
 const SERVICE_ICONS: Record<string, string> = {
   plumbing:    '🔧',
@@ -105,6 +115,146 @@ function BookingStatusBadge({ status, etaMinutes }: { status: string; etaMinutes
   );
 }
 
+// ── Sprint 4: Book Again — artisan avatar card ─────────────────────────────────
+
+function BookAgainCard({
+  artisan,
+  onPress,
+}: {
+  artisan: PreviousArtisan;
+  onPress: () => void;
+}) {
+  const pulseOpacity = useSharedValue(1);
+
+  useEffect(() => {
+    if (artisan.instant_book_eligible) {
+      pulseOpacity.value = withRepeat(
+        withSequence(withTiming(0.4, { duration: 900 }), withTiming(1, { duration: 900 })),
+        -1,
+        false,
+      );
+    }
+  }, [artisan.instant_book_eligible]);
+
+  const pulseStyle = useAnimatedStyle(() => ({
+    opacity: artisan.instant_book_eligible ? pulseOpacity.value : 1,
+  }));
+
+  // Emoji for last category
+  const categoryKey = artisan.last_category?.toLowerCase() ?? 'default';
+  const emoji = SERVICE_ICONS[categoryKey] ?? SERVICE_ICONS.default;
+
+  return (
+    <TouchableOpacity
+      onPress={onPress}
+      activeOpacity={0.75}
+      accessibilityLabel={`Book ${artisan.full_name} again`}
+      className="items-center mr-4"
+      style={{ width: 76 }}
+    >
+      {/* Avatar with online/eligible indicator */}
+      <View className="relative mb-2">
+        {artisan.avatar_url ? (
+          <Image
+            source={{ uri: artisan.avatar_url }}
+            className="w-[60px] h-[60px] rounded-2xl"
+            style={{
+              borderWidth: artisan.instant_book_eligible ? 2.5 : 1.5,
+              borderColor: artisan.instant_book_eligible ? '#1B5E3B' : '#E5E7EB',
+            }}
+          />
+        ) : (
+          <View
+            className="w-[60px] h-[60px] rounded-2xl bg-primary/15 items-center justify-center"
+            style={{
+              borderWidth: artisan.instant_book_eligible ? 2.5 : 1.5,
+              borderColor: artisan.instant_book_eligible ? '#1B5E3B' : '#E5E7EB',
+            }}
+          >
+            <Text className="text-primary font-extrabold text-xl">
+              {artisan.full_name[0].toUpperCase()}
+            </Text>
+          </View>
+        )}
+
+        {/* Category emoji badge */}
+        <View className="absolute -bottom-1.5 -left-1.5 bg-card rounded-lg px-1 py-0.5 border border-border">
+          <Text style={{ fontSize: 11 }}>{emoji}</Text>
+        </View>
+
+        {/* Eligibility indicator */}
+        {artisan.instant_book_eligible ? (
+          <Animated.View
+            style={[pulseStyle]}
+            className="absolute -top-1 -right-1 w-5 h-5 rounded-full bg-primary items-center justify-center border-2 border-card"
+          >
+            <Zap size={10} color="white" />
+          </Animated.View>
+        ) : (
+          <View className="absolute -top-1 -right-1 w-4 h-4 rounded-full bg-gray-300 border-2 border-card" />
+        )}
+      </View>
+
+      {/* Name */}
+      <Text
+        className="text-[11px] font-semibold text-foreground text-center leading-tight"
+        numberOfLines={2}
+      >
+        {artisan.full_name.split(' ')[0]}
+      </Text>
+
+      {/* Rating */}
+      <View className="flex-row items-center mt-0.5">
+        <Star size={9} color="#F59E0B" fill="#F59E0B" />
+        <Text className="text-[10px] text-muted-foreground ml-0.5">
+          {artisan.average_rating.toFixed(1)}
+        </Text>
+      </View>
+    </TouchableOpacity>
+  );
+}
+
+// ── Sprint 4: Book Again section ──────────────────────────────────────────────
+
+function BookAgainSection({
+  onSelectArtisan,
+  isClient,
+}: {
+  onSelectArtisan: (artisan: PreviousArtisan) => void;
+  isClient: boolean;
+}) {
+  const { data, isLoading, isError } = usePreviousArtisans(isClient);
+
+  // Only render if client has prior artisans
+  if (!isClient || isLoading || isError || !data || data.length === 0) return null;
+
+  return (
+    <Animated.View entering={FadeInDown.delay(60).springify()} className="mt-5">
+      <View className="px-6 flex-row justify-between items-center mb-3">
+        <View>
+          <Text className="text-lg font-extrabold text-foreground">
+            Book Again 🔄
+          </Text>
+          <Text className="text-xs text-muted-foreground mt-0.5">
+            Tap ⚡ to instantly re-book • no bidding required
+          </Text>
+        </View>
+      </View>
+
+      <FlatList
+        data={data.slice(0, 5)}
+        keyExtractor={(item) => item.artisan_id}
+        horizontal
+        showsHorizontalScrollIndicator={false}
+        contentContainerStyle={{ paddingHorizontal: 24 }}
+        renderItem={({ item }) => (
+          <BookAgainCard artisan={item} onPress={() => onSelectArtisan(item)} />
+        )}
+      />
+    </Animated.View>
+  );
+}
+
 // ── Main screen ───────────────────────────────────────────────────────────────
 
 export default function HomeScreen() {
@@ -113,6 +263,10 @@ export default function HomeScreen() {
   const [checkingOnboard, setCheckingOnboard] = useState(true);
   const isArtisan = user?.role === 'artisan';
   const isClient = isAuthenticated && !isArtisan;
+
+  // Sprint 4: selected artisan for instant book sheet
+  const [instantBookArtisan, setInstantBookArtisan] = useState<PreviousArtisan | null>(null);
+  const [instantBookOpen, setInstantBookOpen] = useState(false);
 
   useEffect(() => {
     AsyncStorage.getItem('hr_onboarded').then((val) => {
@@ -128,7 +282,6 @@ export default function HomeScreen() {
     queryKey: ['upcomingBookings'],
     queryFn: () => api.get('/bookings/upcoming').then((r) => r.data),
     enabled: isAuthenticated,
-    // Poll every 30s to catch status changes even without WS
     refetchInterval: isAuthenticated ? 30_000 : false,
   });
 
@@ -148,14 +301,27 @@ export default function HomeScreen() {
   const hour = new Date().getHours();
   const greeting = hour < 12 ? 'Mwaramutse' : hour < 18 ? 'Mwiriwe' : 'Muraho';
 
-  // Detect if any booking is in a "live" active state for the urgent banner
   const activeBooking = upcomingBookings?.find((b: any) =>
     ['artisan_en_route', 'arrived', 'in_progress', 'artisan_accepted'].includes(b.status),
   );
 
+  const handleSelectArtisan = (artisan: PreviousArtisan) => {
+    setInstantBookArtisan(artisan);
+    setInstantBookOpen(true);
+  };
+
+  const handleInstantBookSuccess = (bookingId: string) => {
+    setInstantBookOpen(false);
+    // Small delay so sheet animates out before navigating
+    setTimeout(() => {
+      router.push(`/messages/${bookingId}`);
+    }, 400);
+  };
+
   return (
     <View className="flex-1 bg-background">
       <ScrollView className="flex-1" showsVerticalScrollIndicator={false}>
+
         {/* ── Hero Header ───────────────────────────────────────────────── */}
         <View className="bg-primary pt-14 pb-10 px-6 rounded-b-[40px]">
           <View className="flex-row justify-between items-center mb-6">
@@ -247,6 +413,12 @@ export default function HomeScreen() {
             </View>
           </TouchableOpacity>
         )}
+
+        {/* ── Sprint 4: Book Again row ──────────────────────────────────── */}
+        <BookAgainSection
+          isClient={isClient}
+          onSelectArtisan={handleSelectArtisan}
+        />
 
         {/* ── Post a Job CTA ────────────────────────────────────────────── */}
         {isClient && (
@@ -461,6 +633,14 @@ export default function HomeScreen() {
           )}
         </View>
       </ScrollView>
+
+      {/* ── Sprint 4: Instant Book Bottom Sheet ───────────────────────── */}
+      <InstantBookSheet
+        artisan={instantBookArtisan}
+        visible={instantBookOpen}
+        onClose={() => setInstantBookOpen(false)}
+        onSuccess={handleInstantBookSuccess}
+      />
     </View>
   );
 }

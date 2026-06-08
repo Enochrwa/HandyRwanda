@@ -55,6 +55,18 @@ export default function ArtisanJobFeed() {
     refetchInterval: 60000,
   });
 
+  // Sprint 4: instant booking requests (pending_payment from instant flow)
+  const { data: instantRequests = [] } = useQuery({
+    queryKey: ['instant-booking-requests'],
+    queryFn: async () => {
+      const res = await api.get('/bookings');
+      return (res.data as any[]).filter((b) => b.status === 'pending_payment' && b.is_instant);
+    },
+    refetchInterval: 15_000,
+  });
+
+  const instantCount = instantRequests.length;
+
   // Sprint 1: count active bookings requiring artisan action
   const { data: activeBookings = [] } = useQuery({
     queryKey: ['artisan-active-bookings'],
@@ -177,6 +189,38 @@ export default function ArtisanJobFeed() {
             </View>
           </View>
           <ArrowRight size={18} color="#B45309" />
+        </TouchableOpacity>
+      )}
+
+      {/* Sprint 4: Instant Booking Requests banner */}
+      {instantCount > 0 && (
+        <TouchableOpacity
+          onPress={() => router.push({
+            pathname: '/(artisan)/jobs/instant-booking-request',
+            params: { bookingId: instantRequests[0].id },
+          })}
+          className="mx-4 mt-3 bg-primary/5 border-2 border-primary rounded-2xl px-4 py-3.5 flex-row items-center justify-between"
+          style={{ elevation: 3 }}
+          activeOpacity={0.85}
+          accessibilityLabel={`${instantCount} instant booking request${instantCount !== 1 ? 's' : ''}`}
+        >
+          <View className="flex-row items-center gap-3">
+            <View className="w-9 h-9 bg-primary rounded-xl items-center justify-center">
+              <Zap size={18} color="white" />
+            </View>
+            <View>
+              <View className="flex-row items-center gap-1.5">
+                <Text className="font-extrabold text-primary text-sm">
+                  ⚡ {instantCount} Instant Booking Request{instantCount !== 1 ? 's' : ''}
+                </Text>
+                <View className="bg-red-500 rounded-full w-2 h-2" />
+              </View>
+              <Text className="text-primary/70 text-xs mt-0.5">
+                Tap to confirm or decline — expires in 10 minutes
+              </Text>
+            </View>
+          </View>
+          <ArrowRight size={18} color="#1B5E3B" />
         </TouchableOpacity>
       )}
 

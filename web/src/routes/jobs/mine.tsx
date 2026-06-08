@@ -160,7 +160,9 @@ function JobCard({ job }: { job: JobItem }) {
           </div>
 
           {/* Status pill */}
-          <span className={`shrink-0 rounded-full px-2.5 py-0.5 text-[11px] font-bold ${pillClass}`}>
+          <span
+            className={`shrink-0 rounded-full px-2.5 py-0.5 text-[11px] font-bold ${pillClass}`}
+          >
             {STATUS_LABEL[status] ?? status}
           </span>
         </div>
@@ -171,7 +173,9 @@ function JobCard({ job }: { job: JobItem }) {
         {/* Meta row */}
         <div className="flex flex-wrap items-center gap-2 text-[11px] text-muted-foreground mb-4">
           {job.urgency && job.urgency !== "flexible" && (
-            <span className="font-medium text-foreground">{URGENCY_BADGE[job.urgency] ?? job.urgency}</span>
+            <span className="font-medium text-foreground">
+              {URGENCY_BADGE[job.urgency] ?? job.urgency}
+            </span>
           )}
           {job.location_label && (
             <span className="flex items-center gap-0.5">
@@ -182,7 +186,9 @@ function JobCard({ job }: { job: JobItem }) {
           {job.budget && (
             <span className="flex items-center gap-0.5 font-medium text-foreground">
               💰 {formatRWF(job.budget)} RWF
-              {job.budget_negotiable && <span className="text-muted-foreground font-normal"> (neg.)</span>}
+              {job.budget_negotiable && (
+                <span className="text-muted-foreground font-normal"> (neg.)</span>
+              )}
             </span>
           )}
           {job.scheduled_time && (
@@ -196,7 +202,9 @@ function JobCard({ job }: { job: JobItem }) {
           )}
           <span className="flex items-center gap-0.5 ml-auto">
             <Clock className="h-3 w-3" />
-            {job.created_at ? formatDistanceToNow(new Date(job.created_at), { addSuffix: true }) : "—"}
+            {job.created_at
+              ? formatDistanceToNow(new Date(job.created_at), { addSuffix: true })
+              : "—"}
           </span>
         </div>
 
@@ -330,13 +338,6 @@ function MyJobs() {
   const [activeTab, setActiveTab] = useState<StatusTab>("open");
   const [authOpen, setAuthOpen] = useState(false);
 
-  // Guard: redirect artisans
-  if (isAuthenticated && user?.role === "artisan") {
-    toast.error("This page is for clients only");
-    navigate({ to: "/artisans/jobs" });
-    return null;
-  }
-
   // Fetch all jobs (not filtered — we want counts for tab badges)
   const {
     data: allJobs = [],
@@ -347,7 +348,7 @@ function MyJobs() {
   } = useQuery<JobItem[]>({
     queryKey: ["my-jobs"],
     queryFn: () => api.get("/jobs/mine").then((r) => r.data),
-    enabled: isAuthenticated,
+    enabled: isAuthenticated && user?.role !== "artisan",
     staleTime: 30_000,
     retry: 2,
   });
@@ -359,7 +360,8 @@ function MyJobs() {
       c[tab.key] = allJobs.filter((j) => {
         const s = j.status ?? "open";
         if (tab.key === "open") return s === "open";
-        if (tab.key === "in_progress") return ["in_progress", "artisan_accepted", "artisan_en_route", "arrived"].includes(s);
+        if (tab.key === "in_progress")
+          return ["in_progress", "artisan_accepted", "artisan_en_route", "arrived"].includes(s);
         return s === tab.key;
       }).length;
     }
@@ -371,10 +373,18 @@ function MyJobs() {
     return allJobs.filter((j) => {
       const s = j.status ?? "open";
       if (activeTab === "open") return s === "open";
-      if (activeTab === "in_progress") return ["in_progress", "artisan_accepted", "artisan_en_route", "arrived"].includes(s);
+      if (activeTab === "in_progress")
+        return ["in_progress", "artisan_accepted", "artisan_en_route", "arrived"].includes(s);
       return s === activeTab;
     });
   }, [allJobs, activeTab]);
+
+  // ── Guard: redirect artisans (must be after all hooks) ──────────────────────
+  if (isAuthenticated && user?.role === "artisan") {
+    toast.error("This page is for clients only");
+    navigate({ to: "/artisans/jobs" });
+    return null;
+  }
 
   // ── Auth Gate ────────────────────────────────────────────────────────────────
   if (!isAuthenticated) {
@@ -387,7 +397,8 @@ function MyJobs() {
           </div>
           <h1 className="text-2xl font-extrabold mb-2">Sign in to manage your jobs</h1>
           <p className="text-muted-foreground text-sm mb-6">
-            Your job dashboard is private. Log in or create a free account to view your jobs and bids.
+            Your job dashboard is private. Log in or create a free account to view your jobs and
+            bids.
           </p>
           <button
             onClick={() => setAuthOpen(true)}
@@ -447,9 +458,7 @@ function MyJobs() {
                 key={tab.key}
                 onClick={() => setActiveTab(tab.key)}
                 className={`flex shrink-0 items-center gap-1.5 rounded-xl px-3 py-2 text-sm font-semibold transition-all border ${
-                  isActive
-                    ? tab.color
-                    : "border-transparent text-muted-foreground hover:bg-muted"
+                  isActive ? tab.color : "border-transparent text-muted-foreground hover:bg-muted"
                 }`}
               >
                 <Icon className="h-3.5 w-3.5" />
@@ -505,7 +514,8 @@ function MyJobs() {
             <div className="text-sm">
               <p className="font-semibold text-primary">Tip: Compare bids carefully</p>
               <p className="text-muted-foreground text-xs mt-0.5">
-                Click "View Bids" on any open job to compare artisan proposals, prices, and ratings side-by-side before accepting.
+                Click "View Bids" on any open job to compare artisan proposals, prices, and ratings
+                side-by-side before accepting.
               </p>
             </div>
           </div>

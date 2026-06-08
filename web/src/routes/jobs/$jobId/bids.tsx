@@ -115,7 +115,9 @@ function VerifBadge({ status }: { status?: string }) {
         ? { label: "ID Verified", bg: "bg-blue-100 text-blue-700 border-blue-200" }
         : { label: "Verified", bg: "bg-green-100 text-green-700 border-green-200" };
   return (
-    <span className={`inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-[10px] font-bold ${config.bg}`}>
+    <span
+      className={`inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-[10px] font-bold ${config.bg}`}
+    >
       <ShieldCheck className="h-2.5 w-2.5" />
       {config.label}
     </span>
@@ -137,7 +139,13 @@ function StarRating({ rating, count }: { rating?: number; count?: number }) {
 
 // ─── Price Guidance Banner ────────────────────────────────────────────────────
 
-function PriceGuidanceBanner({ guidance, jobBudget }: { guidance?: PriceGuidance; jobBudget?: number }) {
+function PriceGuidanceBanner({
+  guidance,
+  jobBudget,
+}: {
+  guidance?: PriceGuidance;
+  jobBudget?: number;
+}) {
   if (!guidance || !guidance.sample_size || guidance.sample_size === 0) return null;
 
   const min = guidance.min ?? 0;
@@ -147,9 +155,7 @@ function PriceGuidanceBanner({ guidance, jobBudget }: { guidance?: PriceGuidance
 
   // Bar visualization: budget position relative to min-max
   const budgetPct =
-    jobBudget && range > 0
-      ? Math.min(100, Math.max(0, ((jobBudget - min) / range) * 100))
-      : null;
+    jobBudget && range > 0 ? Math.min(100, Math.max(0, ((jobBudget - min) / range) * 100)) : null;
   const medianPct = range > 0 ? Math.min(100, Math.max(0, ((median - min) / range) * 100)) : 50;
 
   return (
@@ -160,7 +166,9 @@ function PriceGuidanceBanner({ guidance, jobBudget }: { guidance?: PriceGuidance
           Market Rate in {guidance.district ?? "your area"}
           {guidance.category_name && ` · ${guidance.category_name}`}
         </p>
-        <span className="ml-auto text-[10px] text-muted-foreground">{guidance.sample_size} recent jobs</span>
+        <span className="ml-auto text-[10px] text-muted-foreground">
+          {guidance.sample_size} recent jobs
+        </span>
       </div>
 
       {/* Price range */}
@@ -229,7 +237,8 @@ function BidCard({
   const rejected = bid.status === "rejected";
   const canAct = jobStatus === "open" && !accepted && !rejected;
   const range = priceMax - priceMin;
-  const pricePct = range > 0 ? Math.min(100, Math.max(0, ((bid.proposed_price - priceMin) / range) * 100)) : 50;
+  const pricePct =
+    range > 0 ? Math.min(100, Math.max(0, ((bid.proposed_price - priceMin) / range) * 100)) : 50;
   const isCheapest = bid.proposed_price === priceMin;
   const isExpensive = bid.proposed_price === priceMax;
 
@@ -296,7 +305,9 @@ function BidCard({
           </div>
           {/* Price — prominent */}
           <div className="shrink-0 text-right">
-            <p className="text-xl font-extrabold text-foreground">{formatRWF(bid.proposed_price)}</p>
+            <p className="text-xl font-extrabold text-foreground">
+              {formatRWF(bid.proposed_price)}
+            </p>
             <p className="text-[10px] text-muted-foreground font-medium">RWF</p>
           </div>
         </div>
@@ -322,7 +333,10 @@ function BidCard({
           {bid.estimated_duration_hours && (
             <div className="flex items-center gap-2 text-xs text-muted-foreground">
               <Clock className="h-3.5 w-3.5 shrink-0" />
-              <span>Estimated duration: <strong className="text-foreground">{bid.estimated_duration_hours}h</strong></span>
+              <span>
+                Estimated duration:{" "}
+                <strong className="text-foreground">{bid.estimated_duration_hours}h</strong>
+              </span>
             </div>
           )}
           {bid.proposed_start_time && (
@@ -357,7 +371,9 @@ function BidCard({
         {/* Footer */}
         <div className="flex items-center justify-between border-t border-border pt-3">
           <span className="text-[10px] text-muted-foreground">
-            {bid.created_at ? formatDistanceToNow(new Date(bid.created_at), { addSuffix: true }) : ""}
+            {bid.created_at
+              ? formatDistanceToNow(new Date(bid.created_at), { addSuffix: true })
+              : ""}
           </span>
 
           {canAct && (
@@ -367,7 +383,11 @@ function BidCard({
                 disabled={isDeclining || isAccepting}
                 className="flex items-center gap-1.5 rounded-xl border border-border bg-card px-3 py-1.5 text-xs font-semibold text-muted-foreground hover:bg-red-50 hover:text-red-600 hover:border-red-200 transition-colors disabled:opacity-40"
               >
-                {isDeclining ? <Loader2 className="h-3 w-3 animate-spin" /> : <XCircle className="h-3 w-3" />}
+                {isDeclining ? (
+                  <Loader2 className="h-3 w-3 animate-spin" />
+                ) : (
+                  <XCircle className="h-3 w-3" />
+                )}
                 Decline
               </button>
               <button
@@ -375,7 +395,11 @@ function BidCard({
                 disabled={isAccepting || isDeclining}
                 className="flex items-center gap-1.5 rounded-xl bg-primary px-4 py-1.5 text-xs font-bold text-primary-foreground hover:brightness-95 transition disabled:opacity-40"
               >
-                {isAccepting ? <Loader2 className="h-3 w-3 animate-spin" /> : <CheckCircle2 className="h-3 w-3" />}
+                {isAccepting ? (
+                  <Loader2 className="h-3 w-3 animate-spin" />
+                ) : (
+                  <CheckCircle2 className="h-3 w-3" />
+                )}
                 Accept Bid
               </button>
             </div>
@@ -474,8 +498,12 @@ function JobBids() {
     const arr = [...bids];
     if (sortMode === "price_asc") arr.sort((a, b) => a.proposed_price - b.proposed_price);
     else if (sortMode === "price_desc") arr.sort((a, b) => b.proposed_price - a.proposed_price);
-    else if (sortMode === "rating_desc") arr.sort((a, b) => (b.artisan_rating ?? 0) - (a.artisan_rating ?? 0));
-    else arr.sort((a, b) => new Date(b.created_at ?? 0).getTime() - new Date(a.created_at ?? 0).getTime());
+    else if (sortMode === "rating_desc")
+      arr.sort((a, b) => (b.artisan_rating ?? 0) - (a.artisan_rating ?? 0));
+    else
+      arr.sort(
+        (a, b) => new Date(b.created_at ?? 0).getTime() - new Date(a.created_at ?? 0).getTime(),
+      );
     return arr;
   }, [bids, sortMode]);
 
@@ -584,12 +612,12 @@ function JobBids() {
                 <div className="mt-3 flex items-center gap-2 text-sm text-muted-foreground border-t border-border pt-3">
                   <TrendingUp className="h-4 w-4 text-primary" />
                   <span>
-                    <strong className="text-foreground">{bids.length}</strong> bid{bids.length !== 1 ? "s" : ""} received
+                    <strong className="text-foreground">{bids.length}</strong> bid
+                    {bids.length !== 1 ? "s" : ""} received
                   </span>
                   {bids.length > 1 && (
                     <span className="text-xs">
-                      · Range:{" "}
-                      <strong className="text-foreground">{formatRWF(priceMin)}</strong> –{" "}
+                      · Range: <strong className="text-foreground">{formatRWF(priceMin)}</strong> –{" "}
                       <strong className="text-foreground">{formatRWF(priceMax)}</strong> RWF
                     </span>
                   )}
@@ -638,7 +666,8 @@ function JobBids() {
                 </div>
                 <h3 className="font-bold text-lg mb-2">No bids yet</h3>
                 <p className="text-sm text-muted-foreground max-w-xs mx-auto">
-                  Verified artisans in your area will see this job and start bidding. Check back soon!
+                  Verified artisans in your area will see this job and start bidding. Check back
+                  soon!
                 </p>
                 <div className="mt-6 flex items-center justify-center gap-2 text-xs text-muted-foreground">
                   <Info className="h-3.5 w-3.5" />
@@ -671,7 +700,9 @@ function JobBids() {
                   <p className="font-semibold">Tips for choosing the right bid</p>
                   <ul className="mt-1.5 space-y-1 text-xs text-muted-foreground">
                     <li>✓ Check the artisan's profile and past reviews before accepting</li>
-                    <li>✓ The lowest price isn't always the best — consider rating and experience</li>
+                    <li>
+                      ✓ The lowest price isn't always the best — consider rating and experience
+                    </li>
                     <li>✓ Price guidance above shows the typical market rate for this service</li>
                     <li>✓ Payment is held securely until you confirm the job is done</li>
                   </ul>
@@ -688,11 +719,10 @@ function JobBids() {
           <AlertDialogHeader>
             <AlertDialogTitle>Accept this bid?</AlertDialogTitle>
             <AlertDialogDescription>
-              You're accepting{" "}
-              <strong>{acceptTarget?.artisan_name ?? "this artisan"}</strong>'s bid of{" "}
-              <strong>{acceptTarget ? formatRWF(acceptTarget.proposed_price) : ""} RWF</strong>. A booking will be
-              created and the artisan will be notified immediately. Other bids will be automatically
-              declined.
+              You're accepting <strong>{acceptTarget?.artisan_name ?? "this artisan"}</strong>'s bid
+              of <strong>{acceptTarget ? formatRWF(acceptTarget.proposed_price) : ""} RWF</strong>.
+              A booking will be created and the artisan will be notified immediately. Other bids
+              will be automatically declined.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
@@ -717,9 +747,8 @@ function JobBids() {
           <AlertDialogHeader>
             <AlertDialogTitle>Decline this bid?</AlertDialogTitle>
             <AlertDialogDescription>
-              You're declining{" "}
-              <strong>{declineTarget?.artisan_name ?? "this artisan"}</strong>'s bid. They will be notified.
-              You can still accept other bids on this job.
+              You're declining <strong>{declineTarget?.artisan_name ?? "this artisan"}</strong>'s
+              bid. They will be notified. You can still accept other bids on this job.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>

@@ -382,7 +382,6 @@ async def client_confirm_payment(
     _schedule_auto_cancel(booking_id, delay_minutes=15)
 
     # Push real-time status to artisan
-    artisan_user = await db.scalar(select(User).where(User.id == booking.artisan_id))
     client_user  = await db.scalar(select(User).where(User.id == user_id))
     asyncio.create_task(
         _push_booking_status_change(

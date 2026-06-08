@@ -134,7 +134,6 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
     scheduler = None
     try:
         from apscheduler.schedulers.asyncio import AsyncIOScheduler  # noqa: PLC0415
-        from apscheduler.triggers.cron import CronTrigger           # noqa: PLC0415
 
         scheduler = AsyncIOScheduler(timezone="Africa/Kigali")
 

@@ -20,7 +20,7 @@ import logging
 from datetime import datetime, timezone
 from uuid import UUID
 
-from sqlalchemy import func, select, update
+from sqlalchemy import select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.integrations.ws_manager import notification_manager
@@ -157,11 +157,10 @@ async def auto_cancel_unaccepted_booking(
     # ── 4. Re-match: notify next best artisan ────────────────────────────────
     if job:
         try:
+            from app.models.artisan import Category  # noqa: PLC0415
             from app.services.matching_service import (  # noqa: PLC0415
-                find_matching_artisans,
                 notify_matching_artisans,
             )
-            from app.models.artisan import Category  # noqa: PLC0415
             category = await db.scalar(
                 select(Category).where(Category.id == job.category_id)
             ) if job.category_id else None

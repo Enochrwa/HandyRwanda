@@ -1,5 +1,5 @@
 // File: mobile/app/(artisan)/jobs/index.tsx
-import { Briefcase, MapPin, ArrowRight } from '@icons';
+import { Briefcase, MapPin, ArrowRight, Zap } from '@icons';
 import { useQuery } from '@tanstack/react-query';
 import { formatDistanceToNow } from 'date-fns';
 import { useRouter } from 'expo-router';
@@ -51,11 +51,22 @@ export default function ArtisanJobFeed() {
     refetch,
   } = useQuery({
     queryKey: ['available-jobs'],
-    // /jobs/available filters by the artisan's registered skill categories.
-    // /jobs (public) would show all open jobs regardless of skills.
     queryFn: () => api.get('/jobs/available').then((r) => r.data),
     refetchInterval: 60000,
   });
+
+  // Sprint 1: count active bookings requiring artisan action
+  const { data: activeBookings = [] } = useQuery({
+    queryKey: ['artisan-active-bookings'],
+    queryFn: async () => {
+      const res = await api.get('/bookings');
+      const ACTIVE = ['confirmed', 'artisan_accepted', 'artisan_en_route', 'arrived', 'in_progress'];
+      return (res.data as any[]).filter((b) => ACTIVE.includes(b.status));
+    },
+    refetchInterval: 30_000,
+  });
+
+  const activeCount = activeBookings.length;
 
   const handleRefresh = async () => {
     setRefreshing(true);
@@ -143,6 +154,31 @@ export default function ArtisanJobFeed() {
           </View>
         </View>
       </View>
+
+      {/* Sprint 1: Active jobs banner */}
+      {activeCount > 0 && (
+        <TouchableOpacity
+          onPress={() => router.push('/(artisan)/jobs/active')}
+          className="mx-4 mt-4 bg-amber-50 border border-amber-300 rounded-2xl px-4 py-3.5 flex-row items-center justify-between"
+          style={{ elevation: 2 }}
+          activeOpacity={0.85}
+        >
+          <View className="flex-row items-center gap-3">
+            <View className="w-9 h-9 bg-amber-400 rounded-xl items-center justify-center">
+              <Zap size={18} color="white" />
+            </View>
+            <View>
+              <Text className="font-extrabold text-amber-800 text-sm">
+                {activeCount} Active Job{activeCount > 1 ? 's' : ''} — Action Required
+              </Text>
+              <Text className="text-amber-600 text-xs mt-0.5">
+                Tap to Accept, Go En Route, or Start
+              </Text>
+            </View>
+          </View>
+          <ArrowRight size={18} color="#B45309" />
+        </TouchableOpacity>
+      )}
 
       {isLoading ? (
         <View className="flex-1 items-center justify-center">

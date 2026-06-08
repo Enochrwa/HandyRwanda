@@ -63,7 +63,9 @@ function StarDisplay({ rating, size = 14 }: { rating: number; size?: number }) {
         <Star
           key={i}
           style={{ width: size, height: size }}
-          className={i < rating ? "fill-amber-400 text-amber-400" : "fill-muted text-muted-foreground"}
+          className={
+            i < rating ? "fill-amber-400 text-amber-400" : "fill-muted text-muted-foreground"
+          }
         />
       ))}
     </div>
@@ -382,9 +384,7 @@ function ArtisanReviewsDashboard() {
     [replyMutation],
   );
 
-  const pending = reviews.filter(
-    (r) => !optimisticReplies[r.id] && !r.artisan_reply
-  ).length;
+  const pending = reviews.filter((r) => !optimisticReplies[r.id] && !r.artisan_reply).length;
 
   const filteredReviews = reviews.filter((r) => {
     const hasReply = Boolean(optimisticReplies[r.id] ?? r.artisan_reply);

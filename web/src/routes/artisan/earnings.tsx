@@ -1,5 +1,5 @@
 // File: web/src/routes/artisan/earnings.tsx
-import { createFileRoute } from "@tanstack/react-router";
+import { createFileRoute, Link } from "@tanstack/react-router";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
 import api from "@/services/api";
@@ -10,6 +10,7 @@ import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { formatDistanceToNow } from "date-fns";
+import { Star, MessageCircle } from "lucide-react";
 
 export const Route = createFileRoute("/artisan/earnings")({
   component: EarningsPage,
@@ -79,7 +80,17 @@ function EarningsPage() {
 
   return (
     <main className="mx-auto max-w-4xl space-y-6 px-4 py-8">
-      <h1 className="text-2xl font-bold">My Earnings</h1>
+      <div className="flex items-center justify-between">
+        <h1 className="text-2xl font-bold">My Earnings</h1>
+        <Link
+          to="/artisan/reviews"
+          className="inline-flex items-center gap-2 rounded-xl border border-border bg-card px-4 py-2 text-sm font-semibold text-foreground hover:bg-muted transition-colors shadow-sm"
+        >
+          <Star className="h-4 w-4 text-amber-400 fill-amber-400" />
+          My Reviews
+          <MessageCircle className="h-3.5 w-3.5 text-primary" />
+        </Link>
+      </div>
 
       {/* Summary cards */}
       <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">

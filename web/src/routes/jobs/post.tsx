@@ -215,7 +215,7 @@ function PostJob() {
               Browse Artisans Now <ArrowRight className="inline h-4 w-4 ml-1" />
             </button>
             <button
-              onClick={() => navigate({ to: "/messages" })}
+              onClick={() => navigate({ to: "/jobs/mine" })}
               className="w-full rounded-2xl border border-border bg-card py-4 font-bold hover:bg-muted transition"
             >
               View My Jobs & Bids

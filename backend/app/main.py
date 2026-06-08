@@ -130,6 +130,32 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
     await init_db()
     _log.info("✅ Database initialised")
 
+    # ── Start APScheduler for Sprint 1 + future sprints ──────────────────────
+    scheduler = None
+    try:
+        from apscheduler.schedulers.asyncio import AsyncIOScheduler  # noqa: PLC0415
+
+        scheduler = AsyncIOScheduler(timezone="Africa/Kigali")
+
+        # Sprint 1: no recurring APScheduler jobs needed here — the 15-min
+        # accept window is scheduled per-booking via asyncio.create_task in the
+        # bookings router. Future sprints add nightly jobs here.
+
+        # Placeholder for Sprint 5 nightly score recalculation (2am Kigali = 00:00 UTC)
+        # scheduler.add_job(recalculate_all_scores, CronTrigger(hour=0, minute=0))
+
+        # Placeholder for Sprint 9 nightly ML model training
+        # scheduler.add_job(train_ranking_model, CronTrigger(hour=1, minute=0))
+
+        # Placeholder for Sprint 6 weekly artisan insight notifications (Mon 8am Kigali)
+        # scheduler.add_job(send_weekly_insights, CronTrigger(day_of_week="mon", hour=8))
+
+        scheduler.start()
+        _log.info("✅ APScheduler started (timezone: Africa/Kigali)")
+    except Exception as exc:
+        _log.warning("APScheduler failed to start: %s", exc)
+        scheduler = None
+
     # Start background escrow auto-release task
     bg_task = asyncio.create_task(_auto_release_loop())
     _log.info("✅ Background tasks started")
@@ -139,6 +165,10 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
 
     # Graceful shutdown
     _log.info("🛑 HandyRwanda API shutting down…")
+    if scheduler is not None:
+        scheduler.shutdown(wait=False)
+        _log.info("✅ APScheduler shut down")
+
     bg_task.cancel()
     try:
         await bg_task

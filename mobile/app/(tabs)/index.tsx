@@ -1,23 +1,111 @@
 // File: mobile/app/(tabs)/index.tsx
+/**
+ * Sprint 1 enhanced Home Screen
+ *
+ * Changes:
+ *  - Upcoming bookings now show live status with animated badges
+ *  - Active bookings (en route, arrived) get a pulsing live indicator
+ *  - ETA shown inline when artisan is en route
+ */
+
 import { Search, MapPin, Clock, ChevronRight, User, Star, Plus } from '@icons';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useQuery } from '@tanstack/react-query';
 import { useRouter } from 'expo-router';
 import React, { useEffect, useState } from 'react';
-import { View, Text, ScrollView, TouchableOpacity, Image, ActivityIndicator } from 'react-native';
+import {
+  View,
+  Text,
+  ScrollView,
+  TouchableOpacity,
+  Image,
+  ActivityIndicator,
+} from 'react-native';
+import Animated, {
+  useAnimatedStyle,
+  useSharedValue,
+  withRepeat,
+  withSequence,
+  withTiming,
+} from 'react-native-reanimated';
 
 import api from '../../src/services/api';
 import { useAuthStore } from '../../src/store/authStore';
 
 const SERVICE_ICONS: Record<string, string> = {
-  plumbing: '🔧',
-  electrical: '⚡',
-  cleaning: '🧹',
-  carpentry: '🪚',
-  painting: '🎨',
-  gardening: '🌿',
-  default: '🛠️',
+  plumbing:    '🔧',
+  electrical:  '⚡',
+  cleaning:    '🧹',
+  carpentry:   '🪚',
+  painting:    '🎨',
+  gardening:   '🌿',
+  default:     '🛠️',
 };
+
+// ── Sprint 1: status display config ──────────────────────────────────────────
+
+const STATUS_CONFIG: Record<
+  string,
+  { label: string; emoji: string; color: string; bgColor: string; pulsing?: boolean }
+> = {
+  pending_payment:  { label: 'Payment Due',    emoji: '💰', color: '#F59E0B', bgColor: '#FEF3C7' },
+  confirmed:        { label: 'Confirmed',       emoji: '✅', color: '#3B82F6', bgColor: '#EFF6FF' },
+  artisan_accepted: { label: 'Artisan Ready',   emoji: '🤝', color: '#8B5CF6', bgColor: '#F5F3FF' },
+  artisan_en_route: { label: 'En Route',        emoji: '🚗', color: '#F97316', bgColor: '#FFF7ED', pulsing: true },
+  arrived:          { label: 'Arrived!',        emoji: '📍', color: '#10B981', bgColor: '#ECFDF5', pulsing: true },
+  in_progress:      { label: 'In Progress',     emoji: '🔧', color: '#059669', bgColor: '#ECFDF5', pulsing: true },
+  completed:        { label: 'Completed',       emoji: '🎉', color: '#1B5E3B', bgColor: '#F0FDF4' },
+  cancelled:        { label: 'Cancelled',       emoji: '❌', color: '#6B6B6B', bgColor: '#F3F4F6' },
+  disputed:         { label: 'Disputed',        emoji: '⚠️', color: '#EF4444', bgColor: '#FEF2F2' },
+};
+
+// ── Pulsing status dot ────────────────────────────────────────────────────────
+
+function PulsingStatusDot({ color }: { color: string }) {
+  const opacity = useSharedValue(1);
+
+  useEffect(() => {
+    opacity.value = withRepeat(
+      withSequence(withTiming(0.3, { duration: 600 }), withTiming(1, { duration: 600 })),
+      -1,
+      false,
+    );
+  }, []);
+
+  const animStyle = useAnimatedStyle(() => ({ opacity: opacity.value }));
+
+  return (
+    <Animated.View
+      style={[animStyle, { width: 7, height: 7, borderRadius: 3.5, backgroundColor: color }]}
+    />
+  );
+}
+
+// ── Booking status badge ──────────────────────────────────────────────────────
+
+function BookingStatusBadge({ status, etaMinutes }: { status: string; etaMinutes?: number }) {
+  const cfg = STATUS_CONFIG[status] ?? {
+    label: status,
+    emoji: '🔄',
+    color: '#6B6B6B',
+    bgColor: '#F3F4F6',
+  };
+
+  return (
+    <View
+      className="flex-row items-center px-2.5 py-1 rounded-full gap-1.5"
+      style={{ backgroundColor: cfg.bgColor }}
+    >
+      {cfg.pulsing && <PulsingStatusDot color={cfg.color} />}
+      <Text className="text-xs font-semibold" style={{ color: cfg.color }}>
+        {cfg.emoji} {cfg.label}
+        {status === 'artisan_en_route' && etaMinutes ? ` · ${etaMinutes}m` : ''}
+      </Text>
+    </View>
+  );
+}
+
+// ── Main screen ───────────────────────────────────────────────────────────────
 
 export default function HomeScreen() {
   const { isAuthenticated, user } = useAuthStore();
@@ -26,7 +114,6 @@ export default function HomeScreen() {
   const isArtisan = user?.role === 'artisan';
   const isClient = isAuthenticated && !isArtisan;
 
-  // Redirect to onboarding on first launch
   useEffect(() => {
     AsyncStorage.getItem('hr_onboarded').then((val) => {
       if (!val) {
@@ -37,10 +124,12 @@ export default function HomeScreen() {
     });
   }, []);
 
-  const { data: upcomingBookings } = useQuery({
+  const { data: upcomingBookings, refetch: refetchBookings } = useQuery({
     queryKey: ['upcomingBookings'],
     queryFn: () => api.get('/bookings/upcoming').then((r) => r.data),
     enabled: isAuthenticated,
+    // Poll every 30s to catch status changes even without WS
+    refetchInterval: isAuthenticated ? 30_000 : false,
   });
 
   const { data: categories } = useQuery({
@@ -59,10 +148,15 @@ export default function HomeScreen() {
   const hour = new Date().getHours();
   const greeting = hour < 12 ? 'Mwaramutse' : hour < 18 ? 'Mwiriwe' : 'Muraho';
 
+  // Detect if any booking is in a "live" active state for the urgent banner
+  const activeBooking = upcomingBookings?.find((b: any) =>
+    ['artisan_en_route', 'arrived', 'in_progress', 'artisan_accepted'].includes(b.status),
+  );
+
   return (
     <View className="flex-1 bg-background">
       <ScrollView className="flex-1" showsVerticalScrollIndicator={false}>
-        {/* ── Hero Header ─────────────────────────────────────────────── */}
+        {/* ── Hero Header ───────────────────────────────────────────────── */}
         <View className="bg-primary pt-14 pb-10 px-6 rounded-b-[40px]">
           <View className="flex-row justify-between items-center mb-6">
             <View>
@@ -88,15 +182,12 @@ export default function HomeScreen() {
           </View>
 
           <Text className="text-white text-2xl font-extrabold">
-            {isAuthenticated ? `${greeting}, ${user?.fullName.split(' ')[0]} 👋` : `${greeting} 👋`}
+            {isAuthenticated ? `${greeting}, ${user?.fullName?.split(' ')[0]} 👋` : `${greeting} 👋`}
           </Text>
           <Text className="text-white/80 mt-1 text-sm">
-            {isAuthenticated
-              ? 'What do you need fixed today?'
-              : 'Find trusted artisans across Rwanda'}
+            {isAuthenticated ? 'What do you need fixed today?' : 'Find trusted artisans across Rwanda'}
           </Text>
 
-          {/* Search bar */}
           <TouchableOpacity
             accessibilityLabel="Search artisans"
             onPress={() => router.push('/(tabs)/search')}
@@ -109,7 +200,55 @@ export default function HomeScreen() {
           </TouchableOpacity>
         </View>
 
-        {/* ── Post a Job CTA (clients only) ───────────────────────────── */}
+        {/* ── Sprint 1: Live booking urgent banner ───────────────────────── */}
+        {activeBooking && (
+          <TouchableOpacity
+            accessibilityLabel="View active booking"
+            onPress={() => router.push(`/messages/${activeBooking.id}`)}
+            className="mx-6 mt-4 rounded-2xl overflow-hidden"
+            style={{
+              backgroundColor:
+                STATUS_CONFIG[activeBooking.status]?.bgColor ?? '#F0FDF4',
+              borderWidth: 1.5,
+              borderColor: STATUS_CONFIG[activeBooking.status]?.color ?? '#1B5E3B',
+            }}
+          >
+            <View className="px-4 py-3.5 flex-row items-center justify-between">
+              <View className="flex-row items-center flex-1">
+                <Text className="text-2xl mr-3">
+                  {STATUS_CONFIG[activeBooking.status]?.emoji ?? '🔄'}
+                </Text>
+                <View className="flex-1">
+                  <Text
+                    className="font-bold text-sm"
+                    style={{ color: STATUS_CONFIG[activeBooking.status]?.color ?? '#1B5E3B' }}
+                    numberOfLines={1}
+                  >
+                    {activeBooking.title}
+                  </Text>
+                  <Text className="text-xs mt-0.5" style={{ color: '#6B6B6B' }}>
+                    {activeBooking.status === 'artisan_en_route' && activeBooking.eta_minutes
+                      ? `${activeBooking.artisan_name} arriving in ~${activeBooking.eta_minutes} min`
+                      : activeBooking.status === 'arrived'
+                      ? `${activeBooking.artisan_name} is at your door!`
+                      : activeBooking.status === 'in_progress'
+                      ? `Work in progress with ${activeBooking.artisan_name}`
+                      : `${activeBooking.artisan_name} accepted your booking`}
+                  </Text>
+                </View>
+              </View>
+              <View className="flex-row items-center gap-2">
+                <PulsingStatusDot color={STATUS_CONFIG[activeBooking.status]?.color ?? '#1B5E3B'} />
+                <ChevronRight
+                  size={18}
+                  color={STATUS_CONFIG[activeBooking.status]?.color ?? '#1B5E3B'}
+                />
+              </View>
+            </View>
+          </TouchableOpacity>
+        )}
+
+        {/* ── Post a Job CTA ────────────────────────────────────────────── */}
         {isClient && (
           <View className="mx-6 mt-5">
             <TouchableOpacity
@@ -124,9 +263,7 @@ export default function HomeScreen() {
                 </View>
                 <View>
                   <Text className="text-white font-extrabold text-base">Post a Job</Text>
-                  <Text className="text-white/75 text-xs mt-0.5">
-                    Get bids from verified artisans
-                  </Text>
+                  <Text className="text-white/75 text-xs mt-0.5">Get bids from verified artisans</Text>
                 </View>
               </View>
               <ChevronRight size={20} color="white" />
@@ -134,7 +271,6 @@ export default function HomeScreen() {
           </View>
         )}
 
-        {/* ── Post a Job CTA (unauthenticated) ────────────────────────── */}
         {!isAuthenticated && (
           <View className="mx-6 mt-5">
             <TouchableOpacity
@@ -161,8 +297,8 @@ export default function HomeScreen() {
         <View className="flex-row mx-6 mt-5 gap-3">
           {[
             { label: 'Artisans', value: '500+', emoji: '👷' },
-            { label: 'Districts', value: '30', emoji: '📍' },
-            { label: 'Jobs Done', value: '2k+', emoji: '✅' },
+            { label: 'Districts', value: '30',   emoji: '📍' },
+            { label: 'Jobs Done', value: '2k+',  emoji: '✅' },
           ].map((stat) => (
             <View
               key={stat.label}
@@ -175,7 +311,7 @@ export default function HomeScreen() {
           ))}
         </View>
 
-        {/* ── Service Categories ───────────────────────────────────────── */}
+        {/* ── Service Categories ──────────────────────────────────────── */}
         <View className="px-6 mt-6">
           <View className="flex-row justify-between items-center mb-4">
             <Text className="text-xl font-bold text-foreground">Services</Text>
@@ -197,24 +333,18 @@ export default function HomeScreen() {
                   accessibilityLabel={`Browse ${cat.name_en ?? cat.name}`}
                   key={cat.id}
                   onPress={() => {
-                    // Clients go straight to post-job with category pre-selected
                     if (isClient) {
                       router.push({
                         pathname: '/(client)/post-job/details',
                         params: { categoryId: cat.id },
                       });
                     } else {
-                      router.push({
-                        pathname: '/(tabs)/search',
-                        params: { categoryId: cat.id },
-                      });
+                      router.push({ pathname: '/(tabs)/search', params: { categoryId: cat.id } });
                     }
                   }}
                   className="bg-card w-[48%] p-4 rounded-3xl border border-border mb-3 items-center"
                 >
-                  <Text style={{ fontSize: 28 }} className="mb-2">
-                    {emoji}
-                  </Text>
+                  <Text style={{ fontSize: 28 }} className="mb-2">{emoji}</Text>
                   <Text className="font-semibold text-center text-sm text-foreground">
                     {cat.name_en ?? cat.name}
                   </Text>
@@ -225,23 +355,20 @@ export default function HomeScreen() {
               );
             }) ||
               [1, 2, 3, 4].map((i) => (
-                <View
-                  key={i}
-                  className="bg-card w-[48%] h-28 rounded-3xl border border-border mb-3"
-                />
+                <View key={i} className="bg-card w-[48%] h-28 rounded-3xl border border-border mb-3" />
               ))}
           </View>
         </View>
 
-        {/* ── How it Works (for unauthenticated) ──────────────────────── */}
+        {/* ── How it Works (unauthenticated) ──────────────────────────── */}
         {!isAuthenticated && (
           <View className="mx-6 mb-4 bg-primary/5 border border-primary/20 rounded-3xl p-5">
             <Text className="font-bold text-lg text-foreground mb-3">How HandyRwanda Works</Text>
             {[
-              { step: '1', label: 'Search', desc: 'Find a verified artisan near you' },
-              { step: '2', label: 'Book', desc: 'Choose a time that works for you' },
+              { step: '1', label: 'Search',   desc: 'Find a verified artisan near you' },
+              { step: '2', label: 'Book',     desc: 'Choose a time that works for you' },
               { step: '3', label: 'Pay Safe', desc: 'Funds held until job is done' },
-              { step: '4', label: 'Rate', desc: 'Leave a review to help others' },
+              { step: '4', label: 'Rate',     desc: 'Leave a review to help others' },
             ].map((item) => (
               <View key={item.step} className="flex-row items-start mb-3">
                 <View className="w-7 h-7 bg-primary rounded-full items-center justify-center mr-3 mt-0.5">
@@ -254,7 +381,7 @@ export default function HomeScreen() {
               </View>
             ))}
             <TouchableOpacity
-              accessibilityLabel="Sign up to get started"
+              accessibilityLabel="Sign up"
               onPress={() => router.push('/auth')}
               className="bg-primary mt-2 py-3 rounded-2xl items-center"
             >
@@ -263,9 +390,17 @@ export default function HomeScreen() {
           </View>
         )}
 
-        {/* ── Upcoming Bookings ────────────────────────────────────────── */}
+        {/* ── Upcoming Bookings (Sprint 1: with live status badges) ──── */}
         <View className="px-6 pb-8">
-          <Text className="text-xl font-bold mb-4 text-foreground">Upcoming Bookings</Text>
+          <View className="flex-row items-center justify-between mb-4">
+            <Text className="text-xl font-bold text-foreground">Upcoming Bookings</Text>
+            {upcomingBookings?.length > 0 && (
+              <TouchableOpacity onPress={() => refetchBookings()}>
+                <Text className="text-primary text-xs font-semibold">Refresh</Text>
+              </TouchableOpacity>
+            )}
+          </View>
+
           {isAuthenticated ? (
             upcomingBookings?.length > 0 ? (
               upcomingBookings.map((booking: any) => (
@@ -273,18 +408,34 @@ export default function HomeScreen() {
                   accessibilityLabel={`Booking: ${booking.title}`}
                   key={booking.id}
                   onPress={() => router.push(`/messages/${booking.id}`)}
-                  className="bg-primary/5 p-4 rounded-3xl border border-primary/20 flex-row items-center mb-3"
+                  className="bg-card p-4 rounded-3xl border border-border mb-3 shadow-sm"
+                  style={{ elevation: 1 }}
                 >
-                  <View className="bg-primary/10 p-3 rounded-2xl mr-4">
-                    <Clock size={22} color="#1B5E3B" />
+                  <View className="flex-row items-start justify-between mb-2">
+                    <View className="flex-row items-center flex-1 mr-2">
+                      <View className="bg-primary/10 p-2.5 rounded-2xl mr-3">
+                        <Clock size={18} color="#1B5E3B" />
+                      </View>
+                      <View className="flex-1">
+                        <Text className="font-bold text-foreground text-sm" numberOfLines={1}>
+                          {booking.title}
+                        </Text>
+                        <Text className="text-xs text-muted-foreground mt-0.5">
+                          {booking.artisan_name}
+                          {booking.eta_minutes && booking.status === 'artisan_en_route'
+                            ? ` · ~${booking.eta_minutes} min away`
+                            : ''}
+                        </Text>
+                      </View>
+                    </View>
+                    <ChevronRight size={16} color="#9CA3AF" />
                   </View>
-                  <View className="flex-1">
-                    <Text className="font-bold text-foreground">{booking.title}</Text>
-                    <Text className="text-xs text-muted-foreground">
-                      {booking.scheduled_at ?? 'Soon'} • {booking.artisan_name}
-                    </Text>
-                  </View>
-                  <ChevronRight size={18} color="#1B5E3B" />
+
+                  {/* Sprint 1: Live status badge */}
+                  <BookingStatusBadge
+                    status={booking.status}
+                    etaMinutes={booking.eta_minutes}
+                  />
                 </TouchableOpacity>
               ))
             ) : (

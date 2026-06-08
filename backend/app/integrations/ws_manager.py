@@ -109,3 +109,36 @@ class _ProductionNotificationManager(NotificationManager):
 
 # Singleton used by all routers and other modules
 notification_manager = _ProductionNotificationManager()
+
+
+# ── Sprint 1: Standardised WebSocket event type constants ────────────────────
+
+
+class WsEventType:
+    """
+    Standardised event type strings for all WebSocket pushes.
+
+    Every push payload must include a `type` field matching one of these.
+    Frontend clients can switch on `type` to route events to the right handler.
+    """
+
+    # Booking lifecycle (Sprint 1)
+    BOOKING_STATUS_CHANGE = "booking_status_change"
+
+    # Messaging
+    NEW_MESSAGE = "new_message"
+
+    # Bidding
+    NEW_BID = "new_bid"
+
+    # Generic notifications
+    NOTIFICATION = "notification"
+
+    # Sprint 8 — Referrals
+    REFERRAL_QUALIFIED = "referral_qualified"
+
+    # Sprint 5 — Community safety score
+    SCORE_UPDATED = "score_updated"
+
+    # Sprint 6 — Earnings
+    EARNINGS_UPDATE = "earnings_update"

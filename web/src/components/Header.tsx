@@ -140,6 +140,18 @@ export function Header() {
               ) : null}
             </Link>
           ))}
+          {/* My Jobs — client only */}
+          {isAuthenticated && user?.role === "client" && (
+            <Link
+              to="/jobs/mine"
+              className="rounded-lg px-3 py-2 text-sm font-semibold text-muted-foreground hover:bg-muted hover:text-foreground transition-colors"
+              activeProps={{
+                className: "rounded-lg px-3 py-2 text-sm font-semibold text-foreground bg-muted",
+              }}
+            >
+              My Jobs
+            </Link>
+          )}
         </nav>
 
         <div className="flex items-center gap-2">
@@ -298,6 +310,14 @@ export function Header() {
                 )}
                 {user?.role === "client" && (
                   <>
+                    <DropdownMenuItem asChild>
+                      <Link
+                        to="/jobs/mine"
+                        className="flex items-center gap-2 cursor-pointer w-full"
+                      >
+                        <BookOpen className="h-4 w-4" /> My Jobs
+                      </Link>
+                    </DropdownMenuItem>
                     <DropdownMenuItem asChild>
                       <Link
                         to="/jobs/post"

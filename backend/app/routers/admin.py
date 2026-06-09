@@ -21,6 +21,11 @@ from app.models.notification import Notification
 from app.models.payment import Payment, PaymentStatus
 from app.models.review import Review
 from app.models.user import AccountStatus, User, UserRole
+from app.services.safety_score_service import (
+    ScoreBreakdown,
+    compute_safety_score,
+    recalculate_all_scores,
+)
 
 router = APIRouter(prefix="/admin", tags=["admin"])
 
@@ -126,6 +131,16 @@ async def approve_artisan(
         "Your ID has been verified. You can now accept jobs on HandyRwanda.",
         {"event_type": "verification_approved"},
     )
+
+    # Sprint 5: recalculate score immediately — verification status just changed
+    from app.database import AsyncSessionLocal  # noqa: PLC0415
+    from app.services.safety_score_service import (  # noqa: PLC0415
+        recalculate_single_score,
+    )
+
+    async with AsyncSessionLocal() as score_session:
+        await recalculate_single_score(user_id, score_session)
+
     return {"message": "Artisan approved"}
 
 
@@ -794,4 +809,120 @@ async def admin_create_escrow(
         "escrow_id": str(escrow.id),
         "amount": escrow.amount,
         "status": escrow.status,
+    }
+
+
+# ── Sprint 5: Community Safety Score Admin Endpoints ─────────────────────────
+
+
+class ScoreOverridePayload(BaseModel):
+    adjustment: int  # positive or negative, clamped to keep score in 0–1000
+    reason: str
+
+
+@router.get("/artisans/{artisan_id}/score")
+async def get_artisan_score_breakdown(
+    artisan_id: UUID,
+    db: AsyncSession = Depends(get_db),
+    current_user: dict[str, Any] = Depends(require_role(UserRole.admin)),
+) -> Any:
+    """
+    Sprint 5 — Return the full Community Safety Score breakdown for an artisan.
+
+    Returns the score components, tier, raw source values, and a transparency
+    narrative that admins can review before any manual override.
+    """
+    breakdown = await compute_safety_score(artisan_id, db, return_breakdown=True)
+    assert isinstance(breakdown, ScoreBreakdown)
+    return breakdown.to_dict()
+
+
+@router.patch("/artisans/{artisan_id}/score")
+async def override_artisan_score(
+    artisan_id: UUID,
+    payload: ScoreOverridePayload,
+    db: AsyncSession = Depends(get_db),
+    current_user: dict[str, Any] = Depends(require_role(UserRole.admin)),
+) -> Any:
+    """
+    Sprint 5 — Manually adjust an artisan's Community Safety Score by ±points.
+
+    Useful for edge cases: artisan was robbed, had a family emergency, disputed
+    bookings were fraudulent, etc. The adjustment is applied on top of the
+    computed score. A reason note is required for the audit trail.
+
+    The adjusted score is clamped to 0–1000.
+    """
+    import uuid as _uuid  # noqa: PLC0415
+
+    from app.models.notification import Notification  # noqa: PLC0415
+
+    # Guard: artisan must exist
+    profile = await db.scalar(
+        select(ArtisanProfile).where(ArtisanProfile.user_id == artisan_id)
+    )
+    if profile is None:
+        raise HTTPException(status_code=404, detail="Artisan profile not found")
+
+    current_score = profile.community_score or 0
+    new_score = max(0, min(1000, current_score + payload.adjustment))
+
+    await db.execute(
+        update(ArtisanProfile)
+        .where(ArtisanProfile.user_id == artisan_id)
+        .values(community_score=new_score)
+    )
+
+    # Persist an audit notification so there's a record in the DB
+    admin_id = current_user.get("sub") or current_user.get("user_id")
+    direction = "increased" if payload.adjustment > 0 else "decreased"
+    db.add(
+        Notification(
+            id=_uuid.uuid4(),
+            user_id=artisan_id,
+            event_type="score_override",
+            title="Your Safety Score was adjusted by an admin",
+            body=(
+                f"Your Community Safety Score was {direction} by "
+                f"{abs(payload.adjustment)} points "
+                f"(from {current_score} → {new_score}). "
+                f"Reason: {payload.reason}"
+            ),
+            payload={
+                "event_type": "score_override",
+                "admin_id": str(admin_id),
+                "previous_score": current_score,
+                "new_score": new_score,
+                "adjustment": payload.adjustment,
+                "reason": payload.reason,
+            },
+        )
+    )
+    await db.commit()
+
+    return {
+        "artisan_id": str(artisan_id),
+        "previous_score": current_score,
+        "adjustment": payload.adjustment,
+        "new_score": new_score,
+        "reason": payload.reason,
+        "adjusted_by": str(admin_id),
+    }
+
+
+@router.post("/scores/recalculate")
+async def trigger_score_recalculation(
+    db: AsyncSession = Depends(get_db),
+    current_user: dict[str, Any] = Depends(require_role(UserRole.admin)),
+) -> Any:
+    """
+    Sprint 5 — Manually trigger a full nightly score recalculation for all artisans.
+
+    This is the same job that runs automatically at 00:00 UTC each night.
+    Admins can trigger it on-demand (e.g., after a bulk verification run).
+    """
+    result = await recalculate_all_scores(db)
+    return {
+        "status": "complete",
+        **result,
     }

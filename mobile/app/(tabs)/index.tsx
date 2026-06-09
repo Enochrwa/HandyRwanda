@@ -41,6 +41,7 @@ import { useAuthStore } from '../../src/store/authStore';
 import { InstantBookSheet } from '../../src/components/InstantBookSheet';
 import type { PreviousArtisan } from '../../src/components/InstantBookSheet';
 import { usePreviousArtisans } from '../../src/hooks/usePreviousArtisans';
+import { SafetyScoreBadge } from '../../src/components/SafetyScoreBadge';
 
 const SERVICE_ICONS: Record<string, string> = {
   plumbing:    '🔧',
@@ -210,6 +211,13 @@ function BookAgainCard({
           {artisan.average_rating.toFixed(1)}
         </Text>
       </View>
+
+      {/* Sprint 5: Safety Score dot */}
+      {artisan.community_score != null && artisan.community_score > 0 && (
+        <View className="mt-1">
+          <SafetyScoreBadge score={artisan.community_score} variant="dot" showInfo={false} />
+        </View>
+      )}
     </TouchableOpacity>
   );
 }

@@ -1,6 +1,7 @@
 // File: web/src/components/ArtisanCard.tsx
 import { Star, MapPin, ShieldCheck, Zap, Circle } from "lucide-react";
 import { Link } from "@tanstack/react-router";
+import { SafetyScoreBadge } from "./SafetyScoreBadge";
 
 export interface ArtisanCardData {
   id: string;
@@ -21,6 +22,7 @@ export interface ArtisanCardData {
   is_available?: boolean;
   availableNow?: boolean;
   verification_status?: string | null;
+  community_score?: number | null;
   // legacy fields kept for backwards compat
   verified?: boolean;
   pro?: boolean;
@@ -40,6 +42,7 @@ export function ArtisanCard({ a }: Props) {
   const isVerified = a.verification_status === "id_verified" || a.verified;
   const isPro = a.verification_status === "pro_verified" || a.pro;
   const location = [a.sector, a.district].filter(Boolean).join(", ") || a.district || "Rwanda";
+  const score = a.community_score ?? 0;
 
   return (
     <Link
@@ -81,6 +84,13 @@ export function ArtisanCard({ a }: Props) {
           <MapPin className="h-3 w-3 shrink-0" />
           {location}
         </p>
+      )}
+
+      {/* Safety Score Badge (dot variant) — shown above verification badges */}
+      {score > 0 && (
+        <div className="mt-2 flex justify-center">
+          <SafetyScoreBadge score={score} variant="dot" showInfo={false} />
+        </div>
       )}
 
       {/* Badges */}

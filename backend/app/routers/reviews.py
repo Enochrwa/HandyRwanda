@@ -7,6 +7,7 @@ PATCH  /reviews/{review_id}/reply   — artisan replies
 PATCH  /reviews/{review_id}/flag    — flag review for admin
 """
 
+import asyncio
 from typing import Any
 from uuid import UUID
 
@@ -15,12 +16,13 @@ from pydantic import BaseModel, Field
 from sqlalchemy import func, select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.database import get_db
+from app.database import AsyncSessionLocal, get_db
 from app.dependencies.jwt_auth import get_current_user, require_role
 from app.models.artisan import ArtisanProfile
 from app.models.booking import Booking, BookingStatus
 from app.models.review import Review
 from app.models.user import User, UserRole
+from app.services.safety_score_service import recalculate_single_score
 
 router = APIRouter(prefix="/reviews", tags=["reviews"])
 
@@ -92,6 +94,14 @@ async def create_review(
 
     await db.commit()
     await db.refresh(review)
+
+    # Sprint 5: recalculate safety score — rating just changed
+    async def _score_after_review(artisan_id: UUID) -> None:
+        async with AsyncSessionLocal() as session:
+            await recalculate_single_score(artisan_id, session)
+
+    asyncio.create_task(_score_after_review(booking.artisan_id))
+
     return {
         "id": str(review.id),
         "booking_id": str(review.booking_id),

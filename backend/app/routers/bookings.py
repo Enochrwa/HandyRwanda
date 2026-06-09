@@ -47,6 +47,7 @@ from app.services.booking_lifecycle_service import (
     update_response_rate,
 )
 from app.services.escrow_service import release_escrow, schedule_release
+from app.services.safety_score_service import recalculate_single_score
 
 _log = logging.getLogger(__name__)
 
@@ -1014,6 +1015,16 @@ async def client_mark_complete(
     # Update rate metrics asynchronously
     asyncio.create_task(_update_rate_async(update_completion_rate,   booking.artisan_id))
     asyncio.create_task(_update_rate_async(update_repeat_client_rate, booking.artisan_id))
+
+    # Sprint 5: recalculate community safety score after job completion
+    async def _recalculate_score_after_completion(artisan_id: UUID) -> None:
+        # Slight delay to let rate metric updates commit first
+        await asyncio.sleep(2)
+        async with AsyncSessionLocal() as session:
+            new_score = await recalculate_single_score(artisan_id, session)
+            _log.info("[SafetyScore] Post-completion score for artisan %s: %d", artisan_id, new_score)
+
+    asyncio.create_task(_recalculate_score_after_completion(booking.artisan_id))
 
     asyncio.create_task(
         _push_booking_status_change(

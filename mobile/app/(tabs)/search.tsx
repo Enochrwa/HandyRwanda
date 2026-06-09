@@ -25,6 +25,7 @@ import {
 } from 'react-native';
 
 import api from '../../src/services/api';
+import { SafetyScoreBadge } from '../../src/components/SafetyScoreBadge';
 
 // Safe MapView import — only on native
 let MapView: any = null;
@@ -87,6 +88,7 @@ type Artisan = {
   total_reviews: number;
   is_available: boolean;
   verification_status?: string;
+  community_score?: number;
   hourly_rate?: number;
   fixed_rate?: number;
   lat?: number;
@@ -141,6 +143,10 @@ const ArtisanCard = React.memo(({ item, onPress }: { item: Artisan; onPress: () 
               : 'Contact for price'}
         </Text>
         <View className="flex-row items-center gap-2">
+          {/* Sprint 5: Safety Score dot badge */}
+          {item.community_score != null && item.community_score > 0 && (
+            <SafetyScoreBadge score={item.community_score} variant="dot" showInfo={false} />
+          )}
           {item.distance_km !== undefined && (
             <View className="flex-row items-center">
               <MapPin size={10} color="#6B6B6B" />

@@ -403,6 +403,13 @@ declare module "@tanstack/react-router" {
       preLoaderRoute: typeof JobsJobIdBidsRouteImport;
       parentRoute: typeof rootRouteImport;
     };
+    "/bookings/$bookingId": {
+      id: "/bookings/$bookingId";
+      path: "/bookings/$bookingId";
+      fullPath: "/bookings/$bookingId";
+      preLoaderRoute: typeof BookingsBookingIdRouteImport;
+      parentRoute: typeof rootRouteImport;
+    };
   }
 }
 

@@ -433,11 +433,14 @@ async def list_artisans(
     order = (
         "ap.average_rating DESC NULLS LAST"
         if sort == "rating"
+        else "ap.community_score DESC NULLS LAST"
+        if sort == "score"
         else "ap.created_at DESC"
     )
     query = text(f"""
         SELECT u.id::text AS id, u.full_name, u.avatar_url, u.district,
             ap.average_rating, ap.total_reviews, ap.is_available,
+            ap.verification_status, ap.community_score,
             ap.hourly_rate, ap.fixed_rate, ap.latitude AS lat, ap.longitude AS lng
         FROM users u
         JOIN artisan_profiles ap ON u.id = ap.user_id
@@ -585,6 +588,7 @@ class PreviousArtisanItem(BaseModel):
     average_rating: float
     total_reviews: int
     verification_status: str
+    community_score: int | None  # Sprint 5
     is_available: bool
     hourly_rate: int | None
     last_price: int
@@ -619,6 +623,7 @@ async def get_previous_artisans(
             ap.average_rating,
             ap.total_reviews,
             ap.verification_status,
+            ap.community_score,
             ap.is_available,
             ap.hourly_rate,
             b.agreed_price                AS last_price,
@@ -686,6 +691,7 @@ async def get_previous_artisans(
             "average_rating": float(row["average_rating"] or 0),
             "total_reviews": int(row["total_reviews"] or 0),
             "verification_status": row["verification_status"],
+            "community_score": int(row["community_score"] or 0),  # Sprint 5
             "is_available": bool(row["is_available"]),
             "hourly_rate": row["hourly_rate"],
             "last_price": int(row["last_price"]),

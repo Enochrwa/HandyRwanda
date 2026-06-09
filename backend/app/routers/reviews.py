@@ -92,6 +92,20 @@ async def create_review(
 
     await db.commit()
     await db.refresh(review)
+
+    # Sprint 5: recalculate safety score — rating just changed
+    import asyncio  # noqa: PLC0415
+
+    async def _score_after_review(artisan_id: UUID) -> None:
+        from app.database import AsyncSessionLocal  # noqa: PLC0415
+        from app.services.safety_score_service import (
+            recalculate_single_score,  # noqa: PLC0415
+        )
+        async with AsyncSessionLocal() as session:
+            await recalculate_single_score(artisan_id, session)
+
+    asyncio.create_task(_score_after_review(booking.artisan_id))
+
     return {
         "id": str(review.id),
         "booking_id": str(review.booking_id),

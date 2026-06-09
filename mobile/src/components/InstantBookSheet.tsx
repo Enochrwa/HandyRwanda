@@ -60,6 +60,7 @@ export interface PreviousArtisan {
   average_rating: number;
   total_reviews: number;
   verification_status: string;
+  community_score?: number | null;
   is_available: boolean;
   hourly_rate?: number | null;
   last_price: number;

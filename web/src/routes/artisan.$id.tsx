@@ -1,14 +1,19 @@
 // File: web/src/routes/artisan.$id.tsx
 /**
- * Sprint 4 enhanced Artisan Profile Page.
+ * Sprint 4 + 5 enhanced Artisan Profile Page.
  *
- * New additions:
+ * Sprint 4 additions:
  *  - "Book Again ⚡" button prominently shown when the viewing client
  *    has a completed booking with this artisan
  *  - InstantBookModal: inline modal for instant re-booking (no bid flow)
  *  - 10-minute countdown shown after instant booking is submitted
  *  - Fallback "Get Bids Instead" link always visible in instant book modal
  *  - Previous booking details pre-filled (last price, last job title)
+ *
+ * Sprint 5 additions:
+ *  - Community Safety Score badge (full variant) below artisan avatar
+ *  - Score breakdown fetched from /artisans/{id}/score and shown in info modal
+ *  - Score tier displayed on the artisan hero section
  */
 
 import { useState, useEffect, useCallback } from "react";
@@ -42,6 +47,7 @@ import { toast } from "sonner";
 import { AuthModal } from "@/components/AuthModal";
 import heroWork from "@/assets/hero-work.jpg";
 import { formatDistanceToNow } from "date-fns";
+import { SafetyScoreBadge, type ScoreBreakdown } from "@/components/SafetyScoreBadge";
 
 export const Route = createFileRoute("/artisan/$id")({
   head: () => ({
@@ -480,6 +486,14 @@ function Profile() {
   const previousInfo = previousArtisans?.find((a) => a.artisan_id === id);
   const hasWorkedBefore = !!previousInfo;
 
+  // Sprint 5: fetch safety score breakdown for this artisan
+  const { data: scoreBreakdown } = useQuery<ScoreBreakdown>({
+    queryKey: ["artisan-score", id],
+    queryFn: () => api.get(`/artisans/${id}/score`).then((r) => r.data),
+    enabled: !!id,
+    staleTime: 10 * 60 * 1000, // score changes at most once a night
+  });
+
   const handleMessageClick = () => {
     if (!isAuthenticated) {
       setIsAuthModalOpen(true);
@@ -688,6 +702,18 @@ function Profile() {
               label="District"
             />
           </div>
+
+          {/* Sprint 5: Community Safety Score Badge */}
+          {(p.community_score > 0 || scoreBreakdown) && (
+            <div className="mt-4">
+              <SafetyScoreBadge
+                score={scoreBreakdown?.total_score ?? p.community_score ?? 0}
+                breakdown={scoreBreakdown}
+                variant="full"
+                showInfo={true}
+              />
+            </div>
+          )}
 
           <div className="mt-4 flex flex-wrap items-center gap-x-4 gap-y-2 text-sm">
             {p.hourly_rate && (

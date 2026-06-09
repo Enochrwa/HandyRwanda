@@ -141,8 +141,24 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
         # accept window is scheduled per-booking via asyncio.create_task in the
         # bookings router. Future sprints add nightly jobs here.
 
-        # Placeholder for Sprint 5 nightly score recalculation (2am Kigali = 00:00 UTC)
-        # scheduler.add_job(recalculate_all_scores, CronTrigger(hour=0, minute=0))
+        # Sprint 5: nightly safety score recalculation at 00:00 UTC (02:00 Kigali)
+        from apscheduler.triggers.cron import CronTrigger  # noqa: PLC0415
+
+        async def _nightly_score_job() -> None:
+            from app.database import AsyncSessionLocal  # noqa: PLC0415
+            from app.services.safety_score_service import recalculate_all_scores  # noqa: PLC0415
+
+            async with AsyncSessionLocal() as session:
+                result = await recalculate_all_scores(session)
+                _log.info("[SafetyScore] Nightly job complete: %s", result)
+
+        scheduler.add_job(
+            _nightly_score_job,
+            CronTrigger(hour=0, minute=0, timezone="UTC"),
+            id="nightly_safety_score",
+            replace_existing=True,
+            misfire_grace_time=3600,
+        )
 
         # Placeholder for Sprint 9 nightly ML model training
         # scheduler.add_job(train_ranking_model, CronTrigger(hour=1, minute=0))
@@ -365,6 +381,33 @@ async def get_artisan_public(
         "portfolio": portfolio,
         "reviews": reviews,
     }
+
+
+# ── Sprint 5: Public Safety Score Breakdown ──────────────────────────────────
+
+
+@app.get("/artisans/{artisan_id}/score")
+async def get_artisan_score_public(
+    artisan_id: UUID, db: AsyncSession = Depends(get_db)
+) -> Any:
+    """
+    Sprint 5 — Return the full Community Safety Score breakdown for an artisan.
+    Public endpoint — no auth required (transparency is a trust signal).
+
+    Returns the artisan's score, tier, and per-component breakdown so clients
+    can understand exactly why they trust this artisan.
+    """
+    from app.services.safety_score_service import compute_safety_score  # noqa: PLC0415
+
+    # Verify artisan exists
+    profile = await db.scalar(
+        select(ArtisanProfile).where(ArtisanProfile.user_id == artisan_id)
+    )
+    if profile is None:
+        raise HTTPException(status_code=404, detail="Artisan not found.")
+
+    breakdown = await compute_safety_score(artisan_id, db, return_breakdown=True)
+    return breakdown.to_dict()
 
 
 # ── Recommended artisans (client home screen) ─────────────────────────────────

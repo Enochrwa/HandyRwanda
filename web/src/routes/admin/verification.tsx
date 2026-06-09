@@ -68,6 +68,20 @@ function AdminDashboard() {
               Admin
             </span>
           </Link>
+          <nav className="hidden sm:flex items-center gap-1">
+            <Link
+              to="/admin/verification"
+              className="rounded-lg px-3 py-1.5 text-sm font-semibold text-muted-foreground hover:text-foreground hover:bg-muted transition [&.active]:text-primary [&.active]:bg-primary/10"
+            >
+              Verification
+            </Link>
+            <Link
+              to="/admin/scores"
+              className="rounded-lg px-3 py-1.5 text-sm font-semibold text-muted-foreground hover:text-foreground hover:bg-muted transition [&.active]:text-primary [&.active]:bg-primary/10"
+            >
+              🛡️ Safety Scores
+            </Link>
+          </nav>
           <div className="flex-1" />
           <span className="text-sm text-muted-foreground hidden sm:block">{user?.fullName}</span>
           <button

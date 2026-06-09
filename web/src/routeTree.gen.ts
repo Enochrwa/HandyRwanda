@@ -24,6 +24,7 @@ import { Route as ArtisanEarningsRouteImport } from "./routes/artisan/earnings";
 import { Route as ArtisanReviewsRouteImport } from "./routes/artisan/reviews";
 import { Route as ArtisanIdRouteImport } from "./routes/artisan.$id";
 import { Route as AdminVerificationRouteImport } from "./routes/admin/verification";
+import { Route as AdminScoresRouteImport } from "./routes/admin/scores";
 import { Route as ArtisansJobsJobIdIndexRouteImport } from "./routes/artisans/jobs/$jobId/index";
 import { Route as JobsMineRouteImport } from "./routes/jobs/mine";
 import { Route as JobsJobIdBidsRouteImport } from "./routes/jobs/$jobId/bids";
@@ -104,6 +105,11 @@ const AdminVerificationRoute = AdminVerificationRouteImport.update({
   path: "/admin/verification",
   getParentRoute: () => rootRouteImport,
 } as any);
+const AdminScoresRoute = AdminScoresRouteImport.update({
+  id: "/admin/scores",
+  path: "/admin/scores",
+  getParentRoute: () => rootRouteImport,
+} as any);
 const ArtisansJobsJobIdIndexRoute = ArtisansJobsJobIdIndexRouteImport.update({
   id: "/$jobId/",
   path: "/$jobId/",
@@ -131,6 +137,7 @@ export interface FileRoutesByFullPath {
   "/pro": typeof ProRoute;
   "/search": typeof SearchRoute;
   "/admin/verification": typeof AdminVerificationRoute;
+  "/admin/scores": typeof AdminScoresRoute;
   "/artisan/$id": typeof ArtisanIdRoute;
   "/artisan/earnings": typeof ArtisanEarningsRoute;
   "/artisan/reviews": typeof ArtisanReviewsRoute;
@@ -152,6 +159,7 @@ export interface FileRoutesByTo {
   "/pro": typeof ProRoute;
   "/search": typeof SearchRoute;
   "/admin/verification": typeof AdminVerificationRoute;
+  "/admin/scores": typeof AdminScoresRoute;
   "/artisan/$id": typeof ArtisanIdRoute;
   "/artisan/earnings": typeof ArtisanEarningsRoute;
   "/artisan/reviews": typeof ArtisanReviewsRoute;
@@ -174,6 +182,7 @@ export interface FileRoutesById {
   "/pro": typeof ProRoute;
   "/search": typeof SearchRoute;
   "/admin/verification": typeof AdminVerificationRoute;
+  "/admin/scores": typeof AdminScoresRoute;
   "/artisan/$id": typeof ArtisanIdRoute;
   "/artisan/earnings": typeof ArtisanEarningsRoute;
   "/artisan/reviews": typeof ArtisanReviewsRoute;
@@ -261,6 +270,7 @@ export interface RootRouteChildren {
   ProRoute: typeof ProRoute;
   SearchRoute: typeof SearchRoute;
   AdminVerificationRoute: typeof AdminVerificationRoute;
+  AdminScoresRoute: typeof AdminScoresRoute;
   ArtisanIdRoute: typeof ArtisanIdRoute;
   ArtisanEarningsRoute: typeof ArtisanEarningsRoute;
   ArtisanReviewsRoute: typeof ArtisanReviewsRoute;
@@ -379,6 +389,11 @@ declare module "@tanstack/react-router" {
       id: "/admin/verification";
       path: "/admin/verification";
       fullPath: "/admin/verification";
+    };
+    "/admin/scores": {
+      id: "/admin/scores";
+      path: "/admin/scores";
+      fullPath: "/admin/scores";
       preLoaderRoute: typeof AdminVerificationRouteImport;
       parentRoute: typeof rootRouteImport;
     };
@@ -429,6 +444,7 @@ const rootRouteChildren: RootRouteChildren = {
   ProRoute: ProRoute,
   SearchRoute: SearchRoute,
   AdminVerificationRoute: AdminVerificationRoute,
+  AdminScoresRoute: AdminScoresRoute,
   ArtisanIdRoute: ArtisanIdRoute,
   ArtisanEarningsRoute: ArtisanEarningsRoute,
   ArtisanReviewsRoute: ArtisanReviewsRoute,

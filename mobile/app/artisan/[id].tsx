@@ -18,6 +18,7 @@ import Toast from 'react-native-toast-message';
 
 import api from '../../src/services/api';
 import { useAuthStore } from '../../src/store/authStore';
+import { SafetyScoreBadge, type ScoreBreakdown } from '../../src/components/SafetyScoreBadge';
 
 function formatRWF(n: number) {
   return new Intl.NumberFormat('rw-RW').format(n);
@@ -39,6 +40,14 @@ export default function ArtisanProfile() {
     queryKey: ['artisanPublic', id],
     queryFn: () => api.get(`/artisans/${id}/public`).then((r) => r.data),
     enabled: !!id,
+  });
+
+  // Sprint 5: fetch safety score breakdown
+  const { data: scoreBreakdown } = useQuery<ScoreBreakdown>({
+    queryKey: ['artisanScore', id],
+    queryFn: () => api.get(`/artisans/${id}/score`).then((r) => r.data),
+    enabled: !!id,
+    staleTime: 10 * 60 * 1000,
   });
 
   const { data: conversations } = useQuery({
@@ -233,6 +242,18 @@ export default function ArtisanProfile() {
               <View className="flex-row items-center mt-4">
                 <MapPin size={16} color="#6B6B6B" />
                 <Text className="ml-1.5 text-muted-foreground text-sm">{artisan.district}</Text>
+              </View>
+            )}
+
+            {/* Sprint 5: Community Safety Score Badge */}
+            {(p.community_score > 0 || scoreBreakdown) && (
+              <View className="mt-4">
+                <SafetyScoreBadge
+                  score={scoreBreakdown?.total_score ?? p.community_score ?? 0}
+                  breakdown={scoreBreakdown}
+                  variant="full"
+                  showInfo={true}
+                />
               </View>
             )}
           </View>

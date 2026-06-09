@@ -55,7 +55,11 @@ from app.routers import (
     schedule,
     uploads,
 )
-from app.services.safety_score_service import recalculate_all_scores
+from app.services.safety_score_service import (
+    ScoreBreakdown,
+    compute_safety_score,
+    recalculate_all_scores,
+)
 
 configure_logging()
 
@@ -395,8 +399,6 @@ async def get_artisan_score_public(
     Returns the artisan's score, tier, and per-component breakdown so clients
     can understand exactly why they trust this artisan.
     """
-    from app.services.safety_score_service import compute_safety_score  # noqa: PLC0415
-
     # Verify artisan exists
     profile = await db.scalar(
         select(ArtisanProfile).where(ArtisanProfile.user_id == artisan_id)
@@ -405,6 +407,7 @@ async def get_artisan_score_public(
         raise HTTPException(status_code=404, detail="Artisan not found.")
 
     breakdown = await compute_safety_score(artisan_id, db, return_breakdown=True)
+    assert isinstance(breakdown, ScoreBreakdown)
     return breakdown.to_dict()
 
 

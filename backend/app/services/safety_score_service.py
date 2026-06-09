@@ -33,7 +33,7 @@ from __future__ import annotations
 import logging
 from dataclasses import dataclass
 from datetime import datetime, timedelta, timezone
-from typing import NamedTuple
+from typing import Any, NamedTuple, cast
 from uuid import UUID
 
 from sqlalchemy import func, select, update
@@ -105,7 +105,7 @@ class ScoreBreakdown:
     tier_label: str
     tier_color: str
 
-    def to_dict(self) -> dict:
+    def to_dict(self) -> dict[str, Any]:
         return {
             "artisan_id": self.artisan_id,
             "total_score": self.total_score,
@@ -350,7 +350,7 @@ async def compute_safety_score(
 BATCH_SIZE = 50  # process 50 artisans at a time to bound memory pressure
 
 
-async def recalculate_all_scores(db: AsyncSession) -> dict:
+async def recalculate_all_scores(db: AsyncSession) -> dict[str, Any]:
     """
     Nightly cron job: recompute community_score for every artisan.
 
@@ -391,11 +391,11 @@ async def recalculate_all_scores(db: AsyncSession) -> dict:
     # Process in batches
     for batch_start in range(0, len(artisan_ids), BATCH_SIZE):
         batch = artisan_ids[batch_start : batch_start + BATCH_SIZE]
-        score_updates: list[dict] = []
+        score_updates: list[dict[str, Any]] = []
 
         for aid in batch:
             try:
-                score = await compute_safety_score(aid, db)
+                score = cast(int, await compute_safety_score(aid, db))
                 score_updates.append({"uid": aid, "score": score})
 
                 # Track distribution
@@ -452,7 +452,7 @@ async def recalculate_single_score(artisan_id: UUID, db: AsyncSession) -> int:
     verification status change, etc.
     Returns the new score.
     """
-    score = await compute_safety_score(artisan_id, db)
+    score = cast(int, await compute_safety_score(artisan_id, db))
     await db.execute(
         update(ArtisanProfile)
         .where(ArtisanProfile.user_id == artisan_id)

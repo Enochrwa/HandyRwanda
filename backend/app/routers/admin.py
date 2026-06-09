@@ -21,7 +21,11 @@ from app.models.notification import Notification
 from app.models.payment import Payment, PaymentStatus
 from app.models.review import Review
 from app.models.user import AccountStatus, User, UserRole
-from app.services.safety_score_service import recalculate_all_scores
+from app.services.safety_score_service import (
+    ScoreBreakdown,
+    compute_safety_score,
+    recalculate_all_scores,
+)
 
 router = APIRouter(prefix="/admin", tags=["admin"])
 
@@ -828,9 +832,8 @@ async def get_artisan_score_breakdown(
     Returns the score components, tier, raw source values, and a transparency
     narrative that admins can review before any manual override.
     """
-    from app.services.safety_score_service import compute_safety_score  # noqa: PLC0415
-
     breakdown = await compute_safety_score(artisan_id, db, return_breakdown=True)
+    assert isinstance(breakdown, ScoreBreakdown)
     return breakdown.to_dict()
 
 

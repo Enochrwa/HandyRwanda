@@ -128,10 +128,11 @@ async def approve_artisan(
     )
 
     # Sprint 5: recalculate score immediately — verification status just changed
-    from app.services.safety_score_service import (
-        recalculate_single_score,  # noqa: PLC0415
-    )
     from app.database import AsyncSessionLocal  # noqa: PLC0415
+    from app.services.safety_score_service import (  # noqa: PLC0415
+        recalculate_single_score,
+    )
+
     async with AsyncSessionLocal() as score_session:
         await recalculate_single_score(user_id, score_session)
 

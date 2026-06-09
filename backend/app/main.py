@@ -146,7 +146,9 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
 
         async def _nightly_score_job() -> None:
             from app.database import AsyncSessionLocal  # noqa: PLC0415
-            from app.services.safety_score_service import recalculate_all_scores  # noqa: PLC0415
+            from app.services.safety_score_service import (
+                recalculate_all_scores,  # noqa: PLC0415
+            )
 
             async with AsyncSessionLocal() as session:
                 result = await recalculate_all_scores(session)

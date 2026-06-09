@@ -4,108 +4,17 @@
  *
  * Three display variants:
  *   "full"    — Large badge with score number + tier label + description text
- *               Used on the artisan profile page header
  *   "compact" — Medium badge: emoji + score + label on one line
- *               Used in artisan cards and search results
  *   "dot"     — Tiny icon-only badge for space-constrained contexts
- *
- * Props also support showing a "What is this?" info popover.
  */
 
 import { useState } from "react";
 import { Info, X, Shield, Star, Clock, Users, CheckCircle, Award } from "lucide-react";
 import { cn } from "@/lib/utils";
 
-// ── Tier data ─────────────────────────────────────────────────────────────────
-
-export interface ScoreTier {
-  min: number;
-  max: number;
-  emoji: string;
-  label: string;
-  description: string;
-  color: string;       // Tailwind bg class
-  textColor: string;   // Tailwind text class
-  borderColor: string; // Tailwind border class
-  ringColor: string;   // Tailwind ring class
-}
-
-export const SCORE_TIERS: ScoreTier[] = [
-  {
-    min: 1000,
-    max: 1000,
-    emoji: "🌟",
-    label: "Legend",
-    description: "An exceptionally rare achievement. This artisan has achieved perfection across every trust signal.",
-    color: "bg-gradient-to-r from-yellow-400 to-amber-500",
-    textColor: "text-white",
-    borderColor: "border-yellow-400",
-    ringColor: "ring-yellow-400",
-  },
-  {
-    min: 850,
-    max: 999,
-    emoji: "💎",
-    label: "Elite",
-    description: "Top-tier artisan. Highly verified, outstanding reviews, and an impeccable track record.",
-    color: "bg-gradient-to-r from-purple-500 to-violet-600",
-    textColor: "text-white",
-    borderColor: "border-purple-500",
-    ringColor: "ring-purple-500",
-  },
-  {
-    min: 700,
-    max: 849,
-    emoji: "🥇",
-    label: "Highly Trusted",
-    description: "Verified, reliable, and consistently praised by clients. An excellent choice.",
-    color: "bg-gradient-to-r from-amber-400 to-yellow-500",
-    textColor: "text-white",
-    borderColor: "border-amber-400",
-    ringColor: "ring-amber-400",
-  },
-  {
-    min: 500,
-    max: 699,
-    emoji: "🥈",
-    label: "Trusted",
-    description: "A verified artisan with a solid reputation and good completion record.",
-    color: "bg-gradient-to-r from-slate-400 to-zinc-500",
-    textColor: "text-white",
-    borderColor: "border-slate-400",
-    ringColor: "ring-slate-400",
-  },
-  {
-    min: 300,
-    max: 499,
-    emoji: "🥉",
-    label: "Registered",
-    description: "New to HandyRwanda but registered and verified. Building their reputation.",
-    color: "bg-gradient-to-r from-orange-300 to-amber-400",
-    textColor: "text-white",
-    borderColor: "border-orange-300",
-    ringColor: "ring-orange-300",
-  },
-  {
-    min: 0,
-    max: 299,
-    emoji: "⭕",
-    label: "Unranked",
-    description: "This artisan is getting started. Encourage them to complete their profile and verification.",
-    color: "bg-gradient-to-r from-gray-300 to-slate-400",
-    textColor: "text-white",
-    borderColor: "border-gray-300",
-    ringColor: "ring-gray-300",
-  },
-];
-
-export function getScoreTier(score: number): ScoreTier {
-  if (score >= 1000) return SCORE_TIERS[0];
-  for (const tier of SCORE_TIERS) {
-    if (score >= tier.min) return tier;
-  }
-  return SCORE_TIERS[SCORE_TIERS.length - 1];
-}
+// Tier constants imported from dedicated file (react-refresh compliance)
+import { getScoreTier } from "./safetyScoreTiers";
+import type { ScoreTier } from "./safetyScoreTiers";
 
 // ── Score component breakdown (from API) ─────────────────────────────────────
 
@@ -169,41 +78,38 @@ function ScoreInfoPanel({
   const components = breakdown?.components;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-end justify-center sm:items-center p-4">
+    <div className="fixed inset-0 z-50 flex items-end justify-center p-4 sm:items-center">
       {/* Backdrop */}
-      <div
-        className="absolute inset-0 bg-black/40 backdrop-blur-sm"
-        onClick={onClose}
-      />
+      <div className="absolute inset-0 bg-black/40 backdrop-blur-sm" onClick={onClose} />
 
       {/* Panel */}
-      <div className="relative z-10 w-full max-w-md rounded-2xl bg-card border border-border shadow-2xl overflow-hidden">
+      <div className="relative z-10 w-full max-w-md overflow-hidden rounded-2xl border border-border bg-card shadow-2xl">
         {/* Header */}
         <div className={cn("p-5", tier.color)}>
           <div className="flex items-start justify-between">
             <div>
-              <p className="text-xs font-semibold text-white/80 uppercase tracking-widest mb-1">
+              <p className="mb-1 text-xs font-semibold uppercase tracking-widest text-white/80">
                 Community Safety Score
               </p>
               <div className="flex items-baseline gap-2">
                 <span className="text-4xl font-black text-white">{score}</span>
-                <span className="text-white/60 text-sm font-medium">/1000</span>
+                <span className="text-sm font-medium text-white/60">/1000</span>
               </div>
-              <div className="flex items-center gap-1.5 mt-1">
+              <div className="mt-1 flex items-center gap-1.5">
                 <span className="text-lg">{tier.emoji}</span>
-                <span className="text-white font-bold text-sm">{tier.label}</span>
+                <span className="text-sm font-bold text-white">{tier.label}</span>
               </div>
             </div>
             <button
               onClick={onClose}
-              className="rounded-full bg-white/20 p-1.5 hover:bg-white/30 transition"
+              className="rounded-full bg-white/20 p-1.5 transition hover:bg-white/30"
             >
               <X className="h-4 w-4 text-white" />
             </button>
           </div>
 
           {/* Score bar */}
-          <div className="mt-4 h-2 rounded-full bg-white/30 overflow-hidden">
+          <div className="mt-4 h-2 overflow-hidden rounded-full bg-white/30">
             <div
               className="h-full rounded-full bg-white transition-all duration-700"
               style={{ width: `${Math.min((score / 1000) * 100, 100)}%` }}
@@ -213,12 +119,12 @@ function ScoreInfoPanel({
 
         {/* Body */}
         <div className="p-5">
-          <p className="text-sm text-muted-foreground mb-4">{tier.description}</p>
+          <p className="mb-4 text-sm text-muted-foreground">{tier.description}</p>
 
           {/* Component breakdown */}
           {components ? (
             <div className="space-y-2">
-              <p className="text-xs font-bold text-foreground uppercase tracking-wider mb-3">
+              <p className="mb-3 text-xs font-bold uppercase tracking-wider text-foreground">
                 Score Breakdown
               </p>
               {Object.entries(components).map(([key, comp]) => {
@@ -232,17 +138,15 @@ function ScoreInfoPanel({
                         </span>
                         <span className="font-medium">{comp.label}</span>
                       </div>
-                      <span className="font-bold text-foreground tabular-nums">
+                      <span className="font-bold tabular-nums text-foreground">
                         {Math.round(comp.points)}/{comp.max}
                       </span>
                     </div>
-                    <div className="h-1.5 rounded-full bg-muted overflow-hidden">
+                    <div className="h-1.5 overflow-hidden rounded-full bg-muted">
                       <div
                         className={cn(
                           "h-full rounded-full transition-all duration-500",
-                          pct >= 80 ? "bg-green-500" :
-                          pct >= 50 ? "bg-amber-400" :
-                          "bg-rose-400"
+                          pct >= 80 ? "bg-green-500" : pct >= 50 ? "bg-amber-400" : "bg-rose-400",
                         )}
                         style={{ width: `${pct}%` }}
                       />
@@ -253,8 +157,8 @@ function ScoreInfoPanel({
             </div>
           ) : (
             <div className="space-y-2">
-              <p className="text-xs font-bold text-foreground uppercase tracking-wider mb-3">
-                How it's calculated
+              <p className="mb-3 text-xs font-bold uppercase tracking-wider text-foreground">
+                How it&apos;s calculated
               </p>
               {[
                 { label: "ID Verification", max: 200 },
@@ -275,10 +179,10 @@ function ScoreInfoPanel({
             </div>
           )}
 
-          <div className="mt-4 pt-4 border-t border-border">
+          <div className="mt-4 border-t border-border pt-4">
             <p className="text-xs text-muted-foreground">
-              Scores are recalculated nightly. Every completed job, verified ID,
-              and satisfied client improves this score.
+              Scores are recalculated nightly. Every completed job, verified ID, and satisfied
+              client improves this score.
             </p>
           </div>
         </div>
@@ -315,9 +219,8 @@ export function SafetyScoreBadge({
           title={`${tier.emoji} ${tier.label} — Score ${score}/1000`}
           onClick={showInfo ? () => setInfoOpen(true) : undefined}
           className={cn(
-            "inline-flex items-center gap-0.5 rounded-full px-1.5 py-0.5",
+            "inline-flex items-center gap-0.5 rounded-full border px-1.5 py-0.5",
             "text-[10px] font-bold tabular-nums",
-            "border",
             tier.borderColor,
             "bg-card text-foreground",
             showInfo && "cursor-pointer hover:ring-2",
@@ -348,24 +251,23 @@ export function SafetyScoreBadge({
         <button
           onClick={showInfo ? () => setInfoOpen(true) : undefined}
           className={cn(
-            "inline-flex items-center gap-1.5 rounded-full px-2.5 py-1",
+            "inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1",
             "text-xs font-semibold",
-            "border",
             tier.borderColor,
             "bg-card",
             showInfo && "cursor-pointer hover:ring-2",
             showInfo && tier.ringColor,
-            "transition group",
+            "group transition",
             className,
           )}
         >
           <span className="text-sm">{tier.emoji}</span>
-          <span className="text-foreground font-bold tabular-nums">{score}</span>
+          <span className="font-bold tabular-nums text-foreground">{score}</span>
           <span className="text-muted-foreground">/1000</span>
-          <span className="text-foreground font-semibold">·</span>
+          <span className="font-semibold text-foreground">·</span>
           <span className="text-foreground">{tier.label}</span>
           {showInfo && (
-            <Info className="h-3 w-3 text-muted-foreground group-hover:text-foreground transition ml-0.5" />
+            <Info className="ml-0.5 h-3 w-3 text-muted-foreground transition group-hover:text-foreground" />
           )}
         </button>
         {infoOpen && (
@@ -386,11 +288,11 @@ export function SafetyScoreBadge({
       <button
         onClick={showInfo ? () => setInfoOpen(true) : undefined}
         className={cn(
-          "w-full rounded-2xl border overflow-hidden",
+          "w-full overflow-hidden rounded-2xl border",
           tier.borderColor,
           showInfo && "cursor-pointer hover:ring-2",
           showInfo && tier.ringColor,
-          "transition shadow-sm",
+          "shadow-sm transition",
           className,
         )}
       >
@@ -398,21 +300,21 @@ export function SafetyScoreBadge({
         <div className={cn("px-5 py-4", tier.color)}>
           <div className="flex items-center justify-between">
             <div>
-              <p className="text-xs font-bold text-white/80 uppercase tracking-widest">
+              <p className="text-xs font-bold uppercase tracking-widest text-white/80">
                 Community Safety Score
               </p>
-              <div className="flex items-baseline gap-1.5 mt-0.5">
-                <span className="text-3xl font-black text-white tabular-nums">{score}</span>
-                <span className="text-white/60 text-sm">/1000</span>
+              <div className="mt-0.5 flex items-baseline gap-1.5">
+                <span className="text-3xl font-black tabular-nums text-white">{score}</span>
+                <span className="text-sm text-white/60">/1000</span>
               </div>
             </div>
             <div className="text-right">
               <span className="text-3xl">{tier.emoji}</span>
-              <p className={cn("text-sm font-bold mt-0.5", tier.textColor)}>{tier.label}</p>
+              <p className={cn("mt-0.5 text-sm font-bold", tier.textColor)}>{tier.label}</p>
             </div>
           </div>
           {/* Progress bar */}
-          <div className="mt-3 h-2 rounded-full bg-white/30 overflow-hidden">
+          <div className="mt-3 h-2 overflow-hidden rounded-full bg-white/30">
             <div
               className="h-full rounded-full bg-white"
               style={{ width: `${Math.min((score / 1000) * 100, 100)}%` }}
@@ -422,9 +324,9 @@ export function SafetyScoreBadge({
 
         {/* Footer */}
         {showInfo && (
-          <div className="px-5 py-2.5 bg-card flex items-center justify-between">
+          <div className="flex items-center justify-between bg-card px-5 py-2.5">
             <p className="text-xs text-muted-foreground">{tier.description.slice(0, 60)}…</p>
-            <div className="flex items-center gap-1 text-xs text-primary font-medium">
+            <div className="flex items-center gap-1 text-xs font-medium text-primary">
               <Info className="h-3 w-3" />
               Details
             </div>

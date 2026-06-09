@@ -28,7 +28,6 @@ from app.services.safety_score_service import (
     recalculate_single_score,
 )
 
-
 # ── Fixtures ──────────────────────────────────────────────────────────────────
 
 def _make_profile(**kwargs):

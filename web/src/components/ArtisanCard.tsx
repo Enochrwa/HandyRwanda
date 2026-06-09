@@ -137,4 +137,3 @@ export function ArtisanCard({ a }: Props) {
     </Link>
   );
 }
-

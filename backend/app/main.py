@@ -27,7 +27,7 @@ from sqlalchemy import select
 from sqlalchemy import text as sa_text
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.database import get_db, init_db
+from app.database import AsyncSessionLocal, get_db, init_db
 from app.dependencies.jwt_auth import get_current_user
 from app.integrations.socket_manager import create_combined_asgi, sio
 from app.integrations.upstash import redis_get, redis_set
@@ -55,6 +55,7 @@ from app.routers import (
     schedule,
     uploads,
 )
+from app.services.safety_score_service import recalculate_all_scores
 
 configure_logging()
 
@@ -145,11 +146,6 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
         from apscheduler.triggers.cron import CronTrigger  # noqa: PLC0415
 
         async def _nightly_score_job() -> None:
-            from app.database import AsyncSessionLocal  # noqa: PLC0415
-            from app.services.safety_score_service import (
-                recalculate_all_scores,  # noqa: PLC0415
-            )
-
             async with AsyncSessionLocal() as session:
                 result = await recalculate_all_scores(session)
                 _log.info("[SafetyScore] Nightly job complete: %s", result)

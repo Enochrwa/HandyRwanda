@@ -21,6 +21,7 @@ from app.models.notification import Notification
 from app.models.payment import Payment, PaymentStatus
 from app.models.review import Review
 from app.models.user import AccountStatus, User, UserRole
+from app.services.safety_score_service import recalculate_all_scores
 
 router = APIRouter(prefix="/admin", tags=["admin"])
 
@@ -917,10 +918,6 @@ async def trigger_score_recalculation(
     This is the same job that runs automatically at 00:00 UTC each night.
     Admins can trigger it on-demand (e.g., after a bulk verification run).
     """
-    from app.services.safety_score_service import (
-        recalculate_all_scores,  # noqa: PLC0415
-    )
-
     result = await recalculate_all_scores(db)
     return {
         "status": "complete",

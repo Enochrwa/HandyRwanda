@@ -34,8 +34,9 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.database import AsyncSessionLocal, get_db
 from app.dependencies.jwt_auth import get_current_user, require_role
+from app.models.artisan import ArtisanProfile, Category, VerificationStatus
 from app.models.booking import Booking, BookingStatus, CancelledBy
-from app.models.job import Job
+from app.models.job import Job, JobStatus
 from app.models.notification import Notification
 from app.models.user import User, UserRole
 from app.services.booking_lifecycle_service import (
@@ -65,6 +66,25 @@ class DirectBookingCreate(BaseModel):
 class EnRoutePayload(BaseModel):
     """Optional payload for /en-route — artisan can provide ETA."""
     eta_minutes: int | None = Field(default=None, ge=1, le=240)
+
+
+
+class InstantBookCreate(BaseModel):
+    """
+    Sprint 4 — Instant Book: skip the bidding flow entirely.
+    Client must have at least one completed booking with this artisan.
+    """
+    artisan_id:       UUID
+    category_id:      UUID
+    description:      str = Field(..., min_length=10, max_length=2000)
+    scheduled_time:   datetime | None = None
+    address_district: str | None = None
+    address_detail:   str | None = None
+    budget:           int = Field(..., gt=0, description="Agreed price in RWF")
+    use_last_price:   bool = Field(
+        default=False,
+        description="Pre-fill agreed_price from last completed booking with artisan",
+    )
 
 
 # ── Helpers ───────────────────────────────────────────────────────────────────
@@ -175,6 +195,226 @@ async def create_direct_booking(
 
     await db.commit()
     return {"id": str(booking.id), "status": booking.status}
+
+
+
+async def _schedule_instant_book_revert(
+    booking_id: UUID,
+    job_id: UUID,
+    client_id: UUID,
+    artisan_name: str,
+) -> None:
+    """
+    Sprint 4 background task — auto-cancel an instant booking and revert its
+    job to open status if the artisan does not respond within 10 minutes.
+    """
+    await asyncio.sleep(10 * 60)
+    try:
+        async with AsyncSessionLocal() as session:
+            fresh = await session.scalar(
+                select(Booking).where(Booking.id == booking_id)
+            )
+            if fresh and fresh.status == BookingStatus.pending_payment:
+                await session.execute(
+                    update(Booking)
+                    .where(Booking.id == booking_id)
+                    .values(
+                        status=BookingStatus.cancelled,
+                        cancelled_by=CancelledBy.system,
+                    )
+                )
+                await session.execute(
+                    update(Job)
+                    .where(Job.id == job_id)
+                    .values(status=JobStatus.open)
+                )
+                session.add(
+                    Notification(
+                        user_id=client_id,
+                        event_type="instant_book_expired",
+                        title="⚠️ Artisan did not respond",
+                        body=(
+                            artisan_name
+                            + " did not confirm your instant booking in time. "
+                            "Your job is now open for other artisans to bid on."
+                        ),
+                        payload={"job_id": str(job_id), "screen": "job_bids"},
+                    )
+                )
+                await session.commit()
+                _log.info(
+                    "Instant booking %s auto-reverted to open job %s",
+                    booking_id,
+                    job_id,
+                )
+    except Exception:
+        _log.exception("instant_book_revert failed for booking %s", booking_id)
+
+
+# ── Sprint 4: Instant Book ────────────────────────────────────────────────────
+
+
+@router.post("/instant", status_code=201)
+async def create_instant_booking(
+    payload: InstantBookCreate,
+    db: AsyncSession = Depends(get_db),
+    current_user: dict[str, Any] = Depends(require_role(UserRole.client)),
+) -> Any:
+    """
+    Sprint 4 — Instant Booking.
+
+    Allows a client to re-book a previously used artisan with one tap,
+    skipping the bidding flow entirely. Requirements:
+      1. Client must have at least 1 completed booking with this artisan.
+      2. Job is auto-created with status=\'booked\' (skips \'open\').
+      3. Booking is auto-created with status=\'pending_payment\'.
+      4. Artisan is notified; has 10 minutes to confirm or decline.
+      5. If artisan declines / timeout: job reverts to \'open\' for normal bidding.
+    """
+    client_id = UUID(current_user["sub"])
+    artisan_id = payload.artisan_id
+
+    # ── 1. Verify prior relationship ─────────────────────────────────────────
+    prior_booking = await db.scalar(
+        select(Booking).where(
+            Booking.client_id == client_id,
+            Booking.artisan_id == artisan_id,
+            Booking.status == BookingStatus.completed,
+        )
+    )
+    if not prior_booking:
+        raise HTTPException(
+            status_code=403,
+            detail=(
+                "Instant booking is only available with artisans you have previously worked with. "
+                "Please post an open job or request a quote instead."
+            ),
+        )
+
+    # ── 2. Verify artisan exists, is active, and is eligible ─────────────────
+    artisan_user = await db.scalar(
+        select(User).where(User.id == artisan_id, User.role == UserRole.artisan)
+    )
+    if not artisan_user:
+        raise HTTPException(status_code=404, detail="Artisan not found.")
+
+    artisan_profile = await db.scalar(
+        select(ArtisanProfile).where(ArtisanProfile.user_id == artisan_id)
+    )
+    if not artisan_profile:
+        raise HTTPException(status_code=404, detail="Artisan profile not found.")
+
+    if not artisan_profile.is_available:
+        raise HTTPException(
+            status_code=409,
+            detail=f"{artisan_user.full_name} is currently marked as unavailable. "
+                   "You can post an open job to receive bids instead.",
+        )
+
+    if artisan_profile.verification_status not in (
+        VerificationStatus.id_verified,
+        VerificationStatus.pro_verified,
+    ):
+        raise HTTPException(
+            status_code=409,
+            detail="This artisan is not yet verified for instant booking. "
+                   "Please post an open job instead.",
+        )
+
+    # ── 3. Resolve agreed price ───────────────────────────────────────────────
+    agreed_price = payload.budget
+    if payload.use_last_price and prior_booking.agreed_price:
+        agreed_price = prior_booking.agreed_price
+
+    # ── 4. Auto-create Job (status=booked, bypassing open) ───────────────────
+    client_user = await db.scalar(select(User).where(User.id == client_id))
+
+    category = await db.scalar(
+        select(Category).where(Category.id == payload.category_id)
+    )
+    category_name = category.name_en if category else "Service"
+
+    job = Job(
+        client_id=client_id,
+        category_id=payload.category_id,
+        title=f"⚡ Instant Booking — {category_name}",
+        description=payload.description,
+        district=payload.address_district,
+        status=JobStatus.booked,          # Skip \'open\' — goes straight to booked
+        budget=agreed_price,
+        budget_negotiable=False,
+        scheduled_time=payload.scheduled_time,
+        location_label=payload.address_detail or payload.address_district,
+    )
+    db.add(job)
+    await db.flush()  # get job.id
+
+    # ── 5. Auto-create Booking (status=pending_payment) ───────────────────────
+    booking = Booking(
+        job_id=job.id,
+        client_id=client_id,
+        artisan_id=artisan_id,
+        agreed_price=agreed_price,
+        status=BookingStatus.pending_payment,
+        auto_confirm_at=datetime.now(timezone.utc) + timedelta(hours=72),
+    )
+    db.add(booking)
+    await db.flush()  # get booking.id
+
+    # ── 6. Notify artisan via DB notification + real-time push ────────────────
+    client_name = client_user.full_name if client_user else "A client"
+    await _notify(
+        db,
+        artisan_id,
+        "instant_booking_request",
+        "⚡ Instant Booking Request!",
+        f"{client_name} wants to book you again for: {category_name}. "
+        f"Agreed price: {agreed_price:,} RWF. You have 10 minutes to confirm.",
+        {
+            "booking_id": str(booking.id),
+            "job_id": str(job.id),
+            "screen": "booking_detail",
+            "client_name": client_name,
+            "category": category_name,
+            "agreed_price": agreed_price,
+        },
+    )
+
+    await db.commit()
+
+    # ── 7. Push real-time WS event to artisan ─────────────────────────────────
+    asyncio.create_task(
+        _push_booking_status_change(
+            artisan_id,
+            booking_id=str(booking.id),
+            new_status="instant_booking_request",
+            client_name=client_name,
+        )
+    )
+
+    # ── 8. Schedule 10-minute auto-revert if artisan doesn\'t confirm ──────────
+    # ── 8. Schedule 10-minute auto-revert if artisan doesn't confirm ──────────
+    asyncio.create_task(
+        _schedule_instant_book_revert(
+            booking_id=booking.id,
+            job_id=job.id,
+            client_id=client_id,
+            artisan_name=artisan_user.full_name if artisan_user else "Your artisan",
+        )
+    )
+
+    return {
+        "id": str(booking.id),
+        "job_id": str(job.id),
+        "status": booking.status,
+        "agreed_price": agreed_price,
+        "artisan_name": artisan_user.full_name if artisan_user else "",
+        "message": (
+            f"\u26a1 Instant booking sent to {artisan_user.full_name if artisan_user else 'your artisan'}! "
+            "They have 10 minutes to confirm. You'll be notified immediately."
+        ),
+        "expires_at": (datetime.now(timezone.utc) + timedelta(minutes=10)).isoformat(),
+    }
 
 
 # ── READ ───────────────────────────────────────────────────────────────────────
@@ -994,4 +1234,143 @@ async def admin_set_status(
         "booking_id": str(booking_id),
         "old_status": old_status,
         "new_status": payload.status,
+    }
+
+
+# ── Sprint 4: Artisan accept / decline instant booking ────────────────────────
+
+
+@router.post("/{booking_id}/instant-confirm")
+async def artisan_confirm_instant_booking(
+    booking_id: UUID,
+    db: AsyncSession = Depends(get_db),
+    current_user: dict[str, Any] = Depends(require_role(UserRole.artisan)),
+) -> Any:
+    """
+    Sprint 4 — Artisan confirms an instant booking (transitions → confirmed).
+
+    The booking was auto-created with status=pending_payment. Artisan
+    tapping "Confirm" sets it to confirmed, signalling they've accepted
+    and are preparing for the job. Client is notified immediately.
+    """
+    user_id = UUID(current_user["sub"])
+
+    booking = await db.scalar(
+        select(Booking).where(
+            Booking.id == booking_id,
+            Booking.artisan_id == user_id,
+            Booking.status == BookingStatus.pending_payment,
+        )
+    )
+    if not booking:
+        raise HTTPException(
+            status_code=404,
+            detail="Booking not found or already responded to.",
+        )
+
+    now = datetime.now(timezone.utc)
+    await db.execute(
+        update(Booking).where(Booking.id == booking_id).values(
+            status=BookingStatus.confirmed,
+            accepted_at=now,
+        )
+    )
+
+    artisan_user = await db.scalar(select(User).where(User.id == user_id))
+    artisan_name = artisan_user.full_name if artisan_user else "Your artisan"
+
+    await _notify(
+        db,
+        booking.client_id,
+        "instant_booking_confirmed",
+        "⚡ Instant Booking Confirmed!",
+        f"{artisan_name} has confirmed your booking! They'll be in touch soon.",
+        {"booking_id": str(booking_id), "screen": "booking_detail"},
+    )
+
+    await db.commit()
+
+    asyncio.create_task(
+        _push_booking_status_change(
+            booking.client_id,
+            booking_id=str(booking_id),
+            new_status="confirmed",
+            artisan_name=artisan_name,
+        )
+    )
+
+    return {
+        "message": "Instant booking confirmed! The client has been notified.",
+        "status": BookingStatus.confirmed,
+        "booking_id": str(booking_id),
+    }
+
+
+@router.post("/{booking_id}/instant-decline")
+async def artisan_decline_instant_booking(
+    booking_id: UUID,
+    db: AsyncSession = Depends(get_db),
+    current_user: dict[str, Any] = Depends(require_role(UserRole.artisan)),
+) -> Any:
+    """
+    Sprint 4 — Artisan declines an instant booking.
+
+    Cancels the booking and reverts the associated job to 'open'
+    status so the client can receive bids from other artisans.
+    """
+    user_id = UUID(current_user["sub"])
+
+    booking = await db.scalar(
+        select(Booking).where(
+            Booking.id == booking_id,
+            Booking.artisan_id == user_id,
+            Booking.status == BookingStatus.pending_payment,
+        )
+    )
+    if not booking:
+        raise HTTPException(
+            status_code=404,
+            detail="Booking not found or already responded to.",
+        )
+
+    artisan_user = await db.scalar(select(User).where(User.id == user_id))
+    artisan_name = artisan_user.full_name if artisan_user else "The artisan"
+
+    # Cancel the instant booking
+    await db.execute(
+        update(Booking).where(Booking.id == booking_id).values(
+            status=BookingStatus.cancelled,
+            cancelled_by=CancelledBy.artisan,
+            cancellation_reason="Artisan declined instant booking",
+        )
+    )
+
+    # Revert job to open so client can receive bids
+    await db.execute(
+        update(Job)
+        .where(Job.id == booking.job_id)
+        .values(status=JobStatus.open)
+    )
+
+    # Notify client
+    await _notify(
+        db,
+        booking.client_id,
+        "instant_booking_declined",
+        "Artisan Unavailable",
+        f"{artisan_name} is unable to take your booking right now. "
+        "Your job has been posted for other artisans to bid on.",
+        {
+            "booking_id": str(booking_id),
+            "job_id": str(booking.job_id),
+            "screen": "job_bids",
+        },
+    )
+
+    await db.commit()
+
+    return {
+        "message": "Instant booking declined. The job has been posted for open bids.",
+        "status": BookingStatus.cancelled,
+        "job_id": str(booking.job_id),
     }

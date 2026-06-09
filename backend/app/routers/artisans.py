@@ -1,4 +1,5 @@
 # File: backend/app/routers/artisans.py
+from datetime import date
 from typing import Any, cast
 from uuid import UUID
 
@@ -19,6 +20,7 @@ from app.models.artisan import (
 )
 from app.models.booking import Booking, BookingStatus
 from app.models.job import Bid, BidStatus, Job
+from app.models.schedule import BlockedDate
 from app.models.user import User, UserRole
 from app.utils.geo import HAVERSINE_KM_AP
 
@@ -571,3 +573,126 @@ async def get_artisan_skills(
         }
         for c in cats_result.scalars().all()
     ]
+
+
+# ── Sprint 4: Previous Artisans (Instant Booking) ─────────────────────────────
+
+
+class PreviousArtisanItem(BaseModel):
+    artisan_id: str
+    full_name: str
+    avatar_url: str | None
+    average_rating: float
+    total_reviews: int
+    verification_status: str
+    is_available: bool
+    hourly_rate: int | None
+    last_price: int
+    last_booked_at: str
+    last_job_title: str
+    last_category: str
+    instant_book_eligible: bool
+
+
+@router.get("/previous", response_model=list[PreviousArtisanItem])
+async def get_previous_artisans(
+    db: AsyncSession = Depends(get_db),
+    current_user: dict[str, Any] = Depends(require_role(UserRole.client)),
+) -> Any:
+    """
+    Sprint 4 — Returns artisans a client has successfully worked with before,
+    ordered by most recent booking. Used to power the "Book Again 🔄" UI.
+
+    Each item includes `instant_book_eligible` which is True when:
+      - artisan is available
+      - artisan is id_verified or pro_verified
+      - artisan has no active booking conflict in next 4 hours
+      - artisan is not blocked today
+    """
+    client_id = UUID(current_user["sub"])
+
+    query = text("""
+        SELECT DISTINCT ON (b.artisan_id)
+            b.artisan_id::text            AS artisan_id,
+            u.full_name,
+            u.avatar_url,
+            ap.average_rating,
+            ap.total_reviews,
+            ap.verification_status,
+            ap.is_available,
+            ap.hourly_rate,
+            b.agreed_price                AS last_price,
+            b.created_at                  AS last_booked_at,
+            j.title                       AS last_job_title,
+            c.name_en                     AS last_category
+        FROM bookings b
+        JOIN users u          ON b.artisan_id = u.id
+        JOIN artisan_profiles ap ON b.artisan_id = ap.user_id
+        JOIN jobs j           ON b.job_id = j.id
+        JOIN categories c     ON j.category_id = c.id
+        WHERE b.client_id = :client_id
+          AND b.status = 'completed'
+        ORDER BY b.artisan_id, b.created_at DESC
+        LIMIT 10
+    """)
+
+    result = await db.execute(query, {"client_id": client_id})
+    rows = result.mappings().all()
+
+    today = date.today()
+
+    # For each artisan, check booking conflicts and blocked dates
+
+    output = []
+    for row in rows:
+        artisan_id_uuid = UUID(row["artisan_id"])
+
+        # Eligibility checks
+        is_verified = row["verification_status"] in ("id_verified", "pro_verified")
+        is_available = row["is_available"]
+
+        # Check blocked dates today
+        blocked = await db.scalar(
+            select(BlockedDate).where(
+                BlockedDate.artisan_id == artisan_id_uuid,
+                BlockedDate.blocked_date == today,
+            )
+        )
+
+        # Check active booking conflicts (any active booking in next 4h)
+        active_conflict = await db.scalar(
+            select(Booking).where(
+                Booking.artisan_id == artisan_id_uuid,
+                Booking.status.in_([
+                    BookingStatus.artisan_en_route,
+                    BookingStatus.arrived,
+                    BookingStatus.in_progress,
+                    BookingStatus.artisan_accepted,
+                ]),
+            )
+        )
+
+        eligible = (
+            is_available
+            and is_verified
+            and not blocked
+            and not active_conflict
+        )
+
+        output.append({
+            "artisan_id": row["artisan_id"],
+            "full_name": row["full_name"],
+            "avatar_url": row["avatar_url"],
+            "average_rating": float(row["average_rating"] or 0),
+            "total_reviews": int(row["total_reviews"] or 0),
+            "verification_status": row["verification_status"],
+            "is_available": bool(row["is_available"]),
+            "hourly_rate": row["hourly_rate"],
+            "last_price": int(row["last_price"]),
+            "last_booked_at": row["last_booked_at"].isoformat() if row["last_booked_at"] else "",
+            "last_job_title": row["last_job_title"],
+            "last_category": row["last_category"],
+            "instant_book_eligible": eligible,
+        })
+
+    return output

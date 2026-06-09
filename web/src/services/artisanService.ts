@@ -168,3 +168,42 @@ export const artisanService = {
     return res.data;
   },
 };
+
+// ── Sprint 4: Previous Artisans (Instant Booking) ─────────────────────────
+
+export interface PreviousArtisan {
+  artisan_id: string;
+  full_name: string;
+  avatar_url?: string | null;
+  average_rating: number;
+  total_reviews: number;
+  verification_status: string;
+  is_available: boolean;
+  hourly_rate?: number | null;
+  last_price: number;
+  last_booked_at: string;
+  last_job_title: string;
+  last_category: string;
+  instant_book_eligible: boolean;
+}
+
+export interface InstantBookPayload {
+  artisan_id: string;
+  category_id: string;
+  description: string;
+  scheduled_time?: string;
+  address_district?: string;
+  address_detail?: string;
+  budget: number;
+  use_last_price: boolean;
+}
+
+export interface InstantBookResult {
+  id: string;
+  job_id: string;
+  status: string;
+  agreed_price: number;
+  artisan_name: string;
+  message: string;
+  expires_at: string;
+}

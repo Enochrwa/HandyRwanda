@@ -35,7 +35,7 @@ import {
 import { Header } from "@/components/Header";
 import { BookingSheet } from "@/components/BookingSheet";
 import { formatRWF } from "@/services/artisanService";
-import { useAuthStore } from "@/store/authStore";
+import { useAuthStore, type User } from "@/store/authStore";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import api from "@/services/api";
 import { toast } from "sonner";
@@ -84,7 +84,8 @@ function ExpiryCountdown({ expiresAt }: { expiresAt: string }) {
     if (secondsLeft <= 0) return;
     const id = setInterval(() => setSecondsLeft((s) => Math.max(0, s - 1)), 1000);
     return () => clearInterval(id);
-  }, []);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []); // intentionally once — functional updater needs no dep
 
   const mins = Math.floor(secondsLeft / 60);
   const secs = secondsLeft % 60;
@@ -123,7 +124,12 @@ function InstantBookModal({
   onClose,
   onSuccess,
 }: {
-  artisan: { id: string; full_name: string; avatar_url?: string; categories?: { name_en: string }[] };
+  artisan: {
+    id: string;
+    full_name: string;
+    avatar_url?: string;
+    categories?: { name_en: string }[];
+  };
   previousInfo: PreviousArtisanInfo;
   open: boolean;
   onClose: () => void;
@@ -158,8 +164,9 @@ function InstantBookModal({
       onSuccess(data);
       toast.success(`⚡ Instant booking sent to ${data.artisan_name}!`);
     },
-    onError: (err: any) => {
-      toast.error(err?.response?.data?.detail ?? "Booking failed. Please try again.");
+    onError: (err: unknown) => {
+      const apiErr = err as { response?: { data?: { detail?: string } } };
+      toast.error(apiErr?.response?.data?.detail ?? "Booking failed. Please try again.");
     },
   });
 
@@ -392,7 +399,8 @@ function InstantBookModal({
               {/* Schedule note */}
               <p className="flex items-center gap-1.5 text-xs text-muted-foreground">
                 <Clock className="h-3.5 w-3.5 shrink-0" />
-                Scheduled time is optional — {artisan.full_name.split(" ")[0]} will contact you to confirm a time.
+                Scheduled time is optional — {artisan.full_name.split(" ")[0]} will contact you to
+                confirm a time.
               </p>
 
               {/* CTAs */}
@@ -443,7 +451,7 @@ function Profile() {
   const { isAuthenticated, user } = useAuthStore();
   const navigate = useNavigate();
 
-  const isClient = isAuthenticated && (user as any)?.role !== "artisan";
+  const isClient = isAuthenticated && (user as User | null)?.role !== "artisan";
 
   const {
     data: artisan,
@@ -606,7 +614,8 @@ function Profile() {
               )}
               {p.is_available && (
                 <span className="inline-flex items-center gap-1 rounded-full bg-success/10 px-2.5 py-0.5 text-xs font-bold text-success">
-                  <span className="h-1.5 w-1.5 rounded-full bg-success animate-pulse" /> Available Now
+                  <span className="h-1.5 w-1.5 rounded-full bg-success animate-pulse" /> Available
+                  Now
                 </span>
               )}
             </div>
@@ -619,7 +628,9 @@ function Profile() {
                 <div className="flex-1">
                   <div className="flex items-center gap-1.5 mb-1">
                     <RefreshCw className="h-4 w-4 text-primary" />
-                    <span className="text-sm font-extrabold text-primary">You've worked together before</span>
+                    <span className="text-sm font-extrabold text-primary">
+                      You've worked together before
+                    </span>
                   </div>
                   <p className="text-xs text-muted-foreground">
                     Last booked{" "}
@@ -855,7 +866,10 @@ function Profile() {
           {isClient && hasWorkedBefore && previousInfo?.instant_book_eligible && (
             <button
               onClick={() => {
-                if (!isAuthenticated) { setIsAuthModalOpen(true); return; }
+                if (!isAuthenticated) {
+                  setIsAuthModalOpen(true);
+                  return;
+                }
                 setInstantBookOpen(true);
               }}
               className="flex items-center gap-1.5 rounded-2xl border-2 border-primary bg-primary/10 px-4 py-3 font-bold text-primary transition hover:bg-primary/20"

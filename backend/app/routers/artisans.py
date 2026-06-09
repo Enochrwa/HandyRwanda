@@ -1,5 +1,5 @@
 # File: backend/app/routers/artisans.py
-from datetime import datetime, timezone
+from datetime import date
 from typing import Any, cast
 from uuid import UUID
 
@@ -20,6 +20,7 @@ from app.models.artisan import (
 )
 from app.models.booking import Booking, BookingStatus
 from app.models.job import Bid, BidStatus, Job
+from app.models.schedule import BlockedDate
 from app.models.user import User, UserRole
 from app.utils.geo import HAVERSINE_KM_AP
 
@@ -608,12 +609,9 @@ async def get_previous_artisans(
       - artisan has no active booking conflict in next 4 hours
       - artisan is not blocked today
     """
-    from datetime import date, timedelta
-    from sqlalchemy import text as sa_text
-
     client_id = UUID(current_user["sub"])
 
-    query = sa_text("""
+    query = text("""
         SELECT DISTINCT ON (b.artisan_id)
             b.artisan_id::text            AS artisan_id,
             u.full_name,
@@ -643,13 +641,7 @@ async def get_previous_artisans(
 
     today = date.today()
 
-    # For each artisan, check booking conflicts in next 4 hours and blocked dates
-    from datetime import timezone as tz
-    now_utc = datetime.now(timezone.utc)
-    window_end = now_utc + timedelta(hours=4)
-
-    from app.models.schedule import BlockedDate
-    from app.models.booking import Booking as BookingModel, BookingStatus
+    # For each artisan, check booking conflicts and blocked dates
 
     output = []
     for row in rows:
@@ -669,9 +661,9 @@ async def get_previous_artisans(
 
         # Check active booking conflicts (any active booking in next 4h)
         active_conflict = await db.scalar(
-            select(BookingModel).where(
-                BookingModel.artisan_id == artisan_id_uuid,
-                BookingModel.status.in_([
+            select(Booking).where(
+                Booking.artisan_id == artisan_id_uuid,
+                Booking.status.in_([
                     BookingStatus.artisan_en_route,
                     BookingStatus.arrived,
                     BookingStatus.in_progress,

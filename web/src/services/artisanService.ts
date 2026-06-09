@@ -169,7 +169,6 @@ export const artisanService = {
   },
 };
 
-
 // ── Sprint 4: Previous Artisans (Instant Booking) ─────────────────────────
 
 export interface PreviousArtisan {

@@ -498,7 +498,7 @@ export function InstantBookSheet({
                     </Text>
                     <TextInput
                       value={description}
-                      onChangeText={(t) => {
+                      onChangeText={(t: string) => {
                         setDescription(t);
                         if (t.trim().length >= 10) setDescriptionError('');
                       }}
@@ -572,7 +572,7 @@ export function InstantBookSheet({
                           <Text className="text-muted-foreground font-semibold mr-2">RWF</Text>
                           <TextInput
                             value={budget}
-                            onChangeText={(t) => setBudget(t.replace(/[^0-9]/g, ''))}
+                            onChangeText={(t: string) => setBudget(t.replace(/[^0-9]/g, ''))}
                             placeholder="Enter amount"
                             placeholderTextColor="#9CA3AF"
                             keyboardType="numeric"

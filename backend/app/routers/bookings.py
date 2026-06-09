@@ -34,8 +34,9 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.database import AsyncSessionLocal, get_db
 from app.dependencies.jwt_auth import get_current_user, require_role
+from app.models.artisan import ArtisanProfile, Category, VerificationStatus
 from app.models.booking import Booking, BookingStatus, CancelledBy
-from app.models.job import Job
+from app.models.job import Job, JobStatus
 from app.models.notification import Notification
 from app.models.user import User, UserRole
 from app.services.booking_lifecycle_service import (
@@ -197,6 +198,59 @@ async def create_direct_booking(
 
 
 
+async def _schedule_instant_book_revert(
+    booking_id: UUID,
+    job_id: UUID,
+    client_id: UUID,
+    artisan_name: str,
+) -> None:
+    """
+    Sprint 4 background task — auto-cancel an instant booking and revert its
+    job to open status if the artisan does not respond within 10 minutes.
+    """
+    await asyncio.sleep(10 * 60)
+    try:
+        async with AsyncSessionLocal() as session:
+            fresh = await session.scalar(
+                select(Booking).where(Booking.id == booking_id)
+            )
+            if fresh and fresh.status == BookingStatus.pending_payment:
+                await session.execute(
+                    update(Booking)
+                    .where(Booking.id == booking_id)
+                    .values(
+                        status=BookingStatus.cancelled,
+                        cancelled_by=CancelledBy.system,
+                    )
+                )
+                await session.execute(
+                    update(Job)
+                    .where(Job.id == job_id)
+                    .values(status=JobStatus.open)
+                )
+                session.add(
+                    Notification(
+                        user_id=client_id,
+                        event_type="instant_book_expired",
+                        title="⚠️ Artisan did not respond",
+                        body=(
+                            artisan_name
+                            + " did not confirm your instant booking in time. "
+                            "Your job is now open for other artisans to bid on."
+                        ),
+                        payload={"job_id": str(job_id), "screen": "job_bids"},
+                    )
+                )
+                await session.commit()
+                _log.info(
+                    "Instant booking %s auto-reverted to open job %s",
+                    booking_id,
+                    job_id,
+                )
+    except Exception:
+        _log.exception("instant_book_revert failed for booking %s", booking_id)
+
+
 # ── Sprint 4: Instant Book ────────────────────────────────────────────────────
 
 
@@ -217,9 +271,6 @@ async def create_instant_booking(
       4. Artisan is notified; has 10 minutes to confirm or decline.
       5. If artisan declines / timeout: job reverts to \'open\' for normal bidding.
     """
-    from app.models.artisan import ArtisanProfile, VerificationStatus
-    from app.models.job import Job as JobModel, JobStatus
-
     client_id = UUID(current_user["sub"])
     artisan_id = payload.artisan_id
 
@@ -277,14 +328,13 @@ async def create_instant_booking(
 
     # ── 4. Auto-create Job (status=booked, bypassing open) ───────────────────
     client_user = await db.scalar(select(User).where(User.id == client_id))
-    from app.models.artisan import Category
 
     category = await db.scalar(
         select(Category).where(Category.id == payload.category_id)
     )
     category_name = category.name_en if category else "Service"
 
-    job = JobModel(
+    job = Job(
         client_id=client_id,
         category_id=payload.category_id,
         title=f"⚡ Instant Booking — {category_name}",
@@ -333,9 +383,7 @@ async def create_instant_booking(
     await db.commit()
 
     # ── 7. Push real-time WS event to artisan ─────────────────────────────────
-    import asyncio as _asyncio
-    from app.services.booking_lifecycle_service import _push_booking_status_change
-    _asyncio.create_task(
+    asyncio.create_task(
         _push_booking_status_change(
             artisan_id,
             booking_id=str(booking.id),
@@ -345,58 +393,15 @@ async def create_instant_booking(
     )
 
     # ── 8. Schedule 10-minute auto-revert if artisan doesn\'t confirm ──────────
-    async def _auto_revert_if_unaccepted() -> None:
-        """
-        If artisan has not accepted the instant booking within 10 minutes,
-        revert the job to \'open\' status so the client can receive bids.
-        """
-        import asyncio as _a
-        await _a.sleep(10 * 60)
-        try:
-            async with AsyncSessionLocal() as session:
-                fresh_booking = await session.scalar(
-                    select(Booking).where(Booking.id == booking.id)
-                )
-                if fresh_booking and fresh_booking.status == BookingStatus.pending_payment:
-                    # Artisan did not respond — revert job to open for bidding
-                    await session.execute(
-                        update(Booking)
-                        .where(Booking.id == booking.id)
-                        .values(status=BookingStatus.cancelled, cancelled_by=CancelledBy.system)
-                    )
-                    await session.execute(
-                        update(JobModel)
-                        .where(JobModel.id == job.id)
-                        .values(status=JobStatus.open)
-                    )
-
-                    # Notify client
-                    revert_notif = Notification(
-                        user_id=client_id,
-                        event_type="instant_book_expired",
-                        title="⚠️ Artisan did not respond",
-                        body=(
-                            (artisan_user.full_name if artisan_user else "Your artisan")
-                            + " did not confirm your instant booking in time. "
-                            + "Your job is now open for other artisans to bid on."
-                        ),
-                        payload={
-                            "job_id": str(job.id),
-                            "screen": "job_bids",
-                        },
-                    )
-                    session.add(revert_notif)
-                    await session.commit()
-
-                    _log.info(
-                        "Instant booking %s auto-reverted to open job %s "
-                        "(artisan %s did not confirm within 10 min)",
-                        booking.id, job.id, artisan_id,
-                    )
-        except Exception:
-            _log.exception("auto_revert_if_unaccepted failed for booking %s", booking.id)
-
-    _asyncio.create_task(_auto_revert_if_unaccepted())
+    # ── 8. Schedule 10-minute auto-revert if artisan doesn't confirm ──────────
+    asyncio.create_task(
+        _schedule_instant_book_revert(
+            booking_id=booking.id,
+            job_id=job.id,
+            client_id=client_id,
+            artisan_name=artisan_user.full_name if artisan_user else "Your artisan",
+        )
+    )
 
     return {
         "id": str(booking.id),
@@ -1285,8 +1290,6 @@ async def artisan_confirm_instant_booking(
 
     await db.commit()
 
-    import asyncio
-    from app.services.booking_lifecycle_service import _push_booking_status_change
     asyncio.create_task(
         _push_booking_status_change(
             booking.client_id,
@@ -1315,8 +1318,6 @@ async def artisan_decline_instant_booking(
     Cancels the booking and reverts the associated job to 'open'
     status so the client can receive bids from other artisans.
     """
-    from app.models.job import Job as JobModel, JobStatus
-
     user_id = UUID(current_user["sub"])
 
     booking = await db.scalar(
@@ -1346,8 +1347,8 @@ async def artisan_decline_instant_booking(
 
     # Revert job to open so client can receive bids
     await db.execute(
-        update(JobModel)
-        .where(JobModel.id == booking.job_id)
+        update(Job)
+        .where(Job.id == booking.job_id)
         .values(status=JobStatus.open)
     )
 

@@ -247,7 +247,7 @@ function BookAgainSection({
         horizontal
         showsHorizontalScrollIndicator={false}
         contentContainerStyle={{ paddingHorizontal: 24 }}
-        renderItem={({ item }) => (
+        renderItem={({ item }: { item: PreviousArtisan }) => (
           <BookAgainCard artisan={item} onPress={() => onSelectArtisan(item)} />
         )}
       />
@@ -269,7 +269,7 @@ export default function HomeScreen() {
   const [instantBookOpen, setInstantBookOpen] = useState(false);
 
   useEffect(() => {
-    AsyncStorage.getItem('hr_onboarded').then((val) => {
+    AsyncStorage.getItem('hr_onboarded').then((val: string | null) => {
       if (!val) {
         router.replace('/onboarding');
       } else {

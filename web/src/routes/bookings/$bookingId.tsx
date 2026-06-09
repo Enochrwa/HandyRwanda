@@ -37,7 +37,7 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
 import api from "@/services/api";
-import { useAuthStore } from "@/store/authStore";
+import { useAuthStore, type User } from "@/store/authStore";
 import { formatDistanceToNow, formatDistance } from "date-fns";
 
 export const Route = createFileRoute("/bookings/$bookingId")({
@@ -132,7 +132,8 @@ function Countdown({ createdAt }: { createdAt: string }) {
     if (secondsLeft <= 0) return;
     const id = setInterval(() => setSecondsLeft((s) => Math.max(0, s - 1)), 1000);
     return () => clearInterval(id);
-  }, []);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []); // intentionally once — functional updater needs no dep
 
   const mins = Math.floor(secondsLeft / 60);
   const secs = secondsLeft % 60;
@@ -256,7 +257,7 @@ function BookingDetailPage() {
   const qc = useQueryClient();
   const navigate = useNavigate();
 
-  const isArtisan = (user as any)?.role === "artisan";
+  const isArtisan = (user as User | null)?.role === "artisan";
 
   const {
     data: booking,
@@ -272,8 +273,7 @@ function BookingDetailPage() {
 
   // ── Confirm mutation ─────────────────────────────────────────────────────
   const confirmMutation = useMutation({
-    mutationFn: () =>
-      api.post(`/bookings/${bookingId}/instant-confirm`).then((r) => r.data),
+    mutationFn: () => api.post(`/bookings/${bookingId}/instant-confirm`).then((r) => r.data),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["booking-detail", bookingId] });
       qc.invalidateQueries({ queryKey: ["instant-booking-requests"] });
@@ -281,15 +281,15 @@ function BookingDetailPage() {
       toast.success("✅ Booking confirmed! The client has been notified.");
       refetch();
     },
-    onError: (err: any) => {
-      toast.error(err?.response?.data?.detail ?? "Failed to confirm booking.");
+    onError: (err: unknown) => {
+      const apiErr = err as { response?: { data?: { detail?: string } } };
+      toast.error(apiErr?.response?.data?.detail ?? "Failed to confirm booking.");
     },
   });
 
   // ── Decline mutation ─────────────────────────────────────────────────────
   const declineMutation = useMutation({
-    mutationFn: () =>
-      api.post(`/bookings/${bookingId}/instant-decline`).then((r) => r.data),
+    mutationFn: () => api.post(`/bookings/${bookingId}/instant-decline`).then((r) => r.data),
     onSuccess: (data) => {
       qc.invalidateQueries({ queryKey: ["booking-detail", bookingId] });
       qc.invalidateQueries({ queryKey: ["instant-booking-requests"] });
@@ -297,8 +297,9 @@ function BookingDetailPage() {
       // Navigate artisan back to job feed after decline
       setTimeout(() => navigate({ to: "/artisans/jobs" }), 1500);
     },
-    onError: (err: any) => {
-      toast.error(err?.response?.data?.detail ?? "Failed to decline booking.");
+    onError: (err: unknown) => {
+      const apiErr = err as { response?: { data?: { detail?: string } } };
+      toast.error(apiErr?.response?.data?.detail ?? "Failed to decline booking.");
     },
   });
 
@@ -339,7 +340,8 @@ function BookingDetailPage() {
           <AlertCircle className="h-12 w-12 text-muted-foreground" />
           <h1 className="text-2xl font-bold">Booking not found</h1>
           <p className="text-muted-foreground">
-            This booking may have expired, been cancelled, or you may not have permission to view it.
+            This booking may have expired, been cancelled, or you may not have permission to view
+            it.
           </p>
           <Link
             to={isArtisan ? "/artisans/jobs" : "/jobs/mine"}
@@ -366,7 +368,6 @@ function BookingDetailPage() {
       <Header />
 
       <main className="mx-auto max-w-2xl px-4 pt-8 space-y-5">
-
         {/* ── Page title ───────────────────────────────────────────────── */}
         <div className="flex items-start justify-between gap-3">
           <div>
@@ -414,20 +415,12 @@ function BookingDetailPage() {
             <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl bg-primary/10 overflow-hidden">
               {isArtisan ? (
                 booking.client_avatar ? (
-                  <img
-                    src={booking.client_avatar}
-                    alt=""
-                    className="h-full w-full object-cover"
-                  />
+                  <img src={booking.client_avatar} alt="" className="h-full w-full object-cover" />
                 ) : (
                   <User className="h-7 w-7 text-primary" />
                 )
               ) : booking.artisan_avatar ? (
-                <img
-                  src={booking.artisan_avatar}
-                  alt=""
-                  className="h-full w-full object-cover"
-                />
+                <img src={booking.artisan_avatar} alt="" className="h-full w-full object-cover" />
               ) : (
                 <User className="h-7 w-7 text-primary" />
               )}
@@ -435,8 +428,8 @@ function BookingDetailPage() {
             <div>
               <p className="font-extrabold text-foreground text-lg">
                 {isArtisan
-                  ? booking.client_name ?? "Client"
-                  : booking.artisan_name ?? "Artisan"}
+                  ? (booking.client_name ?? "Client")
+                  : (booking.artisan_name ?? "Artisan")}
               </p>
               {isInstantBooking && (
                 <p className="text-xs text-primary font-semibold mt-0.5">
@@ -513,9 +506,7 @@ function BookingDetailPage() {
         </div>
 
         {/* ── Status stepper (client view + non-instant artisan) ───────── */}
-        {!isArtisanPendingAction && (
-          <StatusStepper status={status} />
-        )}
+        {!isArtisanPendingAction && <StatusStepper status={status} />}
 
         {/* ── Instant booking context card ─────────────────────────────── */}
         {isInstantBooking && (

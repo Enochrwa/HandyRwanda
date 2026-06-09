@@ -8,37 +8,35 @@
  *  - Full job description, client info, agreed price
  *  - 10-minute countdown timer
  *  - "Confirm ✅" and "Decline ✗" CTAs
- *  - On confirm → booking moves to confirmed, client notified
- *  - On decline → booking cancelled, job reverts to open bidding
  *
  * Client view:
  *  - Full booking status tracker
- *  - If instant booking was confirmed → shows confirmation with price
- *  - If instant booking expired/declined → shows open job link
+ *  - If instant booking declined/expired → link to open job bids
  */
 
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
-import { Header } from "@/components/Header";
 import {
   CheckCircle2,
   XCircle,
   Clock,
   MapPin,
   DollarSign,
-  User,
+  User as UserIcon,
   Zap,
   Loader2,
   AlertCircle,
   ArrowRight,
-  RefreshCw,
   Timer,
 } from "lucide-react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
 import api from "@/services/api";
-import { useAuthStore, type User } from "@/store/authStore";
-import { formatDistanceToNow, formatDistance } from "date-fns";
+import { useAuthStore } from "@/store/authStore";
+import type { User } from "@/store/authStore";
+import { Header } from "@/components/Header";
+import { AuthModal } from "@/components/AuthModal";
+import { formatDistanceToNow } from "date-fns";
 
 export const Route = createFileRoute("/bookings/$bookingId")({
   head: () => ({ meta: [{ title: "Booking — HandyRwanda" }] }),
@@ -151,7 +149,7 @@ function Countdown({ createdAt }: { createdAt: string }) {
       }`}
     >
       <div
-        className={`flex items-center justify-center gap-2 mb-2 text-sm font-semibold ${
+        className={`mb-2 flex items-center justify-center gap-2 text-sm font-semibold ${
           expired ? "text-muted-foreground" : urgent ? "text-red-600" : "text-amber-700"
         }`}
       >
@@ -194,22 +192,20 @@ function StatusStepper({ status }: { status: string }) {
 
   return (
     <div className="rounded-2xl border border-border bg-card p-5">
-      <p className="text-xs font-bold uppercase tracking-wider text-muted-foreground mb-4">
+      <p className="mb-4 text-xs font-bold uppercase tracking-wider text-muted-foreground">
         Booking Progress
       </p>
       <div className="relative">
-        {/* Track line */}
-        <div className="absolute left-4 top-0 bottom-0 w-0.5 bg-border -translate-x-0.5" />
-
+        <div className="absolute bottom-0 left-4 top-0 w-0.5 -translate-x-0.5 bg-border" />
         <div className="space-y-5">
           {STATUS_STEPS.map((step, idx) => {
             const done = idx < currentIdx;
             const active = idx === currentIdx;
             const meta = STATUS_META[step];
             return (
-              <div key={step} className="flex items-start gap-4 relative">
+              <div key={step} className="relative flex items-start gap-4">
                 <div
-                  className={`relative z-10 flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-sm border-2 transition-colors ${
+                  className={`relative z-10 flex h-8 w-8 shrink-0 items-center justify-center rounded-full border-2 text-sm transition-colors ${
                     done
                       ? "border-primary bg-primary text-white"
                       : active
@@ -222,10 +218,10 @@ function StatusStepper({ status }: { status: string }) {
                   ) : active ? (
                     <span>{meta.icon}</span>
                   ) : (
-                    <span className="h-2 w-2 rounded-full bg-border block" />
+                    <span className="block h-2 w-2 rounded-full bg-border" />
                   )}
                 </div>
-                <div className={`pt-1 ${active ? "" : done ? "" : "opacity-40"}`}>
+                <div className={`pt-1 ${active || done ? "" : "opacity-40"}`}>
                   <p
                     className={`text-sm font-bold ${
                       active ? meta.color : done ? "text-foreground" : "text-muted-foreground"
@@ -233,11 +229,11 @@ function StatusStepper({ status }: { status: string }) {
                   >
                     {meta.label}
                     {active && (
-                      <span className="ml-2 inline-flex h-1.5 w-1.5 rounded-full bg-current animate-pulse" />
+                      <span className="ml-2 inline-flex h-1.5 w-1.5 animate-pulse rounded-full bg-current" />
                     )}
                   </p>
                   {active && (
-                    <p className="text-xs text-muted-foreground mt-0.5">{meta.description}</p>
+                    <p className="mt-0.5 text-xs text-muted-foreground">{meta.description}</p>
                   )}
                 </div>
               </div>
@@ -249,6 +245,15 @@ function StatusStepper({ status }: { status: string }) {
   );
 }
 
+// ── API error helper ────────────────────────────────────────────────────────
+
+type ApiError = { response?: { data?: { detail?: string } } };
+
+function getApiErrorMsg(err: unknown, fallback: string): string {
+  const detail = (err as ApiError)?.response?.data?.detail;
+  return typeof detail === "string" ? detail : fallback;
+}
+
 // ── Main page ──────────────────────────────────────────────────────────────
 
 function BookingDetailPage() {
@@ -256,6 +261,7 @@ function BookingDetailPage() {
   const { user, isAuthenticated } = useAuthStore();
   const qc = useQueryClient();
   const navigate = useNavigate();
+  const [authModalOpen, setAuthModalOpen] = useState(false);
 
   const isArtisan = (user as User | null)?.role === "artisan";
 
@@ -277,46 +283,46 @@ function BookingDetailPage() {
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["booking-detail", bookingId] });
       qc.invalidateQueries({ queryKey: ["instant-booking-requests"] });
-      qc.invalidateQueries({ queryKey: ["artisan-active-bookings"] });
       toast.success("✅ Booking confirmed! The client has been notified.");
-      refetch();
+      void refetch();
     },
     onError: (err: unknown) => {
-      const apiErr = err as { response?: { data?: { detail?: string } } };
-      toast.error(apiErr?.response?.data?.detail ?? "Failed to confirm booking.");
+      toast.error(getApiErrorMsg(err, "Failed to confirm booking."));
     },
   });
 
   // ── Decline mutation ─────────────────────────────────────────────────────
   const declineMutation = useMutation({
     mutationFn: () => api.post(`/bookings/${bookingId}/instant-decline`).then((r) => r.data),
-    onSuccess: (data) => {
+    onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["booking-detail", bookingId] });
       qc.invalidateQueries({ queryKey: ["instant-booking-requests"] });
       toast.info("Booking declined. The job has been opened for bids.");
-      // Navigate artisan back to job feed after decline
-      setTimeout(() => navigate({ to: "/artisans/jobs" }), 1500);
+      setTimeout(() => void navigate({ to: "/artisans/jobs" }), 1500);
     },
     onError: (err: unknown) => {
-      const apiErr = err as { response?: { data?: { detail?: string } } };
-      toast.error(apiErr?.response?.data?.detail ?? "Failed to decline booking.");
+      toast.error(getApiErrorMsg(err, "Failed to decline booking."));
     },
   });
 
   const isBusy = confirmMutation.isPending || declineMutation.isPending;
 
-  // ── Loading ──────────────────────────────────────────────────────────────
+  // ── Unauthenticated guard ────────────────────────────────────────────────
   if (!isAuthenticated) {
     return (
       <div className="min-h-dvh">
         <Header />
         <div className="flex min-h-[60vh] flex-col items-center justify-center gap-4 px-4 text-center">
           <AlertCircle className="h-12 w-12 text-muted-foreground" />
-          <p className="font-semibold text-lg">Please log in to view this booking.</p>
-          <Link to="/auth" className="text-primary font-bold hover:underline">
+          <p className="text-lg font-semibold">Please log in to view this booking.</p>
+          <button
+            onClick={() => setAuthModalOpen(true)}
+            className="font-bold text-primary hover:underline"
+          >
             Log In →
-          </Link>
+          </button>
         </div>
+        <AuthModal isOpen={authModalOpen} onClose={() => setAuthModalOpen(false)} />
       </div>
     );
   }
@@ -340,12 +346,11 @@ function BookingDetailPage() {
           <AlertCircle className="h-12 w-12 text-muted-foreground" />
           <h1 className="text-2xl font-bold">Booking not found</h1>
           <p className="text-muted-foreground">
-            This booking may have expired, been cancelled, or you may not have permission to view
-            it.
+            This booking may have expired or you may not have permission to view it.
           </p>
           <Link
             to={isArtisan ? "/artisans/jobs" : "/jobs/mine"}
-            className="text-primary font-semibold hover:underline"
+            className="font-semibold text-primary hover:underline"
           >
             ← Back to {isArtisan ? "Job Feed" : "My Jobs"}
           </Link>
@@ -360,31 +365,28 @@ function BookingDetailPage() {
   const statusMeta = STATUS_META[status] ?? STATUS_META.confirmed;
 
   const formattedPrice = booking.agreed_price
-    ? new Intl.NumberFormat("rw-RW").format(booking.agreed_price) + " RWF"
+    ? new Intl.NumberFormat("rw-RW").format(booking.agreed_price as number) + " RWF"
     : null;
 
   return (
     <div className="min-h-dvh bg-muted/30 pb-24">
       <Header />
 
-      <main className="mx-auto max-w-2xl px-4 pt-8 space-y-5">
-        {/* ── Page title ───────────────────────────────────────────────── */}
+      <main className="mx-auto max-w-2xl space-y-5 px-4 pt-8">
+        {/* ── Title ──────────────────────────────────────────────────────── */}
         <div className="flex items-start justify-between gap-3">
           <div>
-            <div className="flex items-center gap-2 mb-1">
-              {isInstantBooking && (
-                <span className="inline-flex items-center gap-1 rounded-full bg-primary/10 px-2.5 py-0.5 text-xs font-bold text-primary">
-                  <Zap className="h-3 w-3" /> Instant Booking
-                </span>
-              )}
-            </div>
+            {isInstantBooking && (
+              <span className="mb-1 inline-flex items-center gap-1 rounded-full bg-primary/10 px-2.5 py-0.5 text-xs font-bold text-primary">
+                <Zap className="h-3 w-3" /> Instant Booking
+              </span>
+            )}
             <h1 className="text-2xl font-extrabold text-foreground">
-              {booking.title ?? "Booking"}
+              {(booking.title as string | undefined) ?? "Booking"}
             </h1>
-            <p className="text-sm text-muted-foreground mt-0.5">
-              Created{" "}
+            <p className="mt-0.5 text-sm text-muted-foreground">
               {booking.created_at
-                ? formatDistanceToNow(new Date(booking.created_at), { addSuffix: true })
+                ? `Created ${formatDistanceToNow(new Date(booking.created_at as string), { addSuffix: true })}`
                 : ""}
             </p>
           </div>
@@ -401,83 +403,90 @@ function BookingDetailPage() {
           </span>
         </div>
 
-        {/* ── Sprint 4: Countdown (artisan view only, pending_payment) ──── */}
+        {/* ── Countdown (artisan + instant booking) ──────────────────────── */}
         {isArtisanPendingAction && booking.created_at && (
-          <Countdown createdAt={booking.created_at} />
+          <Countdown createdAt={booking.created_at as string} />
         )}
 
-        {/* ── Parties ──────────────────────────────────────────────────── */}
+        {/* ── Parties ────────────────────────────────────────────────────── */}
         <div className="rounded-2xl border border-border bg-card p-5">
-          <p className="text-xs font-bold uppercase tracking-wider text-muted-foreground mb-4">
+          <p className="mb-4 text-xs font-bold uppercase tracking-wider text-muted-foreground">
             {isArtisan ? "Client" : "Artisan"}
           </p>
           <div className="flex items-center gap-4">
-            <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl bg-primary/10 overflow-hidden">
+            <div className="flex h-14 w-14 shrink-0 items-center justify-center overflow-hidden rounded-2xl bg-primary/10">
               {isArtisan ? (
                 booking.client_avatar ? (
-                  <img src={booking.client_avatar} alt="" className="h-full w-full object-cover" />
+                  <img
+                    src={booking.client_avatar as string}
+                    alt=""
+                    className="h-full w-full object-cover"
+                  />
                 ) : (
-                  <User className="h-7 w-7 text-primary" />
+                  <UserIcon className="h-7 w-7 text-primary" />
                 )
               ) : booking.artisan_avatar ? (
-                <img src={booking.artisan_avatar} alt="" className="h-full w-full object-cover" />
+                <img
+                  src={booking.artisan_avatar as string}
+                  alt=""
+                  className="h-full w-full object-cover"
+                />
               ) : (
-                <User className="h-7 w-7 text-primary" />
+                <UserIcon className="h-7 w-7 text-primary" />
               )}
             </div>
             <div>
-              <p className="font-extrabold text-foreground text-lg">
+              <p className="text-lg font-extrabold text-foreground">
                 {isArtisan
-                  ? (booking.client_name ?? "Client")
-                  : (booking.artisan_name ?? "Artisan")}
+                  ? ((booking.client_name as string | undefined) ?? "Client")
+                  : ((booking.artisan_name as string | undefined) ?? "Artisan")}
               </p>
               {isInstantBooking && (
-                <p className="text-xs text-primary font-semibold mt-0.5">
+                <p className="mt-0.5 text-xs font-semibold text-primary">
                   Previously worked together ✓
                 </p>
               )}
-              {(booking.client_district || booking.artisan_district) && (
-                <p className="flex items-center gap-1 text-xs text-muted-foreground mt-0.5">
+              {(booking.client_district ?? booking.artisan_district) && (
+                <p className="mt-0.5 flex items-center gap-1 text-xs text-muted-foreground">
                   <MapPin className="h-3 w-3" />
-                  {isArtisan ? booking.client_district : booking.artisan_district}
+                  {isArtisan
+                    ? (booking.client_district as string | undefined)
+                    : (booking.artisan_district as string | undefined)}
                 </p>
               )}
             </div>
           </div>
         </div>
 
-        {/* ── Job details ──────────────────────────────────────────────── */}
-        <div className="rounded-2xl border border-border bg-card p-5 space-y-4">
+        {/* ── Job details ────────────────────────────────────────────────── */}
+        <div className="space-y-4 rounded-2xl border border-border bg-card p-5">
           <p className="text-xs font-bold uppercase tracking-wider text-muted-foreground">
             Job Details
           </p>
-
-          <p className="text-foreground leading-relaxed">
-            {booking.description ?? "No description provided."}
+          <p className="leading-relaxed text-foreground">
+            {(booking.description as string | undefined) ?? "No description provided."}
           </p>
-
-          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 pt-2 border-t border-border">
+          <div className="grid grid-cols-1 gap-3 border-t border-border pt-2 sm:grid-cols-2">
             {formattedPrice && (
               <div className="flex items-center gap-2">
-                <DollarSign className="h-4 w-4 text-primary shrink-0" />
+                <DollarSign className="h-4 w-4 shrink-0 text-primary" />
                 <div>
                   <p className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
                     Agreed Price
                   </p>
-                  <p className="font-extrabold text-primary text-base">{formattedPrice}</p>
+                  <p className="text-base font-extrabold text-primary">{formattedPrice}</p>
                 </div>
               </div>
             )}
-
             {booking.scheduled_time && (
               <div className="flex items-center gap-2">
-                <Clock className="h-4 w-4 text-muted-foreground shrink-0" />
+                <Clock className="h-4 w-4 shrink-0 text-muted-foreground" />
                 <div>
                   <p className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
                     Scheduled
                   </p>
                   <p className="text-sm font-semibold text-foreground">
-                    {new Date(booking.scheduled_time).toLocaleString("en-RW", {
+                    {new Date(booking.scheduled_time as string).toLocaleString("en-RW", {
                       weekday: "short",
                       month: "short",
                       day: "numeric",
@@ -488,16 +497,16 @@ function BookingDetailPage() {
                 </div>
               </div>
             )}
-
-            {(booking.address_district || booking.location_label) && (
+            {(booking.address_district ?? booking.location_label) && (
               <div className="flex items-center gap-2">
-                <MapPin className="h-4 w-4 text-muted-foreground shrink-0" />
+                <MapPin className="h-4 w-4 shrink-0 text-muted-foreground" />
                 <div>
                   <p className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
                     Location
                   </p>
                   <p className="text-sm font-semibold text-foreground">
-                    {booking.location_label ?? booking.address_district}
+                    {(booking.location_label as string | undefined) ??
+                      (booking.address_district as string | undefined)}
                   </p>
                 </div>
               </div>
@@ -505,73 +514,73 @@ function BookingDetailPage() {
           </div>
         </div>
 
-        {/* ── Status stepper (client view + non-instant artisan) ───────── */}
+        {/* ── Status stepper (non-pending views) ─────────────────────────── */}
         {!isArtisanPendingAction && <StatusStepper status={status} />}
 
-        {/* ── Instant booking context card ─────────────────────────────── */}
+        {/* ── Instant booking context ─────────────────────────────────────── */}
         {isInstantBooking && (
           <div className="rounded-2xl border border-primary/20 bg-primary/5 p-5">
-            <div className="flex items-center gap-2 mb-2">
+            <div className="mb-2 flex items-center gap-2">
               <Zap className="h-4 w-4 text-primary" />
               <p className="text-sm font-extrabold text-primary">About Instant Booking</p>
             </div>
-            <p className="text-sm text-foreground leading-relaxed">
+            <p className="text-sm leading-relaxed text-foreground">
               {isArtisan
-                ? `This client has worked with you before and chose to skip the bidding process. Confirming means you commit to the agreed price of ${formattedPrice}.`
+                ? `This client has worked with you before and chose to skip the bidding process. Confirming means you commit to the agreed price of ${formattedPrice ?? "the agreed amount"}.`
                 : "You used Instant Booking to skip the bidding process based on your previous relationship with this artisan."}
             </p>
             {isArtisan && (
-              <p className="text-xs text-muted-foreground mt-2">
+              <p className="mt-2 text-xs text-muted-foreground">
                 Declining will open the job for other artisans to bid on.
               </p>
             )}
           </div>
         )}
 
-        {/* ── Cancelled / expired fallback (client) ───────────────────── */}
+        {/* ── Cancelled / expired fallback (client) ──────────────────────── */}
         {!isArtisan && status === "cancelled" && booking.job_id && (
           <div className="rounded-2xl border border-amber-200 bg-amber-50 p-5 text-center">
-            <p className="font-bold text-amber-800 mb-1">
-              {booking.cancellation_reason?.includes("expired")
+            <p className="mb-1 font-bold text-amber-800">
+              {typeof booking.cancellation_reason === "string" &&
+              booking.cancellation_reason.includes("expired")
                 ? "⚠️ Artisan Did Not Respond in Time"
                 : "⚠️ Booking Cancelled"}
             </p>
-            <p className="text-sm text-amber-700 mb-4">
+            <p className="mb-4 text-sm text-amber-700">
               Your job has been opened for other artisans to submit bids.
             </p>
             <Link
               to="/jobs/$jobId/bids"
-              params={{ jobId: booking.job_id }}
-              className="inline-flex items-center gap-1.5 rounded-xl bg-primary px-5 py-2.5 font-bold text-white hover:brightness-95 transition"
+              params={{ jobId: booking.job_id as string }}
+              className="inline-flex items-center gap-1.5 rounded-xl bg-primary px-5 py-2.5 font-bold text-white transition hover:brightness-95"
             >
               View Bids <ArrowRight className="h-4 w-4" />
             </Link>
           </div>
         )}
 
-        {/* ── Messages CTA ─────────────────────────────────────────────── */}
+        {/* ── Messages CTA ────────────────────────────────────────────────── */}
         {status !== "cancelled" && (
           <Link
             to="/messages"
             search={{ booking: bookingId }}
-            className="flex items-center justify-between rounded-2xl border border-border bg-card p-4 hover:bg-muted/30 transition group"
+            className="group flex items-center justify-between rounded-2xl border border-border bg-card p-4 transition hover:bg-muted/30"
           >
             <div>
               <p className="font-semibold text-foreground">Open Chat</p>
-              <p className="text-xs text-muted-foreground mt-0.5">
+              <p className="mt-0.5 text-xs text-muted-foreground">
                 Message {isArtisan ? "the client" : "your artisan"} about this booking
               </p>
             </div>
-            <ArrowRight className="h-5 w-5 text-muted-foreground group-hover:text-primary transition-colors" />
+            <ArrowRight className="h-5 w-5 text-muted-foreground transition-colors group-hover:text-primary" />
           </Link>
         )}
       </main>
 
-      {/* ── Sticky CTA footer (artisan, instant booking) ─────────────── */}
+      {/* ── Sticky CTA footer (artisan instant booking) ─────────────────── */}
       {isArtisanPendingAction && (
         <div className="fixed inset-x-0 bottom-0 z-30 border-t border-border bg-card/95 backdrop-blur-md">
-          <div className="mx-auto max-w-2xl flex gap-3 px-4 py-4">
-            {/* Decline */}
+          <div className="mx-auto flex max-w-2xl gap-3 px-4 py-4">
             <button
               onClick={() => {
                 if (window.confirm("Decline this booking? The job will be opened for bids.")) {
@@ -579,7 +588,7 @@ function BookingDetailPage() {
                 }
               }}
               disabled={isBusy}
-              className="flex flex-1 items-center justify-center gap-2 rounded-2xl border border-red-200 bg-red-50 py-3.5 font-bold text-red-600 hover:bg-red-100 transition disabled:opacity-50"
+              className="flex flex-1 items-center justify-center gap-2 rounded-2xl border border-red-200 bg-red-50 py-3.5 font-bold text-red-600 transition hover:bg-red-100 disabled:opacity-50"
             >
               {declineMutation.isPending ? (
                 <Loader2 className="h-4 w-4 animate-spin" />
@@ -590,12 +599,10 @@ function BookingDetailPage() {
                 </>
               )}
             </button>
-
-            {/* Confirm */}
             <button
               onClick={() => confirmMutation.mutate()}
               disabled={isBusy}
-              className="flex flex-[2] items-center justify-center gap-2 rounded-2xl bg-primary py-3.5 font-extrabold text-white hover:brightness-95 transition shadow-md disabled:opacity-50"
+              className="flex flex-[2] items-center justify-center gap-2 rounded-2xl bg-primary py-3.5 font-extrabold text-white shadow-md transition hover:brightness-95 disabled:opacity-50"
             >
               {confirmMutation.isPending ? (
                 <Loader2 className="h-5 w-5 animate-spin" />

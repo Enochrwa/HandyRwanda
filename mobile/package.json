@@ -31,6 +31,7 @@
     "clsx": "^2.1.1",
     "date-fns": "^4.3.0",
     "expo": "~54.0.35",
+    "expo-av": "~15.0.2",
     "expo-build-properties": "~1.0.10",
     "expo-constants": "~18.0.13",
     "expo-device": "~8.0.10",

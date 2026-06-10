@@ -24,7 +24,6 @@ from __future__ import annotations
 
 import logging
 from datetime import datetime, timedelta, timezone
-from uuid import UUID
 
 from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -191,7 +190,7 @@ async def send_weekly_insights(db: AsyncSession) -> dict[str, int]:
                         "Stay available to maximise earnings!"
                     )
 
-                title = f"📊 Your weekly income summary"
+                title = "📊 Your weekly income summary"
                 body = " ".join(lines)
 
             success = await send_push_notification(

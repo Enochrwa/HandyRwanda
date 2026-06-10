@@ -253,10 +253,14 @@ function KpiCard({
         )}
       </div>
       <div className="mt-3">
-        <p className={`text-xs font-semibold uppercase tracking-wider ${accent ? "text-white/70" : "text-muted-foreground"}`}>
+        <p
+          className={`text-xs font-semibold uppercase tracking-wider ${accent ? "text-white/70" : "text-muted-foreground"}`}
+        >
           {label}
         </p>
-        <p className={`mt-1 text-2xl font-black tabular-nums ${accent ? "text-white" : "text-foreground"}`}>
+        <p
+          className={`mt-1 text-2xl font-black tabular-nums ${accent ? "text-white" : "text-foreground"}`}
+        >
           {value}
         </p>
         {sub && (
@@ -281,7 +285,8 @@ function EarningsDashboard() {
 
   const { data: earnings, isLoading: loadingEarnings } = useQuery<EarningsData>({
     queryKey: ["artisan-income", period],
-    queryFn: () => api.get(`/artisans/me/earnings?period=${period}`).then((r) => r.data as EarningsData),
+    queryFn: () =>
+      api.get(`/artisans/me/earnings?period=${period}`).then((r) => r.data as EarningsData),
     staleTime: 5 * 60 * 1000,
   });
 
@@ -375,14 +380,17 @@ function EarningsDashboard() {
             </p>
           </div>
           <div className="flex items-center gap-3">
-            <Tabs
-              value={period}
-              onValueChange={(v) => setPeriod(v as "week" | "month" | "year")}
-            >
+            <Tabs value={period} onValueChange={(v) => setPeriod(v as "week" | "month" | "year")}>
               <TabsList className="rounded-xl">
-                <TabsTrigger value="week" className="text-xs">Week</TabsTrigger>
-                <TabsTrigger value="month" className="text-xs">Month</TabsTrigger>
-                <TabsTrigger value="year" className="text-xs">Year</TabsTrigger>
+                <TabsTrigger value="week" className="text-xs">
+                  Week
+                </TabsTrigger>
+                <TabsTrigger value="month" className="text-xs">
+                  Month
+                </TabsTrigger>
+                <TabsTrigger value="year" className="text-xs">
+                  Year
+                </TabsTrigger>
               </TabsList>
             </Tabs>
             <Link
@@ -512,16 +520,15 @@ function EarningsDashboard() {
                       out of {leaderboard.total_in_district} artisans
                     </p>
                     {leaderboard.top_10_pct && (
-                      <Badge className="mt-3 bg-amber-500 text-white">
-                        🏆 Top 10%
-                      </Badge>
+                      <Badge className="mt-3 bg-amber-500 text-white">🏆 Top 10%</Badge>
                     )}
                   </div>
                   <Progress
                     value={Math.max(
                       0,
                       100 -
-                        ((leaderboard.your_rank - 1) / Math.max(leaderboard.total_in_district - 1, 1)) *
+                        ((leaderboard.your_rank - 1) /
+                          Math.max(leaderboard.total_in_district - 1, 1)) *
                           100,
                     )}
                     className="h-2"
@@ -645,8 +652,8 @@ function EarningsDashboard() {
                   AI Earnings Forecast
                 </h3>
                 <p className="mt-0.5 text-xs text-muted-foreground">
-                  Powered by LinearRegression · Based on{" "}
-                  {earnings?.forecast?.history_weeks ?? 0} weeks of history
+                  Powered by LinearRegression · Based on {earnings?.forecast?.history_weeks ?? 0}{" "}
+                  weeks of history
                 </p>
               </div>
               {earnings?.forecast && (
@@ -678,9 +685,7 @@ function EarningsDashboard() {
                       Projected monthly
                     </p>
                     <p className="mt-2 text-3xl font-black tabular-nums text-foreground">
-                      {earnings?.forecast
-                        ? shortRWF(earnings.forecast.projected_monthly)
-                        : "—"}
+                      {earnings?.forecast ? shortRWF(earnings.forecast.projected_monthly) : "—"}
                     </p>
                     <p className="mt-0.5 text-xs text-muted-foreground">
                       {earnings?.forecast?.projected_monthly
@@ -700,7 +705,10 @@ function EarningsDashboard() {
                   <Skeleton className="h-40 rounded-xl" />
                 ) : forecastChart.length > 0 ? (
                   <ResponsiveContainer width="100%" height={160}>
-                    <BarChart data={forecastChart} margin={{ top: 4, right: 4, bottom: 0, left: 0 }}>
+                    <BarChart
+                      data={forecastChart}
+                      margin={{ top: 4, right: 4, bottom: 0, left: 0 }}
+                    >
                       <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
                       <XAxis
                         dataKey="week"
@@ -803,8 +811,7 @@ function EarningsDashboard() {
                   <AlertCircle className="mb-2 h-8 w-8 text-muted-foreground/40" />
                   <p className="text-sm font-medium text-foreground">Minimum 1,000 RWF required</p>
                   <p className="mt-1 text-xs text-muted-foreground">
-                    You currently have{" "}
-                    {formatRWF(escrow?.available_for_withdrawal ?? 0)} available
+                    You currently have {formatRWF(escrow?.available_for_withdrawal ?? 0)} available
                   </p>
                 </div>
               ) : (
@@ -819,8 +826,7 @@ function EarningsDashboard() {
                   </div>
                   <div className="space-y-1.5">
                     <Label className="text-xs">
-                      Amount (RWF) — max{" "}
-                      {formatRWF(escrow?.available_for_withdrawal ?? 0)}
+                      Amount (RWF) — max {formatRWF(escrow?.available_for_withdrawal ?? 0)}
                     </Label>
                     <Input
                       type="number"
@@ -860,20 +866,13 @@ function EarningsDashboard() {
           </CardHeader>
           <CardContent>
             {(transactions ?? []).length === 0 ? (
-              <p className="py-6 text-center text-sm text-muted-foreground">
-                No transactions yet
-              </p>
+              <p className="py-6 text-center text-sm text-muted-foreground">No transactions yet</p>
             ) : (
               <div className="divide-y divide-border">
                 {(transactions ?? []).slice(0, 10).map((t) => (
-                  <div
-                    key={t.id}
-                    className="flex items-center justify-between py-3"
-                  >
+                  <div key={t.id} className="flex items-center justify-between py-3">
                     <div>
-                      <p className="text-sm font-semibold text-foreground">
-                        {formatRWF(t.amount)}
-                      </p>
+                      <p className="text-sm font-semibold text-foreground">{formatRWF(t.amount)}</p>
                       <p className="text-xs text-muted-foreground">
                         {t.held_at
                           ? formatDistanceToNow(new Date(t.held_at), { addSuffix: true })
@@ -905,10 +904,7 @@ function EarningsDashboard() {
             <CardContent>
               <div className="divide-y divide-border">
                 {(withdrawals ?? []).map((w) => (
-                  <div
-                    key={w.id}
-                    className="flex items-center justify-between py-3"
-                  >
+                  <div key={w.id} className="flex items-center justify-between py-3">
                     <div>
                       <p className="text-sm font-semibold text-foreground">
                         {formatRWF(w.amount)} → {w.momo_number}

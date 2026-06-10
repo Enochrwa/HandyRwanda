@@ -18,6 +18,7 @@ Optimisations preserved:
 
 from __future__ import annotations
 
+import asyncio
 import logging
 from typing import Any
 from uuid import UUID
@@ -27,7 +28,7 @@ from pydantic import BaseModel, field_validator, model_validator
 from sqlalchemy import func, or_, select, text, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.database import get_db
+from app.database import AsyncSessionLocal, get_db
 from app.dependencies.jwt_auth import get_current_user
 from app.integrations.socket_manager import broadcast_message
 from app.integrations.translation import create_translation_task, detect_language
@@ -67,7 +68,7 @@ class MessageCreate(BaseModel):
         return v if v is not None else ""
 
     @model_validator(mode="after")
-    def must_have_content_or_voice(self) -> "MessageCreate":
+    def must_have_content_or_voice(self) -> MessageCreate:
         if not self.content.strip() and not self.voice_note_url:
             raise ValueError("Message must have text content or a voice note.")
         return self
@@ -343,7 +344,6 @@ async def send_message(
     msg_data = _msg_dict(message)
 
     # ── Socket.IO broadcast (fire-and-forget) ────────────────────────────────
-    import asyncio  # noqa: PLC0415
     asyncio.ensure_future(broadcast_message(str(booking_id), msg_data))
 
     # ── Background translation (text messages only) ───────────────────────────
@@ -358,7 +358,6 @@ async def send_message(
             msg_id = message.id
 
             async def _update_translation(translated: str) -> None:
-                from app.database import AsyncSessionLocal  # noqa: PLC0415
                 try:
                     async with AsyncSessionLocal() as session:
                         await session.execute(

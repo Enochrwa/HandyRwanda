@@ -18,13 +18,19 @@ from __future__ import annotations
 
 import logging
 from datetime import datetime, timedelta, timezone
-from typing import Any
+from typing import Any, TypedDict
 from uuid import UUID
 
 from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncSession
 
 _log = logging.getLogger(__name__)
+
+
+class _DayData(TypedDict):
+    date: str
+    earned: int
+    jobs: int
 
 # ── Constants ─────────────────────────────────────────────────────────────────
 
@@ -264,11 +270,11 @@ async def get_earnings_summary(
         """),
         {"artisan_id": artisan_id, "period_start": period_start},
     )
-    by_day = [
+    by_day: list[_DayData] = [
         {"date": str(r["day"]), "earned": int(r["earned"]), "jobs": int(r["jobs"])}
         for r in by_day_res.mappings().all()
     ]
-    best_day = max(by_day, key=lambda d: d["earned"]) if by_day else None
+    best_day: _DayData | None = max(by_day, key=lambda d: d["earned"]) if by_day else None
 
     by_hour_res = await db.execute(
         text("""

@@ -272,7 +272,10 @@ function WebVoiceBubble({
       audioRef.current.pause();
       setIsPlaying(false);
     } else {
-      audioRef.current.play().then(() => setIsPlaying(true)).catch(() => setIsPlaying(false));
+      audioRef.current
+        .play()
+        .then(() => setIsPlaying(true))
+        .catch(() => setIsPlaying(false));
     }
   };
 
@@ -337,8 +340,8 @@ function WebVoiceBubble({
           {isPlaying || positionMs > 0
             ? formatAudioDuration(positionMs)
             : totalMs != null
-            ? formatAudioDuration(totalMs)
-            : "0:00"}
+              ? formatAudioDuration(totalMs)
+              : "0:00"}
         </span>
         <span
           className="text-[9px] mt-0.5"
@@ -511,9 +514,12 @@ function MessagesPage() {
                       </div>
                       <p className="text-sm text-muted-foreground truncate mt-0.5 flex items-center gap-1">
                         {c.last_message?.is_voice ? (
-                          <><Mic className="w-3 h-3 shrink-0" /><span className="italic">Voice message</span></>
+                          <>
+                            <Mic className="w-3 h-3 shrink-0" />
+                            <span className="italic">Voice message</span>
+                          </>
                         ) : (
-                          c.last_message?.content ?? "No messages yet"
+                          (c.last_message?.content ?? "No messages yet")
                         )}
                       </p>
                       <div className="flex items-center gap-2 mt-1">
@@ -673,7 +679,9 @@ function MessagesPage() {
                       >
                         <p className="text-sm leading-relaxed">{msg.content}</p>
                         {msg.translated_content && msg.translated_content !== msg.content && (
-                          <p className={`text-[10px] mt-1 italic ${isMine ? "text-primary-foreground/60" : "text-muted-foreground"}`}>
+                          <p
+                            className={`text-[10px] mt-1 italic ${isMine ? "text-primary-foreground/60" : "text-muted-foreground"}`}
+                          >
                             {msg.translated_content}
                           </p>
                         )}

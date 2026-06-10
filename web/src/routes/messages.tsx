@@ -16,6 +16,9 @@ import {
   AlertTriangle,
   Wifi,
   WifiOff,
+  Mic,
+  Play,
+  Pause,
 } from "lucide-react";
 import { formatDistanceToNow } from "date-fns";
 import { toast } from "sonner";
@@ -34,7 +37,7 @@ export const Route = createFileRoute("/messages")({
 interface Conversation {
   booking_id: string;
   other_user: { id: string; full_name: string; avatar_url?: string };
-  last_message: { content: string; created_at: string };
+  last_message: { content: string | null; is_voice?: boolean; created_at: string } | null;
   unread_count: number;
   booking_status: string;
 }
@@ -42,9 +45,13 @@ interface Conversation {
 interface Message {
   id: string;
   sender_id: string;
-  content: string;
+  content: string | null;
+  voice_note_url?: string | null;
+  voice_note_duration_secs?: number | null;
+  is_voice_only?: boolean;
   is_read: boolean;
   created_at: string;
+  translated_content?: string | null;
 }
 
 // ── Web Payment Panel ─────────────────────────────────────────────────────────
@@ -200,6 +207,145 @@ function PaymentPanel({ bookingId, amount }: { bookingId: string; amount: number
         >
           {loading ? <Loader2 className="h-3 w-3 animate-spin" /> : "Pay Now →"}
         </Button>
+      </div>
+    </div>
+  );
+}
+
+// ── Web Voice Message Bubble ──────────────────────────────────────────────────
+
+const WAVEFORM_BARS = [6, 10, 14, 18, 22, 16, 10, 14, 20, 24, 18, 12, 16, 22, 14, 10, 8, 12];
+
+function formatAudioDuration(ms: number): string {
+  const s = Math.round(ms / 1000);
+  return `${Math.floor(s / 60)}:${(s % 60).toString().padStart(2, "0")}`;
+}
+
+function WebVoiceBubble({
+  url,
+  durationSecs,
+  isMine,
+  timestamp,
+}: {
+  url: string;
+  durationSecs: number | null;
+  isMine: boolean;
+  timestamp: string;
+}) {
+  const audioRef = useRef<HTMLAudioElement | null>(null);
+  const [isPlaying, setIsPlaying] = useState(false);
+  const [isLoading, setIsLoading] = useState(false);
+  const [positionMs, setPositionMs] = useState(0);
+  const [durationMs, setDurationMs] = useState<number | null>(
+    durationSecs != null ? durationSecs * 1000 : null,
+  );
+
+  useEffect(() => {
+    return () => {
+      audioRef.current?.pause();
+    };
+  }, []);
+
+  const handlePlayPause = () => {
+    if (!audioRef.current) {
+      setIsLoading(true);
+      const audio = new Audio(url);
+      audio.addEventListener("loadedmetadata", () => {
+        setDurationMs(audio.duration * 1000);
+        setIsLoading(false);
+      });
+      audio.addEventListener("timeupdate", () => {
+        setPositionMs(audio.currentTime * 1000);
+      });
+      audio.addEventListener("ended", () => {
+        setIsPlaying(false);
+        setPositionMs(0);
+      });
+      audio.addEventListener("error", () => {
+        setIsLoading(false);
+        setIsPlaying(false);
+      });
+      audioRef.current = audio;
+    }
+
+    if (isPlaying) {
+      audioRef.current.pause();
+      setIsPlaying(false);
+    } else {
+      audioRef.current.play().then(() => setIsPlaying(true)).catch(() => setIsPlaying(false));
+    }
+  };
+
+  const totalMs = durationMs ?? (durationSecs != null ? durationSecs * 1000 : null);
+  const progress = totalMs && totalMs > 0 ? Math.min(positionMs / totalMs, 1) : 0;
+
+  const baseClass = isMine
+    ? "bg-primary text-primary-foreground rounded-br-sm"
+    : "bg-muted text-foreground rounded-bl-sm";
+
+  const activeBarColor = isMine ? "rgba(255,255,255,0.95)" : "#1B5E3B";
+  const inactiveBarColor = isMine ? "rgba(255,255,255,0.3)" : "rgba(27,94,59,0.25)";
+  const btnBg = isMine ? "rgba(255,255,255,0.2)" : "rgba(27,94,59,0.1)";
+  const iconColor = isMine ? "#fff" : "#1B5E3B";
+
+  return (
+    <div
+      className={`flex items-center gap-2 px-3 py-2.5 rounded-2xl min-w-[200px] max-w-[320px] ${baseClass}`}
+    >
+      {/* Play/Pause */}
+      <button
+        onClick={handlePlayPause}
+        style={{ background: btnBg }}
+        className="w-9 h-9 rounded-full flex items-center justify-center shrink-0 hover:opacity-80 transition-opacity"
+        aria-label={isPlaying ? "Pause voice message" : "Play voice message"}
+      >
+        {isLoading ? (
+          <Loader2 className="w-4 h-4 animate-spin" style={{ color: iconColor }} />
+        ) : isPlaying ? (
+          <Pause className="w-4 h-4" style={{ color: iconColor }} />
+        ) : (
+          <Play className="w-4 h-4" style={{ color: iconColor }} />
+        )}
+      </button>
+
+      {/* Waveform */}
+      <div className="flex items-center gap-[2px] flex-1 h-7">
+        {WAVEFORM_BARS.map((h, i) => {
+          const fraction = i / WAVEFORM_BARS.length;
+          const isPast = fraction <= progress;
+          return (
+            <div
+              key={i}
+              style={{
+                width: 3,
+                height: h,
+                borderRadius: 2,
+                backgroundColor: isPast ? activeBarColor : inactiveBarColor,
+                transition: "background-color 0.1s",
+              }}
+            />
+          );
+        })}
+      </div>
+
+      {/* Duration + timestamp */}
+      <div className="flex flex-col items-end shrink-0 min-w-[36px]">
+        <span
+          className="text-[11px] font-semibold tabular-nums"
+          style={{ color: isMine ? "#fff" : "#1B5E3B" }}
+        >
+          {isPlaying || positionMs > 0
+            ? formatAudioDuration(positionMs)
+            : totalMs != null
+            ? formatAudioDuration(totalMs)
+            : "0:00"}
+        </span>
+        <span
+          className="text-[9px] mt-0.5"
+          style={{ color: isMine ? "rgba(255,255,255,0.6)" : "#9CA3AF" }}
+        >
+          {timestamp}
+        </span>
       </div>
     </div>
   );
@@ -363,8 +509,12 @@ function MessagesPage() {
                             : ""}
                         </span>
                       </div>
-                      <p className="text-sm text-muted-foreground truncate mt-0.5">
-                        {c.last_message?.content ?? "No messages yet"}
+                      <p className="text-sm text-muted-foreground truncate mt-0.5 flex items-center gap-1">
+                        {c.last_message?.is_voice ? (
+                          <><Mic className="w-3 h-3 shrink-0" /><span className="italic">Voice message</span></>
+                        ) : (
+                          c.last_message?.content ?? "No messages yet"
+                        )}
                       </p>
                       <div className="flex items-center gap-2 mt-1">
                         <span
@@ -492,6 +642,27 @@ function MessagesPage() {
               ) : (
                 (messages as Message[]).map((msg) => {
                   const isMine = msg.sender_id === user?.id;
+                  const timestamp = msg.created_at
+                    ? formatDistanceToNow(new Date(msg.created_at), { addSuffix: true })
+                    : "";
+
+                  // Voice message bubble
+                  if (msg.voice_note_url || msg.is_voice_only) {
+                    return (
+                      <div
+                        key={msg.id}
+                        className={`flex ${isMine ? "justify-end" : "justify-start"}`}
+                      >
+                        <WebVoiceBubble
+                          url={msg.voice_note_url!}
+                          durationSecs={msg.voice_note_duration_secs ?? null}
+                          isMine={isMine}
+                          timestamp={timestamp}
+                        />
+                      </div>
+                    );
+                  }
+
                   return (
                     <div
                       key={msg.id}
@@ -501,12 +672,15 @@ function MessagesPage() {
                         className={`max-w-[75%] rounded-2xl px-4 py-2.5 ${isMine ? "bg-primary text-primary-foreground rounded-br-sm" : "bg-muted text-foreground rounded-bl-sm"}`}
                       >
                         <p className="text-sm leading-relaxed">{msg.content}</p>
+                        {msg.translated_content && msg.translated_content !== msg.content && (
+                          <p className={`text-[10px] mt-1 italic ${isMine ? "text-primary-foreground/60" : "text-muted-foreground"}`}>
+                            {msg.translated_content}
+                          </p>
+                        )}
                         <p
                           className={`text-[10px] mt-1 ${isMine ? "text-primary-foreground/70" : "text-muted-foreground"}`}
                         >
-                          {msg.created_at
-                            ? formatDistanceToNow(new Date(msg.created_at), { addSuffix: true })
-                            : ""}
+                          {timestamp}
                         </p>
                       </div>
                     </div>

@@ -1,17 +1,19 @@
 # File: backend/app/routers/messages.py
 """
-Messages router.
+Messages router — Sprint 7: Voice Message Support.
 
-Optimisations vs original:
-- get_conversations: replaced N+1 loop with a single lateral subquery.
-- send_message: broadcasts new message over Socket.IO (/messages namespace)
-  AND triggers background translation (non-blocking).
-- Language detection on message send — stored as detected_lang on message.
+Changes vs Sprint 6:
+  - MessageCreate: content is now optional; voice_note_url accepted.
+  - Model validator ensures at least one of (content, voice_note_url) is set.
+  - Voice-only messages skip translation (can't translate audio).
+  - _msg_dict now includes voice_note_duration_secs.
+  - send_message persists voice_note_url + voice_note_duration_secs.
+  - Conversations fallback includes voice_note_url in last_message preview.
 
-Socket.IO broadcast:
-  When a message is persisted, it is immediately emitted to the
-  "booking:{booking_id}" room in the /messages namespace so all connected
-  participants receive it without polling.
+Optimisations preserved:
+  - get_conversations: single lateral subquery (zero N+1).
+  - Socket.IO broadcast on every message (text or voice).
+  - Background translation for text messages only.
 """
 
 from __future__ import annotations
@@ -21,7 +23,7 @@ from typing import Any
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, HTTPException
-from pydantic import BaseModel
+from pydantic import BaseModel, field_validator, model_validator
 from sqlalchemy import func, or_, select, text, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -38,11 +40,37 @@ router = APIRouter(prefix="/messages", tags=["messages"])
 
 TARGET_LANGS = ["en", "rw", "fr"]  # Languages we translate into
 
+VOICE_PLACEHOLDER = "🎙️ Voice message"  # shown in conversation list preview
+
 
 class MessageCreate(BaseModel):
-    content: str
-    # Optional: caller can hint the sender's language; "auto" means detect
+    """
+    Payload for sending a message.
+
+    Rules:
+      - content may be empty string (voice-only) or omitted entirely.
+      - voice_note_url is the final public URL after a presigned upload.
+      - voice_note_duration_secs is optional metadata; UI shows it in the
+        audio player without needing to load the audio file.
+      - At least one of (content, voice_note_url) must be non-empty.
+    """
+
+    content: str = ""
+    voice_note_url: str | None = None
+    voice_note_duration_secs: float | None = None
     sender_lang: str = "auto"
+
+    @field_validator("content", mode="before")
+    @classmethod
+    def _coerce_none_content(cls, v: Any) -> str:
+        """Treat explicit None as empty string for backwards compatibility."""
+        return v if v is not None else ""
+
+    @model_validator(mode="after")
+    def must_have_content_or_voice(self) -> "MessageCreate":
+        if not self.content.strip() and not self.voice_note_url:
+            raise ValueError("Message must have text content or a voice note.")
+        return self
 
 
 def _msg_dict(msg: Message) -> dict[str, Any]:
@@ -54,6 +82,8 @@ def _msg_dict(msg: Message) -> dict[str, Any]:
         "translated_content": msg.translated_content,
         "detected_lang": getattr(msg, "detected_lang", None),
         "voice_note_url": msg.voice_note_url,
+        "voice_note_duration_secs": getattr(msg, "voice_note_duration_secs", None),
+        "is_voice_only": bool(msg.voice_note_url and not msg.content),
         "is_read": msg.is_read,
         "created_at": msg.created_at.isoformat() if msg.created_at else None,
     }
@@ -70,16 +100,19 @@ async def get_conversations(
 ) -> Any:
     user_id = UUID(current_user["sub"])
 
+    # Sprint 7 note: last_message content can be NULL for voice-only messages;
+    # COALESCE to the placeholder so conversation previews always render.
     stmt = text("""
         SELECT
-            b.id                    AS booking_id,
-            b.status                AS booking_status,
-            ou.id                   AS other_user_id,
-            ou.full_name            AS other_user_name,
-            ou.avatar_url           AS other_user_avatar,
-            lm.content              AS last_content,
-            lm.created_at           AS last_created_at,
-            COALESCE(uc.cnt, 0)     AS unread_count
+            b.id                                                AS booking_id,
+            b.status                                            AS booking_status,
+            ou.id                                               AS other_user_id,
+            ou.full_name                                        AS other_user_name,
+            ou.avatar_url                                       AS other_user_avatar,
+            COALESCE(lm.content, lm.voice_preview)             AS last_content,
+            lm.voice_note_url                                   AS last_voice_note_url,
+            lm.created_at                                       AS last_created_at,
+            COALESCE(uc.cnt, 0)                                 AS unread_count
         FROM bookings b
         JOIN users ou ON (
             CASE
@@ -88,7 +121,14 @@ async def get_conversations(
             END = ou.id
         )
         LEFT JOIN LATERAL (
-            SELECT content, created_at
+            SELECT
+                content,
+                voice_note_url,
+                CASE WHEN voice_note_url IS NOT NULL AND (content IS NULL OR content = '')
+                     THEN '🎙️ Voice message'
+                     ELSE NULL
+                END AS voice_preview,
+                created_at
             FROM messages
             WHERE booking_id = b.id
             ORDER BY created_at DESC
@@ -126,10 +166,14 @@ async def get_conversations(
             "last_message": (
                 {
                     "content": row["last_content"],
-                    "created_at": row["last_created_at"].isoformat()
-                    if row["last_created_at"] else None,
+                    "is_voice": bool(row["last_voice_note_url"]),
+                    "created_at": (
+                        row["last_created_at"].isoformat()
+                        if row["last_created_at"]
+                        else None
+                    ),
                 }
-                if row["last_content"] is not None
+                if row["last_content"] is not None or row["last_voice_note_url"]
                 else None
             ),
             "unread_count": row["unread_count"],
@@ -174,6 +218,15 @@ async def _conversations_fallback(db: AsyncSession, user_id: UUID) -> list[dict[
             )
             or 0
         )
+        last_content = None
+        last_is_voice = False
+        if latest_msg:
+            if latest_msg.voice_note_url and not latest_msg.content:
+                last_content = VOICE_PLACEHOLDER
+                last_is_voice = True
+            else:
+                last_content = latest_msg.content
+
         conversations.append({
             "booking_id": str(booking.id),
             "other_user": {
@@ -183,9 +236,13 @@ async def _conversations_fallback(db: AsyncSession, user_id: UUID) -> list[dict[
             },
             "last_message": (
                 {
-                    "content": latest_msg.content,
-                    "created_at": latest_msg.created_at.isoformat()
-                    if latest_msg and latest_msg.created_at else None,
+                    "content": last_content,
+                    "is_voice": last_is_voice,
+                    "created_at": (
+                        latest_msg.created_at.isoformat()
+                        if latest_msg and latest_msg.created_at
+                        else None
+                    ),
                 }
                 if latest_msg
                 else None
@@ -234,7 +291,7 @@ async def get_messages(
 
 
 # ---------------------------------------------------------------------------
-# POST /messages/{booking_id}  — send + Socket.IO broadcast + background translation
+# POST /messages/{booking_id}  — send + Socket.IO broadcast + translation
 # ---------------------------------------------------------------------------
 
 @router.post("/{booking_id}")
@@ -257,17 +314,24 @@ async def send_message(
             status_code=403, detail="Not authorized to send messages in this booking"
         )
 
-    # Detect sender language locally (zero-cost, <1ms)
-    detected_lang = (
-        detect_language(payload.content)
-        if payload.sender_lang == "auto"
-        else payload.sender_lang
-    )
+    is_voice_only = bool(payload.voice_note_url and not payload.content.strip())
+
+    # For voice-only messages skip language detection entirely
+    if is_voice_only:
+        detected_lang = "audio"
+    else:
+        detected_lang = (
+            detect_language(payload.content)
+            if payload.sender_lang == "auto"
+            else payload.sender_lang
+        )
 
     message = Message(
         booking_id=booking_id,
         sender_id=user_id,
-        content=payload.content,
+        content=payload.content.strip() or None,  # store None for voice-only
+        voice_note_url=payload.voice_note_url,
+        voice_note_duration_secs=payload.voice_note_duration_secs,
     )
     if hasattr(message, "detected_lang"):
         message.detected_lang = detected_lang
@@ -279,43 +343,44 @@ async def send_message(
     msg_data = _msg_dict(message)
 
     # ── Socket.IO broadcast (fire-and-forget) ────────────────────────────────
-    # Push to all participants in the booking room so the OTHER party's
-    # client receives the message instantly without any polling.
     import asyncio  # noqa: PLC0415
     asyncio.ensure_future(broadcast_message(str(booking_id), msg_data))
 
-    # ── Background translation (non-blocking) ────────────────────────────────
-    other_id = (
-        booking.artisan_id if booking.client_id == user_id else booking.client_id
-    )
-    recipient = await db.scalar(select(User).where(User.id == other_id))
-    recipient_lang = getattr(recipient, "preferred_lang", "en") or "en"
+    # ── Background translation (text messages only) ───────────────────────────
+    if not is_voice_only:
+        other_id = (
+            booking.artisan_id if booking.client_id == user_id else booking.client_id
+        )
+        recipient = await db.scalar(select(User).where(User.id == other_id))
+        recipient_lang = getattr(recipient, "preferred_lang", "en") or "en"
 
-    if recipient_lang != detected_lang:
-        msg_id = message.id
+        if recipient_lang != detected_lang and payload.content.strip():
+            msg_id = message.id
 
-        async def _update_translation(translated: str) -> None:
-            from app.database import AsyncSessionLocal  # noqa: PLC0415
-            try:
-                async with AsyncSessionLocal() as session:
-                    await session.execute(
-                        update(Message)
-                        .where(Message.id == msg_id)
-                        .values(translated_content=translated)
+            async def _update_translation(translated: str) -> None:
+                from app.database import AsyncSessionLocal  # noqa: PLC0415
+                try:
+                    async with AsyncSessionLocal() as session:
+                        await session.execute(
+                            update(Message)
+                            .where(Message.id == msg_id)
+                            .values(translated_content=translated)
+                        )
+                        await session.commit()
+                except Exception as exc:
+                    logger.warning(
+                        "Failed to persist translation for msg %s: %s", msg_id, exc
                     )
-                    await session.commit()
-            except Exception as exc:
-                logger.warning("Failed to persist translation for msg %s: %s", msg_id, exc)
 
-        try:
-            create_translation_task(
-                payload.content,
-                detected_lang,
-                recipient_lang,
-                on_complete=_update_translation,
-            )
-        except RuntimeError:
-            pass
+            try:
+                create_translation_task(
+                    payload.content,
+                    detected_lang,
+                    recipient_lang,
+                    on_complete=_update_translation,
+                )
+            except RuntimeError:
+                pass
 
     return msg_data
 

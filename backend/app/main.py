@@ -40,6 +40,7 @@ from app.routers import (
     address,
     admin,
     analytics,
+    artisan_stats,
     artisans,
     auth,
     bids,
@@ -165,8 +166,23 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
         # Placeholder for Sprint 9 nightly ML model training
         # scheduler.add_job(train_ranking_model, CronTrigger(hour=1, minute=0))
 
-        # Placeholder for Sprint 6 weekly artisan insight notifications (Mon 8am Kigali)
-        # scheduler.add_job(send_weekly_insights, CronTrigger(day_of_week="mon", hour=8))
+        # Sprint 6: Weekly artisan insight notifications (Monday 08:00 Kigali = 06:00 UTC)
+        from app.services.insights_notification_service import (  # noqa: PLC0415
+            send_weekly_insights,
+        )
+
+        async def _weekly_insights_job() -> None:
+            async with AsyncSessionLocal() as session:
+                result = await send_weekly_insights(session)
+                _log.info("[WeeklyInsights] APScheduler job complete: %s", result)
+
+        scheduler.add_job(
+            _weekly_insights_job,
+            CronTrigger(day_of_week="mon", hour=6, minute=0, timezone="UTC"),
+            id="weekly_artisan_insights",
+            replace_existing=True,
+            misfire_grace_time=3600,
+        )
 
         scheduler.start()
         _log.info("✅ APScheduler started (timezone: Africa/Kigali)")
@@ -226,6 +242,7 @@ app.add_middleware(
 app.include_router(address.router)
 app.include_router(admin.router)
 app.include_router(analytics.router)
+app.include_router(artisan_stats.router)
 app.include_router(artisans.router)
 app.include_router(auth.router)
 app.include_router(bids.router)

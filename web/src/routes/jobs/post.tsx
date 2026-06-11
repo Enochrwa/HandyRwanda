@@ -408,7 +408,9 @@ function PostJob() {
                     <div className="flex items-center gap-2">
                       <span className="text-lg">{aiSuggestion.suggested_category.emoji}</span>
                       <div>
-                        <p className="text-xs font-semibold">{aiSuggestion.suggested_category.name_en}</p>
+                        <p className="text-xs font-semibold">
+                          {aiSuggestion.suggested_category.name_en}
+                        </p>
                         <p className="text-[10px] text-muted-foreground">
                           {Math.round(aiSuggestion.confidence * 100)}% confidence
                         </p>
@@ -418,7 +420,9 @@ function PostJob() {
                       onClick={() => {
                         if (aiSuggestion.suggested_category) {
                           set("category_id", aiSuggestion.suggested_category.id);
-                          toast.success(`Category set to ${aiSuggestion.suggested_category.name_en}`);
+                          toast.success(
+                            `Category set to ${aiSuggestion.suggested_category.name_en}`,
+                          );
                         }
                       }}
                       className="flex items-center gap-1 rounded-xl bg-primary px-3 py-1.5 text-[11px] font-bold text-primary-foreground hover:brightness-95 transition"
@@ -435,11 +439,13 @@ function PostJob() {
                     <span>
                       Typical price:{" "}
                       <span className="font-semibold text-foreground">
-                        {formatRWF(aiSuggestion.typical_price_range.min)} – {formatRWF(aiSuggestion.typical_price_range.max)}
+                        {formatRWF(aiSuggestion.typical_price_range.min)} –{" "}
+                        {formatRWF(aiSuggestion.typical_price_range.max)}
                       </span>
                       {aiSuggestion.typical_price_range.based_on && (
                         <span className="text-muted-foreground/70">
-                          {" "}(based on {aiSuggestion.typical_price_range.based_on} completed jobs)
+                          {" "}
+                          (based on {aiSuggestion.typical_price_range.based_on} completed jobs)
                         </span>
                       )}
                     </span>
@@ -557,13 +563,21 @@ function PostJob() {
                 <div className="flex items-center gap-1.5 text-xs text-green-700 dark:text-green-400">
                   <TrendingUp className="h-3.5 w-3.5 flex-shrink-0" />
                   <span>
-                    Similar jobs: <strong>{formatRWF(aiSuggestion.typical_price_range.min)}–{formatRWF(aiSuggestion.typical_price_range.max)} RWF</strong>
+                    Similar jobs:{" "}
+                    <strong>
+                      {formatRWF(aiSuggestion.typical_price_range.min)}–
+                      {formatRWF(aiSuggestion.typical_price_range.max)} RWF
+                    </strong>
                   </span>
                 </div>
                 <button
                   onClick={() => {
                     if (aiSuggestion.typical_price_range) {
-                      const midpoint = Math.round((aiSuggestion.typical_price_range.min + aiSuggestion.typical_price_range.max) / 2);
+                      const midpoint = Math.round(
+                        (aiSuggestion.typical_price_range.min +
+                          aiSuggestion.typical_price_range.max) /
+                          2,
+                      );
                       set("budget", String(midpoint));
                     }
                   }}

@@ -228,7 +228,7 @@ def classify_with_sklearn(
         return classify_job_category(job_text, candidate_labels)
 
     filtered_labels = [cat_labels_local[i] for i in mask]
-    filtered_matrix = cat_matrix_local[mask]  # type: ignore[index]
+    filtered_matrix = cat_matrix_local[mask]
 
     query_vec = vectorizer.transform([job_text])
     sims = cosine_similarity(query_vec, filtered_matrix).flatten()

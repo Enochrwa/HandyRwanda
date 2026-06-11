@@ -220,8 +220,10 @@ export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath;
   fullPaths:
     | "/"
+    | "/join"
     | "/messages"
     | "/pro"
+    | "/referrals"
     | "/search"
     | "/admin/verification"
     | "/admin/scores"
@@ -242,8 +244,10 @@ export interface FileRouteTypes {
   fileRoutesByTo: FileRoutesByTo;
   to:
     | "/"
+    | "/join"
     | "/messages"
     | "/pro"
+    | "/referrals"
     | "/search"
     | "/admin/verification"
     | "/admin/scores"
@@ -264,8 +268,10 @@ export interface FileRouteTypes {
   id:
     | "__root__"
     | "/"
+    | "/join"
     | "/messages"
     | "/pro"
+    | "/referrals"
     | "/search"
     | "/admin/verification"
     | "/admin/scores"
@@ -287,8 +293,10 @@ export interface FileRouteTypes {
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute;
+  JoinRoute: typeof JoinRoute;
   MessagesRoute: typeof MessagesRoute;
   ProRoute: typeof ProRoute;
+  ReferralsRoute: typeof ReferralsRoute;
   SearchRoute: typeof SearchRoute;
   AdminVerificationRoute: typeof AdminVerificationRoute;
   AdminScoresRoute: typeof AdminScoresRoute;
@@ -304,6 +312,7 @@ export interface RootRouteChildren {
   OnboardingArtisanRoute: typeof OnboardingArtisanRoute;
   ProfilePortfolioRoute: typeof ProfilePortfolioRoute;
   SettingsNotificationsRoute: typeof SettingsNotificationsRoute;
+  BookingsBookingIdRoute: typeof BookingsBookingIdRoute;
 }
 
 declare module "@tanstack/react-router" {
@@ -313,6 +322,20 @@ declare module "@tanstack/react-router" {
       path: "/search";
       fullPath: "/search";
       preLoaderRoute: typeof SearchRouteImport;
+      parentRoute: typeof rootRouteImport;
+    };
+    "/referrals": {
+      id: "/referrals";
+      path: "/referrals";
+      fullPath: "/referrals";
+      preLoaderRoute: typeof ReferralsRouteImport;
+      parentRoute: typeof rootRouteImport;
+    };
+    "/join": {
+      id: "/join";
+      path: "/join";
+      fullPath: "/join";
+      preLoaderRoute: typeof JoinRouteImport;
       parentRoute: typeof rootRouteImport;
     };
     "/pro": {
@@ -410,12 +433,14 @@ declare module "@tanstack/react-router" {
       id: "/admin/verification";
       path: "/admin/verification";
       fullPath: "/admin/verification";
+      preLoaderRoute: typeof AdminVerificationRouteImport;
+      parentRoute: typeof rootRouteImport;
     };
     "/admin/scores": {
       id: "/admin/scores";
       path: "/admin/scores";
       fullPath: "/admin/scores";
-      preLoaderRoute: typeof AdminVerificationRouteImport;
+      preLoaderRoute: typeof AdminScoresRouteImport;
       parentRoute: typeof rootRouteImport;
     };
     "/artisans/jobs/$jobId/": {

@@ -594,9 +594,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, defaultTa
         agreed_to_terms: true,
         terms_version: "v1.0",
       };
-      const url = urlRef
-        ? `/auth/register?ref=${encodeURIComponent(urlRef)}`
-        : "/auth/register";
+      const url = urlRef ? `/auth/register?ref=${encodeURIComponent(urlRef)}` : "/auth/register";
       const res = await api.post(url, payload);
       toast.success("Account created!", {
         description: res.data.message || "Check your email for a verification code.",

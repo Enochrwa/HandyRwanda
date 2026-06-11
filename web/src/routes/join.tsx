@@ -1,11 +1,4 @@
 // File: web/src/routes/join.tsx
-/**
- * Sprint 8 — /join?ref=HW-XXX-XXXX
- *
- * Landing page for referred users. Shows an incentive banner ("Your friend
- * invited you — complete your first booking for 500 RWF credit!") and
- * immediately opens the registration modal.
- */
 import { createFileRoute, useNavigate, useSearch } from "@tanstack/react-router";
 import { Gift, Star, CheckCircle2, Zap } from "lucide-react";
 import { useEffect, useState } from "react";
@@ -36,12 +29,10 @@ function JoinPage() {
   const navigate = useNavigate();
   const [modalOpen, setModalOpen] = useState(false);
 
-  // Redirect authenticated users straight to home
   useEffect(() => {
     if (isAuthenticated) navigate({ to: "/" });
   }, [isAuthenticated, navigate]);
 
-  // Auto-open registration modal after a short delay so the banner renders first
   useEffect(() => {
     const t = setTimeout(() => setModalOpen(true), 800);
     return () => clearTimeout(t);
@@ -63,16 +54,13 @@ function JoinPage() {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-amber-50 via-background to-orange-50 dark:from-amber-950/20 dark:to-background flex flex-col items-center justify-center px-4 py-12">
-      {/* Incentive card */}
       <div className="w-full max-w-md">
-        {/* Logo */}
         <div className="flex justify-center mb-6">
           <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-amber-400 to-orange-500 flex items-center justify-center shadow-lg">
             <Gift size={28} className="text-white" />
           </div>
         </div>
 
-        {/* Headline */}
         <div className="text-center mb-8">
           {validation ? (
             <>
@@ -96,7 +84,6 @@ function JoinPage() {
           )}
         </div>
 
-        {/* Reward banner */}
         {ref && (
           <div className="relative overflow-hidden rounded-2xl bg-gradient-to-r from-amber-400 to-orange-500 p-0.5 shadow-lg mb-6">
             <div className="rounded-[14px] bg-card px-5 py-4">
@@ -108,7 +95,8 @@ function JoinPage() {
                   <p className="font-bold text-foreground text-sm">Welcome Offer</p>
                   <p className="text-xs text-muted-foreground mt-0.5">
                     Complete your first booking to earn{" "}
-                    <span className="font-bold text-amber-600">500 RWF wallet credit</span>. No expiry.
+                    <span className="font-bold text-amber-600">500 RWF wallet credit</span>
+                    {". No expiry."}
                   </p>
                 </div>
               </div>
@@ -123,7 +111,6 @@ function JoinPage() {
           </div>
         )}
 
-        {/* Features list */}
         <div className="rounded-2xl border border-border bg-card p-5 mb-6 shadow-sm">
           <p className="text-sm font-semibold text-foreground mb-3 flex items-center gap-2">
             <Star size={16} className="text-amber-500" />
@@ -139,7 +126,6 @@ function JoinPage() {
           </ul>
         </div>
 
-        {/* CTA */}
         <button
           onClick={() => setModalOpen(true)}
           className="w-full py-3.5 rounded-xl bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-600 hover:to-orange-600 text-white font-bold text-sm shadow-md hover:shadow-lg transition-all"
@@ -158,7 +144,6 @@ function JoinPage() {
         </p>
       </div>
 
-      {/* Auth modal */}
       <AuthModal isOpen={modalOpen} onClose={() => setModalOpen(false)} defaultTab="register" />
     </div>
   );

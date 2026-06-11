@@ -16,7 +16,7 @@ import os
 import secrets
 import string
 import uuid
-from typing import Any
+from typing import Any, TypedDict
 
 from sqlalchemy import func, select, update
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -38,8 +38,16 @@ REFERRAL_REFERRED_REWARD_RWF: int = int(
 
 BASE_URL: str = os.getenv("APP_BASE_URL", "https://handyrwanda.com")
 
+
+class _TierEntry(TypedDict):
+    name: str
+    icon: str
+    min: int
+    max: int | None
+
+
 # ── Referral tiers (for gamification / leaderboard) ─────────────────────────
-REFERRAL_TIERS = [
+REFERRAL_TIERS: list[_TierEntry] = [
     {"name": "Bronze Referrer",  "icon": "🥉", "min": 1,  "max": 2},
     {"name": "Silver Referrer",  "icon": "🥈", "min": 3,  "max": 5},
     {"name": "Gold Referrer",    "icon": "🥇", "min": 6,  "max": 10},
@@ -77,31 +85,35 @@ async def ensure_unique_referral_code(full_name: str, db: AsyncSession) -> str:
 
 def get_referral_tier(qualified_count: int) -> dict[str, Any]:
     """Return current tier and progress metadata."""
-    current_tier = None
+    current_tier: _TierEntry | None = None
     for tier in REFERRAL_TIERS:
-        if tier["max"] is None or qualified_count <= tier["max"]:
-            if qualified_count >= tier["min"]:
+        tier_max = tier["max"]
+        tier_min = int(tier["min"])
+        if tier_max is None or qualified_count <= int(tier_max):
+            if qualified_count >= tier_min:
                 current_tier = tier
                 break
 
     if current_tier is None:
-        # Not yet on any tier
+        first = REFERRAL_TIERS[0]
         return {
             "name": "Unranked",
             "icon": "⭕",
-            "next_tier": REFERRAL_TIERS[0],
-            "needed_for_next": REFERRAL_TIERS[0]["min"] - qualified_count,
+            "next_tier": first,
+            "needed_for_next": int(first["min"]) - qualified_count,
         }
 
     # Find next tier
     idx = REFERRAL_TIERS.index(current_tier)
-    next_tier = REFERRAL_TIERS[idx + 1] if idx + 1 < len(REFERRAL_TIERS) else None
+    next_tier: _TierEntry | None = (
+        REFERRAL_TIERS[idx + 1] if idx + 1 < len(REFERRAL_TIERS) else None
+    )
 
     return {
         "name": current_tier["name"],
         "icon": current_tier["icon"],
         "next_tier": next_tier,
-        "needed_for_next": (next_tier["min"] - qualified_count) if next_tier else 0,
+        "needed_for_next": (int(next_tier["min"]) - qualified_count) if next_tier else 0,
     }
 
 

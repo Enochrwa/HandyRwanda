@@ -15,16 +15,13 @@ import {
   Copy,
   Share2,
   Users,
-  TrendingUp,
   Wallet,
   Trophy,
   CheckCircle2,
   Clock,
   Info,
-  ChevronRight,
 } from '@icons';
 import { useQuery } from '@tanstack/react-query';
-import * as Clipboard from 'expo-clipboard';
 import { usePathname, useRouter } from 'expo-router';
 import React, { useCallback, useEffect } from 'react';
 import {
@@ -75,8 +72,15 @@ function StatRow({ stats }: { stats: ReferralStats }) {
 
 function ReferralCodeCard({ stats }: { stats: ReferralStats }) {
   const handleCopy = useCallback(async () => {
-    await Clipboard.setStringAsync(stats.referral_link);
-    Toast.show({ type: 'success', text1: '✅ Link copied!', text2: stats.referral_link });
+    try {
+      await Share.share({
+        message: stats.referral_link,
+        title: 'HandyRwanda Referral Link',
+      });
+    } catch {
+      /* user dismissed */
+    }
+    Toast.show({ type: 'success', text1: '✅ Share sheet opened!', text2: stats.referral_link });
   }, [stats.referral_link]);
 
   const handleShare = useCallback(async () => {
@@ -124,7 +128,7 @@ function ReferralCodeCard({ stats }: { stats: ReferralStats }) {
             className="bg-primary rounded-lg px-3 py-2 flex-row items-center gap-1.5"
           >
             <Copy size={14} color="white" />
-            <Text className="text-white text-xs font-semibold">Copy</Text>
+            <Text className="text-white text-xs font-semibold">Share</Text>
           </TouchableOpacity>
         </View>
 

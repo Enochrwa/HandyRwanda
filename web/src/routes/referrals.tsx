@@ -41,7 +41,7 @@ export const Route = createFileRoute("/referrals")({
   component: ReferralsPage,
 });
 
-// ── Sub-components ────────────────────────────────────────────────────────────
+// ── Sub-components ──────────────────────────────────────────────────────────
 
 function StatCard({
   icon: Icon,
@@ -72,7 +72,13 @@ function StatCard({
 
 function TierBadge({ tier }: { tier: ReferralStats["tier"] }) {
   return (
-    <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-sm font-semibold bg-amber-100 text-amber-800 dark:bg-amber-900/30 dark:text-amber-300 border border-amber-200 dark:border-amber-700">
+    <span
+      className={
+        "inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-sm font-semibold" +
+        " bg-amber-100 text-amber-800 dark:bg-amber-900/30 dark:text-amber-300" +
+        " border border-amber-200 dark:border-amber-700"
+      }
+    >
       <span>{tier.icon}</span>
       {tier.name}
     </span>
@@ -102,7 +108,11 @@ function ReferralCodeCard({ stats }: { stats: ReferralStats }) {
   };
 
   const handleShare = async () => {
-    const text = `Join HandyRwanda! Find trusted artisans near you.\nUse my code ${stats.referral_code} for 500 RWF off your first booking.\n${stats.referral_link}`;
+    const text = [
+      `Join HandyRwanda! Find trusted artisans near you.`,
+      `Use my code ${stats.referral_code} for 500 RWF off your first booking.`,
+      stats.referral_link,
+    ].join("\n");
     if (navigator.share) {
       try {
         await navigator.share({ title: "Join HandyRwanda!", text, url: stats.referral_link });
@@ -118,38 +128,45 @@ function ReferralCodeCard({ stats }: { stats: ReferralStats }) {
   return (
     <div className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-amber-500 via-orange-500 to-rose-500 p-0.5 shadow-lg">
       <div className="rounded-[14px] bg-card p-6">
-        {/* Header */}
         <div className="flex items-center gap-3 mb-5">
           <div className="w-10 h-10 rounded-xl bg-amber-100 dark:bg-amber-900/40 flex items-center justify-center">
             <Gift size={20} className="text-amber-600 dark:text-amber-400" />
           </div>
           <div>
             <h2 className="font-semibold text-foreground">Your Referral Code</h2>
-            <p className="text-xs text-muted-foreground">Share and earn 500 RWF per qualified referral</p>
+            <p className="text-xs text-muted-foreground">
+              Share and earn 500 RWF per qualified referral
+            </p>
           </div>
         </div>
 
-        {/* Code display */}
         <div className="flex items-center gap-3 p-4 rounded-xl bg-muted/50 border border-border mb-4">
           <span className="flex-1 font-mono text-2xl font-bold tracking-widest text-foreground text-center">
             {stats.referral_code}
           </span>
           <button
             onClick={handleCopy}
-            className="flex items-center gap-1.5 px-3 py-2 rounded-lg bg-primary text-primary-foreground text-sm font-medium hover:bg-primary/90 transition-colors"
+            className={
+              "flex items-center gap-1.5 px-3 py-2 rounded-lg bg-primary" +
+              " text-primary-foreground text-sm font-medium hover:bg-primary/90 transition-colors"
+            }
           >
             {copied ? <CheckCircle2 size={15} /> : <Copy size={15} />}
             {copied ? "Copied!" : "Copy"}
           </button>
         </div>
 
-        {/* Link preview */}
         <p className="text-xs text-muted-foreground truncate mb-4 text-center font-mono">
           {stats.referral_link}
         </p>
 
-        {/* Share button */}
-        <Button onClick={handleShare} className="w-full gap-2 bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-600 hover:to-orange-600 border-0 text-white font-semibold">
+        <Button
+          onClick={handleShare}
+          className={
+            "w-full gap-2 bg-gradient-to-r from-amber-500 to-orange-500" +
+            " hover:from-amber-600 hover:to-orange-600 border-0 text-white font-semibold"
+          }
+        >
           <Share2 size={16} />
           Share with Friends
         </Button>
@@ -182,11 +199,14 @@ function TierProgress({ stats }: { stats: ReferralStats }) {
         <>
           <div className="flex justify-between text-sm text-muted-foreground mb-2">
             <span>{qualified} qualified</span>
-            <span>{tier.next_tier.min} for {tier.next_tier.icon} {tier.next_tier.name}</span>
+            <span>
+              {tier.next_tier.min} for {tier.next_tier.icon} {tier.next_tier.name}
+            </span>
           </div>
           <ProgressBar value={qualified} max={tier.next_tier.min} />
           <p className="text-xs text-muted-foreground mt-2 text-center">
-            {tier.needed_for_next} more qualified referral{tier.needed_for_next !== 1 ? "s" : ""} to unlock <strong>{tier.next_tier.name}</strong>
+            {tier.needed_for_next} more qualified referral
+            {tier.needed_for_next !== 1 ? "s" : ""} to unlock <strong>{tier.next_tier.name}</strong>
           </p>
         </>
       )}
@@ -197,7 +217,6 @@ function TierProgress({ stats }: { stats: ReferralStats }) {
         </p>
       )}
 
-      {/* All tiers */}
       <div className="mt-4 grid grid-cols-5 gap-1">
         {tiers.map((t) => {
           const reached = qualified >= t.min;
@@ -205,11 +224,12 @@ function TierProgress({ stats }: { stats: ReferralStats }) {
             <div
               key={t.name}
               title={t.name}
-              className={`flex flex-col items-center p-2 rounded-xl border transition-all ${
-                reached
-                  ? "border-amber-300 bg-amber-50 dark:bg-amber-900/20 dark:border-amber-700"
-                  : "border-border bg-muted/30 opacity-40"
-              }`}
+              className={
+                "flex flex-col items-center p-2 rounded-xl border transition-all" +
+                (reached
+                  ? " border-amber-300 bg-amber-50 dark:bg-amber-900/20 dark:border-amber-700"
+                  : " border-border bg-muted/30 opacity-40")
+              }
             >
               <span className="text-lg">{t.icon}</span>
               <span className="text-[10px] text-muted-foreground mt-0.5">{t.min}+</span>
@@ -229,7 +249,10 @@ function WalletCard({ stats }: { stats: ReferralStats }) {
           <Wallet size={18} className="text-emerald-600" />
           Wallet Balance
         </h3>
-        <Badge variant="secondary" className="bg-emerald-100 text-emerald-800 dark:bg-emerald-900/40 dark:text-emerald-300">
+        <Badge
+          variant="secondary"
+          className="bg-emerald-100 text-emerald-800 dark:bg-emerald-900/40 dark:text-emerald-300"
+        >
           Available Credit
         </Badge>
       </div>
@@ -242,7 +265,8 @@ function WalletCard({ stats }: { stats: ReferralStats }) {
       <div className="mt-4 flex items-start gap-2 p-3 rounded-xl bg-emerald-100/60 dark:bg-emerald-900/20 border border-emerald-200 dark:border-emerald-700">
         <Info size={14} className="text-emerald-600 shrink-0 mt-0.5" />
         <p className="text-xs text-emerald-700 dark:text-emerald-300">
-          Total earned: <strong>{stats.total_earned_rwf.toLocaleString()} RWF</strong> from {stats.qualified} qualified referral{stats.qualified !== 1 ? "s" : ""}.
+          Total earned: <strong>{stats.total_earned_rwf.toLocaleString()} RWF</strong> from{" "}
+          {stats.qualified} qualified referral{stats.qualified !== 1 ? "s" : ""}.
         </p>
       </div>
     </div>
@@ -290,7 +314,9 @@ function HowItWorks() {
       <div className="space-y-4">
         {steps.map((step, i) => (
           <div key={i} className="flex items-start gap-4">
-            <div className={`shrink-0 w-10 h-10 rounded-xl ${step.bg} flex items-center justify-center`}>
+            <div
+              className={`shrink-0 w-10 h-10 rounded-xl ${step.bg} flex items-center justify-center`}
+            >
               <step.icon size={18} className={step.color} />
             </div>
             <div className="flex-1">
@@ -338,7 +364,9 @@ function LeaderboardSection({ data }: { data: LeaderboardEntry[] }) {
               </div>
               <div className="flex-1 min-w-0">
                 <p className="text-sm font-semibold text-foreground truncate">{entry.full_name}</p>
-                <p className="text-xs text-muted-foreground">{entry.tier.icon} {entry.tier.name}</p>
+                <p className="text-xs text-muted-foreground">
+                  {entry.tier.icon} {entry.tier.name}
+                </p>
               </div>
               <div className="text-right shrink-0">
                 <p className="text-sm font-bold text-foreground">{entry.qualified_count}</p>
@@ -358,7 +386,9 @@ function HistorySection({ data }: { data: ReferralHistoryEntry[] }) {
       <h3 className="font-semibold text-foreground mb-5 flex items-center gap-2">
         <Users size={18} className="text-blue-500" />
         Your Referred Friends
-        <Badge variant="secondary" className="ml-auto">{data.length}</Badge>
+        <Badge variant="secondary" className="ml-auto">
+          {data.length}
+        </Badge>
       </h3>
       {data.length === 0 ? (
         <div className="text-center py-8">
@@ -379,13 +409,19 @@ function HistorySection({ data }: { data: ReferralHistoryEntry[] }) {
             >
               <div className="w-9 h-9 rounded-full bg-muted flex items-center justify-center text-sm font-bold shrink-0">
                 {entry.avatar_url ? (
-                  <img src={entry.avatar_url} alt="" className="w-full h-full rounded-full object-cover" />
+                  <img
+                    src={entry.avatar_url}
+                    alt=""
+                    className="w-full h-full rounded-full object-cover"
+                  />
                 ) : (
                   entry.display_name.charAt(0).toUpperCase()
                 )}
               </div>
               <div className="flex-1 min-w-0">
-                <p className="text-sm font-semibold text-foreground truncate">{entry.display_name}</p>
+                <p className="text-sm font-semibold text-foreground truncate">
+                  {entry.display_name}
+                </p>
                 <p className="text-xs text-muted-foreground">
                   {new Date(entry.registered_at).toLocaleDateString("en-RW", {
                     day: "numeric",
@@ -418,7 +454,7 @@ function HistorySection({ data }: { data: ReferralHistoryEntry[] }) {
   );
 }
 
-// ── Main page ─────────────────────────────────────────────────────────────────
+// ── Main page ───────────────────────────────────────────────────────────────
 
 function ReferralsPage() {
   const { isAuthenticated } = useAuthStore();
@@ -434,13 +470,13 @@ function ReferralsPage() {
     enabled: isAuthenticated,
   });
 
-  const { data: leaderboard = [], isLoading: lbLoading } = useQuery({
+  const { data: leaderboard = [] } = useQuery({
     queryKey: ["referralLeaderboard"],
     queryFn: () => referralService.getLeaderboard(10),
     enabled: isAuthenticated,
   });
 
-  const { data: history = [], isLoading: histLoading } = useQuery({
+  const { data: history = [] } = useQuery({
     queryKey: ["referralHistory"],
     queryFn: referralService.getHistory,
     enabled: isAuthenticated,
@@ -464,7 +500,6 @@ function ReferralsPage() {
     <div className="min-h-screen bg-background">
       <Header />
       <main className="max-w-5xl mx-auto px-4 py-8">
-        {/* Page header */}
         <div className="mb-8">
           <div className="flex items-center gap-3 mb-2">
             <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-amber-400 to-orange-500 flex items-center justify-center shadow-sm">
@@ -481,7 +516,6 @@ function ReferralsPage() {
 
         {stats && (
           <>
-            {/* Stats row */}
             <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
               <StatCard
                 icon={Users}
@@ -517,16 +551,12 @@ function ReferralsPage() {
               />
             </div>
 
-            {/* Two-column layout */}
             <div className="grid grid-cols-1 lg:grid-cols-5 gap-6">
-              {/* Left column: code + wallet + how it works */}
               <div className="lg:col-span-2 space-y-6">
                 <ReferralCodeCard stats={stats} />
                 <WalletCard stats={stats} />
                 <HowItWorks />
               </div>
-
-              {/* Right column: tier + leaderboard + history */}
               <div className="lg:col-span-3 space-y-6">
                 <TierProgress stats={stats} />
                 <LeaderboardSection data={leaderboard} />

@@ -926,3 +926,58 @@ async def trigger_score_recalculation(
         "status": "complete",
         **result,
     }
+
+
+# ── Sprint 9 — ML Ranking admin endpoints ────────────────────────────────────
+
+
+@router.get("/ml/ranking-status", summary="Sprint 9 — ML Ranking model status")
+async def get_ml_ranking_status(
+    current_user: dict[str, Any] = Depends(require_role(UserRole.admin)),
+) -> Any:
+    """
+    Return the current state of the sklearn ranking model:
+    - Whether it has been trained
+    - Training timestamp + sample count
+    - Validation AUC
+    - Feature importances
+    """
+    from app.services.ml_ranking_service import get_model_metadata  # noqa: PLC0415
+    return get_model_metadata()
+
+
+@router.post("/ml/train-now", summary="Sprint 9 — Trigger ML model training on-demand")
+async def trigger_ml_training(
+    db: AsyncSession = Depends(get_db),
+    current_user: dict[str, Any] = Depends(require_role(UserRole.admin)),
+) -> Any:
+    """
+    Trigger on-demand ML ranking model training.
+    Normally runs nightly; use this after a significant data import.
+    """
+    from app.services.ml_ranking_service import train_ranking_model  # noqa: PLC0415
+    result = await train_ranking_model(db)
+    return result
+
+
+@router.post("/ml/build-tfidf", summary="Sprint 9 — Rebuild TF-IDF category index")
+async def trigger_tfidf_rebuild(
+    db: AsyncSession = Depends(get_db),
+    current_user: dict[str, Any] = Depends(require_role(UserRole.admin)),
+) -> Any:
+    """
+    Trigger on-demand TF-IDF index rebuild.
+    Normally runs nightly; use this after seeding new job data.
+    """
+    from app.services.sklearn_category_service import build_tfidf_index  # noqa: PLC0415
+    result = await build_tfidf_index(db)
+    return result
+
+
+@router.get("/ml/tfidf-status", summary="Sprint 9 — TF-IDF index status")
+async def get_tfidf_status_endpoint(
+    current_user: dict[str, Any] = Depends(require_role(UserRole.admin)),
+) -> Any:
+    """Return the current state of the sklearn TF-IDF category index."""
+    from app.services.sklearn_category_service import get_tfidf_status  # noqa: PLC0415
+    return get_tfidf_status()

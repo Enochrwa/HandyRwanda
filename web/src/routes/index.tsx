@@ -63,45 +63,62 @@ function Home() {
     enabled: isAuthenticated,
   });
 
-  const { data: featuredArtisans } = useQuery({
-    queryKey: ["featured-artisans"],
-    queryFn: () =>
-      api
-        .get("/artisans/search", {
-          params: { latitude: -1.9441, longitude: 30.0619, radius_km: 30, page: 1 },
-        })
-        .then((r) => {
-          const items: unknown[] = Array.isArray(r.data) ? r.data : (r.data?.items ?? []);
-          return items.slice(0, 6).map((a: unknown) => {
+  // Sprint 9 — ML-ranked artisan recommendations (personalised when authenticated)
+  const { data: recommendedArtisans, isLoading: isLoadingRecommended } = useQuery({
+    queryKey: ["recommended-artisans", isAuthenticated],
+    queryFn: async () => {
+      if (isAuthenticated) {
+        try {
+          const res = await api.get("/jobs/recommended-artisans", { params: { limit: 6 } });
+          const items: unknown[] = Array.isArray(res.data?.artisans) ? res.data.artisans : [];
+          return items.map((a: unknown) => {
             const art = a as Record<string, unknown>;
             return {
-              id: (art.id ?? "") as string,
-              name: (art.full_name ?? "Unknown") as string,
-              category: (art.category_name ?? "Artisan") as string,
-              categories: [(art.category_name ?? "Artisan") as string],
-              photo: (art.avatar_url ??
-                `https://api.dicebear.com/7.x/avataaars/svg?seed=${art.id}`) as string,
-              rating: (art.average_rating ?? 0) as number,
-              reviews: (art.total_reviews ?? 0) as number,
-              jobs: (art.total_reviews ?? 0) as number,
-              distanceKm: parseFloat((art.distance_km ?? 0) as string) || 0,
-              startingPrice: (art.hourly_rate ?? art.fixed_rate ?? 5000) as number,
-              hourlyRate: art.hourly_rate as number | undefined,
-              verified: ["id_verified", "pro_verified"].includes(
-                (art.verification_status ?? "") as string,
-              ),
-              pro: art.verification_status === "pro_verified",
-              availableNow: art.is_available as boolean,
-              district: (art.district ?? "Kigali") as string,
-              languages: [],
-              experienceYears: 0,
-              bio: "",
-              responseTime: "Responds quickly",
-              weeklyBookings: 0,
+              id: (art.artisan_id ?? "") as string,
+              full_name: (art.full_name ?? "Unknown") as string,
+              avatar_url: (art.avatar_url ?? null) as string | null,
+              average_rating: (art.average_rating ?? 0) as number,
+              total_reviews: (art.total_reviews ?? 0) as number,
+              hourly_rate: (art.hourly_rate ?? null) as number | null,
+              verification_status: (art.verification_status ?? null) as string | null,
+              district: (art.district ?? "Rwanda") as string,
+              is_available: true,
+              community_score: (art.community_score ?? 0) as number,
+              // Sprint 9 ML signals
+              ml_score: (art.ml_score ?? null) as number | null,
+              rank_source: (art.rank_source ?? null) as "ml" | "heuristic" | null,
+              district_match: (art.district_match ?? 0) as number,
             };
           });
-        })
-        .catch(() => null),
+        } catch {
+          // fall through to featured artisans
+        }
+      }
+      // Unauthenticated: show featured nearby artisans
+      const r = await api.get("/artisans/search", {
+        params: { latitude: -1.9441, longitude: 30.0619, radius_km: 30, page: 1 },
+      });
+      const items: unknown[] = Array.isArray(r.data) ? r.data : (r.data?.items ?? []);
+      return items.slice(0, 6).map((a: unknown) => {
+        const art = a as Record<string, unknown>;
+        return {
+          id: (art.id ?? "") as string,
+          full_name: (art.full_name ?? "Unknown") as string,
+          avatar_url: (art.avatar_url ?? null) as string | null,
+          average_rating: (art.average_rating ?? 0) as number,
+          total_reviews: (art.total_reviews ?? 0) as number,
+          hourly_rate: (art.hourly_rate ?? null) as number | null,
+          verification_status: (art.verification_status ?? null) as string | null,
+          district: (art.district ?? "Rwanda") as string,
+          is_available: (art.is_available ?? true) as boolean,
+          community_score: (art.community_score ?? 0) as number,
+          ml_score: null,
+          rank_source: null,
+          district_match: 0,
+        };
+      });
+    },
+    staleTime: 3 * 60 * 1000, // 3 minutes
   });
 
   return (
@@ -230,21 +247,43 @@ function Home() {
           </div>
         </section>
 
-        {/* Verified nearby */}
+        {/* Sprint 9 — ML-ranked artisan recommendations */}
         <section className="mt-10">
           <div className="mb-1 flex items-end justify-between">
-            <h2 className="text-xl font-bold">Akazi beza hafi yawe</h2>
+            <div>
+              <h2 className="text-xl font-bold">
+                {isAuthenticated ? "Recommended for you" : "Akazi beza hafi yawe"}
+              </h2>
+              {isAuthenticated && (
+                <p className="mt-0.5 flex items-center gap-1 text-xs text-muted-foreground">
+                  <span className="text-violet-500">✦</span>
+                  Ranked by our matching algorithm based on your history
+                </p>
+              )}
+              {!isAuthenticated && (
+                <p className="mt-0.5 text-sm text-muted-foreground">Good workers near you</p>
+              )}
+            </div>
             <Link to="/search" className="text-sm font-semibold text-primary hover:underline">
               See all
             </Link>
           </div>
-          <p className="mb-4 text-sm text-muted-foreground">Good workers near you</p>
-          <div className="-mx-4 flex snap-x snap-mandatory gap-3 overflow-x-auto px-4 pb-2 sm:mx-0 sm:px-0">
-            {(featuredArtisans ?? fallbackArtisans)?.map((a: Artisan) => (
-              <div key={a.id} className="w-[85%] shrink-0 snap-start sm:w-[360px]">
-                <ArtisanCard a={a} />
-              </div>
-            ))}
+          <div className="-mx-4 flex snap-x snap-mandatory gap-3 overflow-x-auto px-4 pb-2 sm:mx-0 sm:px-0 mt-4">
+            {isLoadingRecommended
+              ? Array.from({ length: 4 }).map((_, i) => (
+                  <div
+                    key={i}
+                    className="w-[85%] shrink-0 snap-start sm:w-[200px] h-64 rounded-3xl bg-muted/50 animate-pulse"
+                  />
+                ))
+              : (recommendedArtisans ?? (fallbackArtisans as unknown[]))?.map((a) => {
+                  const art = a as import("@/components/ArtisanCard").ArtisanCardData;
+                  return (
+                    <div key={art.id} className="w-[85%] shrink-0 snap-start sm:w-[200px]">
+                      <ArtisanCard a={art} />
+                    </div>
+                  );
+                })}
           </div>
         </section>
 

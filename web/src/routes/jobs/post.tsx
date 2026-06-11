@@ -1,5 +1,5 @@
 // File: web/src/routes/jobs/post.tsx
-import { useState, useRef } from "react";
+import { useState, useRef, useCallback, useEffect } from "react";
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { Header } from "@/components/Header";
 import {
@@ -12,6 +12,9 @@ import {
   FileText,
   Camera,
   X,
+  Sparkles,
+  ChevronRight,
+  TrendingUp,
 } from "lucide-react";
 import api from "@/services/api";
 import { useQuery } from "@tanstack/react-query";
@@ -78,6 +81,17 @@ function PostJob() {
     scheduled_time: "",
   });
 
+  // Sprint 9 — AI Description Assistant state
+  const [aiSuggestion, setAiSuggestion] = useState<{
+    suggested_category: { id: string; name_en: string; emoji: string } | null;
+    confidence: number;
+    related_suggestions: string[];
+    typical_price_range: { min: number; max: number; currency: string; based_on?: number } | null;
+    source: string;
+  } | null>(null);
+  const [aiLoading, setAiLoading] = useState(false);
+  const suggestDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
   const {
     data: categories = [],
     isLoading: categoriesLoading,
@@ -90,6 +104,40 @@ function PostJob() {
   });
 
   const set = (k: string, v: string | boolean) => setFormData((p) => ({ ...p, [k]: v }));
+
+  // Sprint 9 — Debounced AI category + description suggestion
+  const fetchAiSuggestion = useCallback(async (text: string) => {
+    if (!text || text.trim().length < 10) {
+      setAiSuggestion(null);
+      return;
+    }
+    setAiLoading(true);
+    try {
+      const { data } = await api.post("/jobs/suggest", { partial_description: text });
+      setAiSuggestion(data);
+    } catch {
+      // Silent fail — suggestion is optional enhancement
+    } finally {
+      setAiLoading(false);
+    }
+  }, []);
+
+  const handleDescriptionChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
+    const val = e.target.value;
+    set("description", val);
+    // Debounce AI call — fire after 800ms of no typing
+    if (suggestDebounceRef.current) clearTimeout(suggestDebounceRef.current);
+    suggestDebounceRef.current = setTimeout(() => {
+      fetchAiSuggestion(val);
+    }, 800);
+  };
+
+  // Clean up debounce on unmount
+  useEffect(() => {
+    return () => {
+      if (suggestDebounceRef.current) clearTimeout(suggestDebounceRef.current);
+    };
+  }, []);
 
   const selectedCatName =
     categories.find((c: { id: string; name_en: string }) => c.id === formData.category_id)
@@ -313,17 +361,21 @@ function PostJob() {
             </div>
           </section>
 
-          {/* 3. Description */}
+          {/* 3. Description — AI-assisted (Sprint 9) */}
           <section>
             <label className="flex items-center gap-2 text-xs font-bold uppercase tracking-wider text-muted-foreground mb-1.5">
               <span className="w-5 h-5 rounded-full bg-primary text-primary-foreground flex items-center justify-center text-[10px] font-bold">
                 3
               </span>
               Describe the Work <span className="text-destructive">*</span>
+              <span className="ml-auto flex items-center gap-1 text-[10px] font-medium text-primary/80 bg-primary/8 px-2 py-0.5 rounded-full">
+                <Sparkles className="h-3 w-3" />
+                AI-assisted
+              </span>
             </label>
             <textarea
               value={formData.description}
-              onChange={(e) => set("description", e.target.value)}
+              onChange={handleDescriptionChange}
               placeholder={descriptionPlaceholder}
               rows={5}
               maxLength={2000}
@@ -331,8 +383,85 @@ function PostJob() {
             />
             <div className="flex justify-between text-[10px] text-muted-foreground mt-1">
               <span>Include: what's wrong, how long, what you've tried, access requirements</span>
-              <span>{formData.description.length}/2000</span>
+              <span className="flex items-center gap-1">
+                {aiLoading && <Loader2 className="h-3 w-3 animate-spin text-primary" />}
+                {formData.description.length}/2000
+              </span>
             </div>
+
+            {/* AI Suggestion Panel */}
+            {aiSuggestion && !aiLoading && (
+              <div className="mt-3 rounded-2xl border border-primary/20 bg-primary/5 p-4 space-y-3 animate-in fade-in slide-in-from-top-2 duration-300">
+                <div className="flex items-center gap-2">
+                  <Sparkles className="h-4 w-4 text-primary flex-shrink-0" />
+                  <span className="text-xs font-bold text-primary">AI Assistant</span>
+                  {aiSuggestion.source === "sklearn" && (
+                    <span className="ml-auto text-[10px] text-muted-foreground bg-muted px-1.5 py-0.5 rounded-full">
+                      sklearn TF-IDF
+                    </span>
+                  )}
+                </div>
+
+                {/* Category suggestion */}
+                {aiSuggestion.suggested_category && !formData.category_id && (
+                  <div className="flex items-center justify-between rounded-xl border border-border bg-card p-3">
+                    <div className="flex items-center gap-2">
+                      <span className="text-lg">{aiSuggestion.suggested_category.emoji}</span>
+                      <div>
+                        <p className="text-xs font-semibold">{aiSuggestion.suggested_category.name_en}</p>
+                        <p className="text-[10px] text-muted-foreground">
+                          {Math.round(aiSuggestion.confidence * 100)}% confidence
+                        </p>
+                      </div>
+                    </div>
+                    <button
+                      onClick={() => {
+                        if (aiSuggestion.suggested_category) {
+                          set("category_id", aiSuggestion.suggested_category.id);
+                          toast.success(`Category set to ${aiSuggestion.suggested_category.name_en}`);
+                        }
+                      }}
+                      className="flex items-center gap-1 rounded-xl bg-primary px-3 py-1.5 text-[11px] font-bold text-primary-foreground hover:brightness-95 transition"
+                    >
+                      Apply <ChevronRight className="h-3 w-3" />
+                    </button>
+                  </div>
+                )}
+
+                {/* Price range */}
+                {aiSuggestion.typical_price_range && (
+                  <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                    <TrendingUp className="h-3.5 w-3.5 text-green-600 flex-shrink-0" />
+                    <span>
+                      Typical price:{" "}
+                      <span className="font-semibold text-foreground">
+                        {formatRWF(aiSuggestion.typical_price_range.min)} – {formatRWF(aiSuggestion.typical_price_range.max)}
+                      </span>
+                      {aiSuggestion.typical_price_range.based_on && (
+                        <span className="text-muted-foreground/70">
+                          {" "}(based on {aiSuggestion.typical_price_range.based_on} completed jobs)
+                        </span>
+                      )}
+                    </span>
+                  </div>
+                )}
+
+                {/* Related suggestions */}
+                {aiSuggestion.related_suggestions.length > 0 && (
+                  <div className="space-y-1.5">
+                    <p className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">
+                      Improve your description:
+                    </p>
+                    {aiSuggestion.related_suggestions.map((tip, i) => (
+                      <div key={i} className="flex gap-2 text-xs text-muted-foreground">
+                        <span className="text-primary mt-0.5 flex-shrink-0">💡</span>
+                        <span>{tip}</span>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            )}
           </section>
 
           {/* 4. Additional Notes */}
@@ -422,6 +551,28 @@ function PostJob() {
                 (optional — leave blank for open bids)
               </span>
             </label>
+            {/* AI price range hint (Sprint 9) */}
+            {aiSuggestion?.typical_price_range && !formData.budget && (
+              <div className="flex items-center justify-between rounded-xl border border-green-200 bg-green-50 dark:bg-green-950/20 dark:border-green-900 px-3 py-2 mb-2">
+                <div className="flex items-center gap-1.5 text-xs text-green-700 dark:text-green-400">
+                  <TrendingUp className="h-3.5 w-3.5 flex-shrink-0" />
+                  <span>
+                    Similar jobs: <strong>{formatRWF(aiSuggestion.typical_price_range.min)}–{formatRWF(aiSuggestion.typical_price_range.max)} RWF</strong>
+                  </span>
+                </div>
+                <button
+                  onClick={() => {
+                    if (aiSuggestion.typical_price_range) {
+                      const midpoint = Math.round((aiSuggestion.typical_price_range.min + aiSuggestion.typical_price_range.max) / 2);
+                      set("budget", String(midpoint));
+                    }
+                  }}
+                  className="text-[10px] font-bold text-green-700 dark:text-green-400 hover:underline"
+                >
+                  Use midpoint
+                </button>
+              </div>
+            )}
             <input
               type="number"
               value={formData.budget}

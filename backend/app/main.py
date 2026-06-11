@@ -167,6 +167,47 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
         # Placeholder for Sprint 9 nightly ML model training
         # scheduler.add_job(train_ranking_model, CronTrigger(hour=1, minute=0))
 
+        # Sprint 9: Nightly ML ranking model training (01:00 UTC = 03:00 Kigali)
+        from app.services.ml_ranking_service import train_ranking_model  # noqa: PLC0415, I001
+        from app.services.sklearn_category_service import build_tfidf_index  # noqa: PLC0415, I001
+
+        async def _nightly_ml_train_job() -> None:
+            async with AsyncSessionLocal() as session:
+                result = await train_ranking_model(session)
+                _log.info("[MLRanking] Nightly training complete: %s", result)
+
+        async def _nightly_tfidf_job() -> None:
+            async with AsyncSessionLocal() as session:
+                result = await build_tfidf_index(session)
+                _log.info("[TF-IDF] Nightly index rebuild complete: %s", result)
+
+        scheduler.add_job(
+            _nightly_ml_train_job,
+            CronTrigger(hour=1, minute=0, timezone="UTC"),
+            id="nightly_ml_ranking",
+            replace_existing=True,
+            misfire_grace_time=3600,
+        )
+        scheduler.add_job(
+            _nightly_tfidf_job,
+            CronTrigger(hour=1, minute=30, timezone="UTC"),
+            id="nightly_tfidf_rebuild",
+            replace_existing=True,
+            misfire_grace_time=3600,
+        )
+
+        # Also build TF-IDF index at startup (non-blocking)
+        async def _startup_tfidf() -> None:
+            await asyncio.sleep(10)  # Let DB warm up first
+            async with AsyncSessionLocal() as session:
+                try:
+                    result = await build_tfidf_index(session)
+                    _log.info("[TF-IDF] Startup index build complete: %s", result)
+                except Exception as exc:
+                    _log.warning("[TF-IDF] Startup index build failed: %s", exc)
+
+        asyncio.create_task(_startup_tfidf())
+
         # Sprint 6: Weekly artisan insight notifications (Monday 08:00 Kigali = 06:00 UTC)
         from app.services.insights_notification_service import (  # noqa: PLC0415
             send_weekly_insights,

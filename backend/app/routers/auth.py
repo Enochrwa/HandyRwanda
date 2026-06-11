@@ -5,6 +5,8 @@ Registration → OTP email verification → Login flow.
 
 Registration flow:
   POST /auth/register          → creates user (account_status=pending_verification)
+                                  auto-generates referral_code
+                                  if ?ref=CODE provided, creates Referral(status=registered)
   POST /auth/otp/request       → sends email OTP (rate-limited)
   POST /auth/otp/verify        → verifies OTP, marks email_verified, activates account
                                   returns JWT pair on success
@@ -18,6 +20,7 @@ Other:
   POST /auth/logout            → blacklist refresh token
   GET  /auth/users/{id}/profile
   PATCH /auth/users/{id}/profile
+  PATCH /auth/profile          → update own profile (alias)
 """
 
 import os
@@ -25,7 +28,7 @@ from datetime import datetime, timezone
 from typing import Any
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, HTTPException, Request
+from fastapi import APIRouter, Depends, HTTPException, Query, Request
 from jose import JWTError, jwt
 from sqlalchemy import select, update
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -34,6 +37,7 @@ from app.database import get_db
 from app.dependencies.jwt_auth import get_current_user
 from app.integrations.upstash import redis_get, redis_set
 from app.models.artisan import ArtisanProfile, PortfolioPhoto
+from app.models.referral import Referral, ReferralStatus
 from app.models.user import AccountStatus, User, UserRole
 from app.schemas.auth import (
     AuthResponse,
@@ -46,6 +50,7 @@ from app.schemas.auth import (
     UserBase,
 )
 from app.services import auth_service
+from app.services.referral_service import ensure_unique_referral_code
 
 router = APIRouter(prefix="/auth", tags=["auth"])
 
@@ -64,11 +69,15 @@ def _client_ip(request: Request) -> str:
 async def register(
     payload: RegisterRequest,
     request: Request,
+    ref: str | None = Query(default=None, description="Referral code from a friend"),
     db: AsyncSession = Depends(get_db),
 ) -> Any:
     """
     Create a new account. Account is in 'pending_verification' state until
     the user verifies their email via OTP.
+
+    Sprint 8: auto-generates a unique referral code for every new user.
+    If ?ref=HW-XXX-XXXX is provided, creates a Referral(status=registered) record.
     """
     email_exists = await db.scalar(select(User).where(User.email == payload.email))
     if email_exists:
@@ -94,7 +103,27 @@ async def register(
             },
         )
 
+    # Sprint 8: validate referral code early so we can reject bad codes upfront
+    referrer: User | None = None
+    if ref:
+        code_upper = ref.strip().upper()
+        referrer = await db.scalar(
+            select(User).where(User.referral_code == code_upper)
+        )
+        if not referrer:
+            raise HTTPException(
+                status_code=400,
+                detail={
+                    "code": "INVALID_REFERRAL_CODE",
+                    "message": "This referral code is not valid.",
+                    "field": "ref",
+                },
+            )
+
     try:
+        # Sprint 8: generate unique referral code before creating user
+        new_referral_code = await ensure_unique_referral_code(payload.full_name, db)
+
         user = User(
             full_name=payload.full_name,
             phone_number=payload.phone_number,
@@ -119,6 +148,8 @@ async def register(
             terms_version=payload.terms_version,
             agreed_at=datetime.now(timezone.utc),
             registration_ip=_client_ip(request),
+            referral_code=new_referral_code,
+            wallet_balance_rwf=0,
         )
         db.add(user)
         await db.flush()
@@ -126,6 +157,16 @@ async def register(
         if user.role == UserRole.artisan:
             profile = ArtisanProfile(user_id=user.id)
             db.add(profile)
+
+        # Sprint 8: create referral record if a valid ref code was supplied
+        if referrer:
+            referral_record = Referral(
+                referrer_id=referrer.id,
+                referred_id=user.id,
+                referral_code=ref.strip().upper(),  # type: ignore[union-attr]
+                status=ReferralStatus.registered,
+            )
+            db.add(referral_record)
 
         await db.commit()
 
@@ -205,10 +246,6 @@ async def verify_otp(
     if not user:
         raise HTTPException(status_code=404, detail="User not found.")
 
-    # Use an explicit UPDATE rather than ORM attribute mutation to avoid the
-    # "operator does not exist: uuid = character varying" error that occurs when
-    # SQLAlchemy's flush generates  WHERE users.id = $N::VARCHAR  against a
-    # native PostgreSQL UUID primary-key column.
     now_utc = datetime.now(timezone.utc)
     update_values: dict[str, Any] = {
         "last_login_ip": _client_ip(request),
@@ -249,6 +286,8 @@ async def verify_otp(
             landmark=str(user.landmark) if user.landmark else None,
             address_detail=str(user.address_detail) if user.address_detail else None,
             preferred_lang=str(user.preferred_lang),
+            referral_code=str(user.referral_code) if user.referral_code else None,
+            wallet_balance_rwf=int(user.wallet_balance_rwf or 0),
         ),
     )
 
@@ -340,6 +379,8 @@ async def get_user_profile(user_id: UUID, db: AsyncSession = Depends(get_db)) ->
         "account_status": user.account_status,
         "email_verified": user.email_verified,
         "created_at": user.created_at.isoformat() if user.created_at else None,
+        "referral_code": user.referral_code,
+        "wallet_balance_rwf": user.wallet_balance_rwf or 0,
         "profile": profile,
         "portfolio": portfolio,
     }
@@ -366,7 +407,6 @@ async def update_profile(
     if not update_data:
         return {"message": "No fields to update.", "updated_fields": []}
 
-    # Use explicit UPDATE to avoid uuid = varchar cast error on PostgreSQL
     await db.execute(update(User).where(User.id == user.id).values(**update_data))
     await db.commit()
     await db.refresh(user)
@@ -376,9 +416,7 @@ async def update_profile(
     }
 
 
-# ── Convenience alias: PATCH /auth/profile (authenticated user updates own profile) ──
-# Both mobile (step3-location) and web (onboarding/artisan) call this endpoint.
-# Previously missing — only /auth/users/{user_id}/profile existed.
+# ── Convenience alias: PATCH /auth/profile ────────────────────────────────────
 
 
 @router.patch("/profile")

@@ -152,6 +152,18 @@ export function Header() {
               My Jobs
             </Link>
           )}
+          {/* Referrals — authenticated users */}
+          {isAuthenticated && (
+            <Link
+              to="/referrals"
+              className="rounded-lg px-3 py-2 text-sm font-semibold text-muted-foreground hover:bg-muted hover:text-foreground transition-colors"
+              activeProps={{
+                className: "rounded-lg px-3 py-2 text-sm font-semibold text-foreground bg-muted",
+              }}
+            >
+              🎁 Referrals
+            </Link>
+          )}
         </nav>
 
         <div className="flex items-center gap-2">

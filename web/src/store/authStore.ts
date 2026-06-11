@@ -23,6 +23,9 @@ export interface User {
   landmark?: string | null;
   addressDetail?: string | null;
   preferredLang?: string;
+  // Sprint 8: Referral System
+  referralCode?: string | null;
+  walletBalanceRwf?: number;
 }
 
 export interface AuthStore {

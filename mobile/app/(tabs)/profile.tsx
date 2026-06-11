@@ -9,6 +9,8 @@ import {
   Edit2,
   Briefcase,
   MessageCircle,
+  Gift,
+  Wallet,
 } from '@icons';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useRouter } from 'expo-router';
@@ -161,6 +163,13 @@ export default function ProfileScreen() {
           icon={MessageCircle}
           title="Messages"
           onPress={() => router.push('/(tabs)/messages')}
+        />
+        {/* Sprint 8: Referral Program */}
+        <MenuItem
+          icon={Gift}
+          title="Referral Program"
+          value={user?.walletBalanceRwf ? `${user.walletBalanceRwf.toLocaleString()} RWF` : '500 RWF/referral'}
+          onPress={() => router.push('/referrals')}
         />
         {user?.role === 'artisan' && (
           <MenuItem

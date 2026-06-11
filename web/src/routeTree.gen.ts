@@ -10,6 +10,8 @@
 
 import { Route as rootRouteImport } from "./routes/__root";
 import { Route as SearchRouteImport } from "./routes/search";
+import { Route as ReferralsRouteImport } from "./routes/referrals";
+import { Route as JoinRouteImport } from "./routes/join";
 import { Route as ProRouteImport } from "./routes/pro";
 import { Route as MessagesRouteImport } from "./routes/messages";
 import { Route as IndexRouteImport } from "./routes/index";
@@ -33,6 +35,16 @@ import { Route as BookingsBookingIdRouteImport } from "./routes/bookings/$bookin
 const SearchRoute = SearchRouteImport.update({
   id: "/search",
   path: "/search",
+  getParentRoute: () => rootRouteImport,
+} as any);
+const ReferralsRoute = ReferralsRouteImport.update({
+  id: "/referrals",
+  path: "/referrals",
+  getParentRoute: () => rootRouteImport,
+} as any);
+const JoinRoute = JoinRouteImport.update({
+  id: "/join",
+  path: "/join",
   getParentRoute: () => rootRouteImport,
 } as any);
 const ProRoute = ProRouteImport.update({
@@ -133,8 +145,10 @@ const BookingsBookingIdRoute = BookingsBookingIdRouteImport.update({
 
 export interface FileRoutesByFullPath {
   "/": typeof IndexRoute;
+  "/join": typeof JoinRoute;
   "/messages": typeof MessagesRoute;
   "/pro": typeof ProRoute;
+  "/referrals": typeof ReferralsRoute;
   "/search": typeof SearchRoute;
   "/admin/verification": typeof AdminVerificationRoute;
   "/admin/scores": typeof AdminScoresRoute;
@@ -155,8 +169,10 @@ export interface FileRoutesByFullPath {
 }
 export interface FileRoutesByTo {
   "/": typeof IndexRoute;
+  "/join": typeof JoinRoute;
   "/messages": typeof MessagesRoute;
   "/pro": typeof ProRoute;
+  "/referrals": typeof ReferralsRoute;
   "/search": typeof SearchRoute;
   "/admin/verification": typeof AdminVerificationRoute;
   "/admin/scores": typeof AdminScoresRoute;
@@ -178,8 +194,10 @@ export interface FileRoutesByTo {
 export interface FileRoutesById {
   __root__: typeof rootRouteImport;
   "/": typeof IndexRoute;
+  "/join": typeof JoinRoute;
   "/messages": typeof MessagesRoute;
   "/pro": typeof ProRoute;
+  "/referrals": typeof ReferralsRoute;
   "/search": typeof SearchRoute;
   "/admin/verification": typeof AdminVerificationRoute;
   "/admin/scores": typeof AdminScoresRoute;
@@ -202,8 +220,10 @@ export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath;
   fullPaths:
     | "/"
+    | "/join"
     | "/messages"
     | "/pro"
+    | "/referrals"
     | "/search"
     | "/admin/verification"
     | "/admin/scores"
@@ -224,8 +244,10 @@ export interface FileRouteTypes {
   fileRoutesByTo: FileRoutesByTo;
   to:
     | "/"
+    | "/join"
     | "/messages"
     | "/pro"
+    | "/referrals"
     | "/search"
     | "/admin/verification"
     | "/admin/scores"
@@ -246,8 +268,10 @@ export interface FileRouteTypes {
   id:
     | "__root__"
     | "/"
+    | "/join"
     | "/messages"
     | "/pro"
+    | "/referrals"
     | "/search"
     | "/admin/verification"
     | "/admin/scores"
@@ -269,8 +293,10 @@ export interface FileRouteTypes {
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute;
+  JoinRoute: typeof JoinRoute;
   MessagesRoute: typeof MessagesRoute;
   ProRoute: typeof ProRoute;
+  ReferralsRoute: typeof ReferralsRoute;
   SearchRoute: typeof SearchRoute;
   AdminVerificationRoute: typeof AdminVerificationRoute;
   AdminScoresRoute: typeof AdminScoresRoute;
@@ -286,6 +312,7 @@ export interface RootRouteChildren {
   OnboardingArtisanRoute: typeof OnboardingArtisanRoute;
   ProfilePortfolioRoute: typeof ProfilePortfolioRoute;
   SettingsNotificationsRoute: typeof SettingsNotificationsRoute;
+  BookingsBookingIdRoute: typeof BookingsBookingIdRoute;
 }
 
 declare module "@tanstack/react-router" {
@@ -295,6 +322,20 @@ declare module "@tanstack/react-router" {
       path: "/search";
       fullPath: "/search";
       preLoaderRoute: typeof SearchRouteImport;
+      parentRoute: typeof rootRouteImport;
+    };
+    "/referrals": {
+      id: "/referrals";
+      path: "/referrals";
+      fullPath: "/referrals";
+      preLoaderRoute: typeof ReferralsRouteImport;
+      parentRoute: typeof rootRouteImport;
+    };
+    "/join": {
+      id: "/join";
+      path: "/join";
+      fullPath: "/join";
+      preLoaderRoute: typeof JoinRouteImport;
       parentRoute: typeof rootRouteImport;
     };
     "/pro": {
@@ -392,12 +433,14 @@ declare module "@tanstack/react-router" {
       id: "/admin/verification";
       path: "/admin/verification";
       fullPath: "/admin/verification";
+      preLoaderRoute: typeof AdminVerificationRouteImport;
+      parentRoute: typeof rootRouteImport;
     };
     "/admin/scores": {
       id: "/admin/scores";
       path: "/admin/scores";
       fullPath: "/admin/scores";
-      preLoaderRoute: typeof AdminVerificationRouteImport;
+      preLoaderRoute: typeof AdminScoresRouteImport;
       parentRoute: typeof rootRouteImport;
     };
     "/artisans/jobs/$jobId/": {
@@ -443,8 +486,10 @@ const ArtisansJobsRouteWithChildren = ArtisansJobsRoute._addFileChildren(Artisan
 
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
+  JoinRoute: JoinRoute,
   MessagesRoute: MessagesRoute,
   ProRoute: ProRoute,
+  ReferralsRoute: ReferralsRoute,
   SearchRoute: SearchRoute,
   AdminVerificationRoute: AdminVerificationRoute,
   AdminScoresRoute: AdminScoresRoute,

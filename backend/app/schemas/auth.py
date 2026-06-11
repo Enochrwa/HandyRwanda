@@ -183,6 +183,9 @@ class UserBase(BaseModel):
     landmark: str | None = None
     address_detail: str | None = None
     preferred_lang: str
+    # Sprint 8: Referral System
+    referral_code: str | None = None
+    wallet_balance_rwf: int = 0
 
     model_config = ConfigDict(from_attributes=True)
 

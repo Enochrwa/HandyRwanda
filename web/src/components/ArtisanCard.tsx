@@ -23,6 +23,10 @@ export interface ArtisanCardData {
   availableNow?: boolean;
   verification_status?: string | null;
   community_score?: number | null;
+  // Sprint 9 — ML ranking signals
+  ml_score?: number | null;
+  rank_source?: "ml" | "heuristic" | "heuristic_fallback" | null;
+  district_match?: number | null;
   // legacy fields kept for backwards compat
   verified?: boolean;
   pro?: boolean;
@@ -43,6 +47,9 @@ export function ArtisanCard({ a }: Props) {
   const isPro = a.verification_status === "pro_verified" || a.pro;
   const location = [a.sector, a.district].filter(Boolean).join(", ") || a.district || "Rwanda";
   const score = a.community_score ?? 0;
+  const mlScore = a.ml_score;
+  const isMLRanked = a.rank_source === "ml" && mlScore !== null && mlScore !== undefined;
+  const districtMatch = a.district_match ?? 0;
 
   return (
     <Link
@@ -103,6 +110,21 @@ export function ArtisanCard({ a }: Props) {
         {isPro && (
           <span className="inline-flex items-center gap-1 rounded-full bg-amber-100 px-2 py-0.5 text-[11px] font-semibold text-amber-700">
             <Zap className="h-3 w-3" /> Pro Verified
+          </span>
+        )}
+        {/* Sprint 9 — ML match score badge */}
+        {isMLRanked && (
+          <span
+            title={`ML match score: ${Math.round((mlScore ?? 0) * 100)}%`}
+            className="inline-flex items-center gap-1 rounded-full bg-violet-100 px-2 py-0.5 text-[11px] font-semibold text-violet-700"
+          >
+            ✦ {Math.round((mlScore ?? 0) * 100)}% match
+          </span>
+        )}
+        {/* Sprint 9 — nearby badge for district matches */}
+        {districtMatch === 1 && (
+          <span className="inline-flex items-center gap-1 rounded-full bg-green-100 px-2 py-0.5 text-[11px] font-semibold text-green-700">
+            <MapPin className="h-3 w-3" /> Nearby
           </span>
         )}
       </div>

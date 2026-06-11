@@ -19,6 +19,7 @@ from app.models.job import Bid, Job, JobStatus, JobUrgency
 from app.models.user import UserRole
 from app.services.matching_service import notify_matching_artisans
 from app.services.price_anchor_service import get_price_anchor
+from app.services.sklearn_category_service import suggest_job_description
 from app.utils.rwanda_address import format_full_address
 
 router = APIRouter(prefix="/jobs", tags=["jobs"])
@@ -134,6 +135,41 @@ class JobUpdate(BaseModel):
     address: RwandaAddressInput | None = None
 
 
+class JobSuggestRequest(BaseModel):
+    """Request body for POST /jobs/suggest."""
+    partial_description: str = Field(
+        ...,
+        min_length=3,
+        max_length=2000,
+        description="Partial or complete job description to classify and enrich.",
+    )
+
+
+@router.post("/suggest", summary="Sprint 9 — AI Job Description Assistant")
+async def suggest_job(
+    payload: JobSuggestRequest,
+    db: AsyncSession = Depends(get_db),
+) -> Any:
+    """
+    **Sprint 9 — sklearn-Powered Job Description Assistant**
+
+    Given a partial job description, returns:
+    - `suggested_category` — best matching service category (id, name_en, emoji)
+    - `confidence` — classifier confidence score [0, 1]
+    - `related_suggestions` — up to 3 context-aware tips from similar historical jobs
+    - `typical_price_range` — interquartile price range from completed similar jobs
+    - `source` — "sklearn" | "local" (indicates which classifier was used)
+
+    No authentication required — safe to call while the user is still typing.
+    Response time target: < 50 ms (pure in-memory inference).
+    """
+    result = await suggest_job_description(
+        partial_description=payload.partial_description,
+        db=db,
+    )
+    return result
+
+
 @router.post("", status_code=201)
 async def create_job(
     payload: JobCreate,
@@ -149,15 +185,21 @@ async def create_job(
             detail="Provide either `address.district` or `location_label`.",
         )
 
-    # AI category suggestion if null UUID provided
+    # AI category suggestion if null UUID provided — now uses sklearn TF-IDF (Sprint 9)
     if str(payload.category_id) == "00000000-0000-0000-0000-000000000000":
         cats_res = await db.execute(select(Category).where(Category.is_active))
         all_cats = list(cats_res.scalars().all())
         candidate_labels = [str(c.name_en) for c in all_cats]
         if candidate_labels:
-            match_res = await get_job_category_match(
-                f"{payload.title} {payload.description}", candidate_labels
-            )
+            try:
+                from app.services.sklearn_category_service import classify_with_sklearn  # noqa: PLC0415, I001
+                match_res = classify_with_sklearn(
+                    f"{payload.title} {payload.description}", candidate_labels
+                )
+            except Exception:
+                match_res = await get_job_category_match(
+                    f"{payload.title} {payload.description}", candidate_labels
+                )
             if match_res and "labels" in match_res and len(match_res["labels"]) > 0:
                 top_label = match_res["labels"][0]
                 for c in all_cats:
@@ -530,3 +572,29 @@ async def cancel_job(
     )
     await db.commit()
     return {"message": "Job cancelled"}
+
+
+# ── Sprint 9: ML-ranked recommended artisans for a client ────────────────────
+
+
+@router.get("/recommended-artisans", summary="Sprint 9 — ML-ranked artisan recommendations")
+async def get_recommended_artisans(
+    limit: int = Query(default=6, ge=1, le=20),
+    db: AsyncSession = Depends(get_db),
+    current_user: dict[str, Any] = Depends(get_current_user),
+) -> Any:
+    """
+    **Sprint 9 — Personalised Artisan Recommendations**
+
+    Returns ML-ranked artisans for the current client, based on their last job
+    category. Artisans are scored by GradientBoosting P(hire + complete) and
+    enriched with district_match, price_delta, and verification signals.
+
+    Falls back to top-rated artisans when the model isn't trained yet or the
+    client has no job history.
+    """
+    from app.services.matching_service import get_recommended_artisans as _get  # noqa: PLC0415, I001
+
+    client_id = UUID(current_user["sub"])
+    results = await _get(db, client_id, limit=limit)
+    return {"artisans": results, "total": len(results)}

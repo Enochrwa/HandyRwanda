@@ -129,6 +129,58 @@ def _validate_startup_config() -> None:
     _log.info("✅ Configuration validated — all required env vars present")
 
 
+# ── Sprint 9: ML scheduler helpers (module-level to satisfy PLR0915) ──────────
+
+
+async def _nightly_ml_train_job() -> None:
+    """Nightly GradientBoosting ranking model retraining (01:00 UTC)."""
+    from app.services.ml_ranking_service import train_ranking_model  # noqa: PLC0415, I001
+
+    async with AsyncSessionLocal() as session:
+        result = await train_ranking_model(session)
+        _log.info("[MLRanking] Nightly training complete: %s", result)
+
+
+async def _nightly_tfidf_job() -> None:
+    """Nightly TF-IDF category index rebuild (01:30 UTC)."""
+    from app.services.sklearn_category_service import build_tfidf_index  # noqa: PLC0415, I001
+
+    async with AsyncSessionLocal() as session:
+        result = await build_tfidf_index(session)
+        _log.info("[TF-IDF] Nightly index rebuild complete: %s", result)
+
+
+async def _startup_tfidf() -> None:
+    """Build TF-IDF index shortly after startup (non-blocking)."""
+    from app.services.sklearn_category_service import build_tfidf_index  # noqa: PLC0415, I001
+
+    await asyncio.sleep(10)  # Let DB warm up first
+    async with AsyncSessionLocal() as session:
+        try:
+            result = await build_tfidf_index(session)
+            _log.info("[TF-IDF] Startup index build complete: %s", result)
+        except Exception as exc:
+            _log.warning("[TF-IDF] Startup index build failed: %s", exc)
+
+
+def _register_sprint9_jobs(scheduler: Any, cron_cls: Any) -> None:
+    """Register Sprint 9 nightly ML jobs on the scheduler."""
+    scheduler.add_job(
+        _nightly_ml_train_job,
+        cron_cls(hour=1, minute=0, timezone="UTC"),
+        id="nightly_ml_ranking",
+        replace_existing=True,
+        misfire_grace_time=3600,
+    )
+    scheduler.add_job(
+        _nightly_tfidf_job,
+        cron_cls(hour=1, minute=30, timezone="UTC"),
+        id="nightly_tfidf_rebuild",
+        replace_existing=True,
+        misfire_grace_time=3600,
+    )
+
+
 @asynccontextmanager
 async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
     _validate_startup_config()
@@ -166,6 +218,10 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
 
         # Placeholder for Sprint 9 nightly ML model training
         # scheduler.add_job(train_ranking_model, CronTrigger(hour=1, minute=0))
+
+        # Sprint 9: ML ranking + TF-IDF nightly jobs (helpers defined at module level)
+        _register_sprint9_jobs(scheduler, CronTrigger)
+        asyncio.create_task(_startup_tfidf())
 
         # Sprint 6: Weekly artisan insight notifications (Monday 08:00 Kigali = 06:00 UTC)
         from app.services.insights_notification_service import (  # noqa: PLC0415

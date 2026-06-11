@@ -10,6 +10,8 @@
 
 import { Route as rootRouteImport } from "./routes/__root";
 import { Route as SearchRouteImport } from "./routes/search";
+import { Route as ReferralsRouteImport } from "./routes/referrals";
+import { Route as JoinRouteImport } from "./routes/join";
 import { Route as ProRouteImport } from "./routes/pro";
 import { Route as MessagesRouteImport } from "./routes/messages";
 import { Route as IndexRouteImport } from "./routes/index";
@@ -33,6 +35,16 @@ import { Route as BookingsBookingIdRouteImport } from "./routes/bookings/$bookin
 const SearchRoute = SearchRouteImport.update({
   id: "/search",
   path: "/search",
+  getParentRoute: () => rootRouteImport,
+} as any);
+const ReferralsRoute = ReferralsRouteImport.update({
+  id: "/referrals",
+  path: "/referrals",
+  getParentRoute: () => rootRouteImport,
+} as any);
+const JoinRoute = JoinRouteImport.update({
+  id: "/join",
+  path: "/join",
   getParentRoute: () => rootRouteImport,
 } as any);
 const ProRoute = ProRouteImport.update({
@@ -133,8 +145,10 @@ const BookingsBookingIdRoute = BookingsBookingIdRouteImport.update({
 
 export interface FileRoutesByFullPath {
   "/": typeof IndexRoute;
+  "/join": typeof JoinRoute;
   "/messages": typeof MessagesRoute;
   "/pro": typeof ProRoute;
+  "/referrals": typeof ReferralsRoute;
   "/search": typeof SearchRoute;
   "/admin/verification": typeof AdminVerificationRoute;
   "/admin/scores": typeof AdminScoresRoute;
@@ -155,8 +169,10 @@ export interface FileRoutesByFullPath {
 }
 export interface FileRoutesByTo {
   "/": typeof IndexRoute;
+  "/join": typeof JoinRoute;
   "/messages": typeof MessagesRoute;
   "/pro": typeof ProRoute;
+  "/referrals": typeof ReferralsRoute;
   "/search": typeof SearchRoute;
   "/admin/verification": typeof AdminVerificationRoute;
   "/admin/scores": typeof AdminScoresRoute;
@@ -178,8 +194,10 @@ export interface FileRoutesByTo {
 export interface FileRoutesById {
   __root__: typeof rootRouteImport;
   "/": typeof IndexRoute;
+  "/join": typeof JoinRoute;
   "/messages": typeof MessagesRoute;
   "/pro": typeof ProRoute;
+  "/referrals": typeof ReferralsRoute;
   "/search": typeof SearchRoute;
   "/admin/verification": typeof AdminVerificationRoute;
   "/admin/scores": typeof AdminScoresRoute;
@@ -443,8 +461,10 @@ const ArtisansJobsRouteWithChildren = ArtisansJobsRoute._addFileChildren(Artisan
 
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
+  JoinRoute: JoinRoute,
   MessagesRoute: MessagesRoute,
   ProRoute: ProRoute,
+  ReferralsRoute: ReferralsRoute,
   SearchRoute: SearchRoute,
   AdminVerificationRoute: AdminVerificationRoute,
   AdminScoresRoute: AdminScoresRoute,

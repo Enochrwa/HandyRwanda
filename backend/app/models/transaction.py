@@ -15,6 +15,8 @@ class TransactionType(str, enum.Enum):
     payout_out = "payout_out"
     commission = "commission"
     refund = "refund"
+    credit = "credit"               # Sprint 8: referral reward credit
+    credit_applied = "credit_applied"  # Sprint 8: credit applied to booking payment
 
 
 class TransactionStatus(str, enum.Enum):
@@ -40,6 +42,8 @@ class Transaction(Base):
         Enum(TransactionStatus), default=TransactionStatus.pending
     )
     momo_reference: Mapped[str | None] = mapped_column(String(100), nullable=True)
+    # Sprint 8: description for credit/credit_applied transactions
+    description: Mapped[str | None] = mapped_column(String(300), nullable=True)
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True),
         server_default=func.now(),

@@ -47,6 +47,7 @@ from app.services.booking_lifecycle_service import (
     update_response_rate,
 )
 from app.services.escrow_service import release_escrow, schedule_release
+from app.services.referral_service import qualify_referral_and_reward
 from app.services.safety_score_service import recalculate_single_score
 
 _log = logging.getLogger(__name__)
@@ -1025,6 +1026,20 @@ async def client_mark_complete(
             _log.info("[SafetyScore] Post-completion score for artisan %s: %d", artisan_id, new_score)
 
     asyncio.create_task(_recalculate_score_after_completion(booking.artisan_id))
+
+    # Sprint 8: check if the client was referred — qualify and reward if first completion
+    async def _qualify_referral(client_id: UUID) -> None:
+        await asyncio.sleep(3)  # Let metric updates commit first
+        async with AsyncSessionLocal() as session:
+            try:
+                qualified = await qualify_referral_and_reward(client_id, session)
+                await session.commit()
+                if qualified:
+                    _log.info("[Referral] Referral qualified for client %s", client_id)
+            except Exception:
+                _log.exception("[Referral] Failed to qualify referral for client %s", client_id)
+
+    asyncio.create_task(_qualify_referral(booking.client_id))
 
     asyncio.create_task(
         _push_booking_status_change(

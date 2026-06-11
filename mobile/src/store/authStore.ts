@@ -23,6 +23,9 @@ export interface User {
   preferredLang?: string;
   emailVerified?: boolean;
   accountStatus?: 'pending_verification' | 'active' | 'suspended' | 'deactivated';
+  // Sprint 8: Referral System
+  referralCode?: string | null;
+  walletBalanceRwf?: number;
 }
 
 export interface AuthStore {

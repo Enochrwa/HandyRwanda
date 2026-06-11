@@ -52,6 +52,7 @@ from app.routers import (
     messages,
     notifications,
     payments,
+    referrals,
     reviews,
     schedule,
     uploads,
@@ -254,6 +255,7 @@ app.include_router(legal.router)
 app.include_router(messages.router)
 app.include_router(notifications.router)
 app.include_router(payments.router)
+app.include_router(referrals.router)
 app.include_router(reviews.router)
 app.include_router(schedule.router)
 app.include_router(uploads.router)

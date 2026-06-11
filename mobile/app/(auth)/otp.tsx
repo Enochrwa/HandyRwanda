@@ -65,6 +65,9 @@ export default function OTPScreen() {
           preferredLang: user.preferred_lang ?? 'rw',
           accountStatus: user.account_status,
           emailVerified: user.email_verified ?? true,
+          // Sprint 8: Referral System
+          referralCode: user.referral_code ?? null,
+          walletBalanceRwf: user.wallet_balance_rwf ?? 0,
         },
         access_token,
         refresh_token,

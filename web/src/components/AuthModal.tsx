@@ -524,6 +524,9 @@ export const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, defaultTa
           preferredLang: user.preferred_lang ?? "rw",
           accountStatus: user.account_status,
           emailVerified: user.email_verified ?? true,
+          // Sprint 8: Referral System
+          referralCode: user.referral_code ?? null,
+          walletBalanceRwf: user.wallet_balance_rwf ?? 0,
         },
         access_token,
         refresh_token,
@@ -568,6 +571,9 @@ export const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, defaultTa
     const merged = { ...regData, ...values };
     setIsLoading(true);
     try {
+      // Sprint 8: pick up ?ref=HW-XXX-XXXX from URL if present
+      const urlRef = new URLSearchParams(window.location.search).get("ref");
+
       const payload = {
         full_name: merged.fullName,
         phone_number: merged.phone,
@@ -588,7 +594,10 @@ export const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, defaultTa
         agreed_to_terms: true,
         terms_version: "v1.0",
       };
-      const res = await api.post("/auth/register", payload);
+      const url = urlRef
+        ? `/auth/register?ref=${encodeURIComponent(urlRef)}`
+        : "/auth/register";
+      const res = await api.post(url, payload);
       toast.success("Account created!", {
         description: res.data.message || "Check your email for a verification code.",
       });

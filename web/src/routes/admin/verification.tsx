@@ -20,6 +20,10 @@ import {
   Loader2,
   TrendingUp,
   CreditCard,
+  Video,
+  Play,
+  Clock,
+  MessageSquare,
 } from "lucide-react";
 import { Header } from "@/components/Header";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
@@ -42,7 +46,14 @@ export const Route = createFileRoute("/admin/verification")({
   component: AdminDashboard,
 });
 
-type Tab = "verification" | "analytics" | "users" | "disputes" | "categories" | "payments";
+type Tab =
+  | "verification"
+  | "analytics"
+  | "users"
+  | "disputes"
+  | "categories"
+  | "payments"
+  | "skill_videos";
 
 function AdminDashboard() {
   const { user, logout } = useAuthStore();
@@ -107,6 +118,7 @@ function AdminDashboard() {
               ["users", Users, "Users"],
               ["disputes", AlertTriangle, "Disputes"],
               ["categories", Package, "Categories"],
+              ["skill_videos", Video, "Skill Videos"],
             ] as [Tab, typeof ShieldCheck, string][]
           ).map(([id, Icon, label]) => (
             <button
@@ -125,6 +137,7 @@ function AdminDashboard() {
         {tab === "users" && <UsersTab search={userSearch} setSearch={setUserSearch} qc={qc} />}
         {tab === "disputes" && <DisputesTab qc={qc} />}
         {tab === "categories" && <CategoriesTab qc={qc} />}
+        {tab === "skill_videos" && <SkillVideosTab qc={qc} />}
       </div>
     </div>
   );
@@ -886,6 +899,387 @@ function PaymentsTab({ qc }: { qc: ReturnType<typeof useQueryClient> }) {
           >
             ✕
           </button>
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ══════════════════════════════════════════════════════════════════════════════
+// Sprint 10 — Admin: Skill Video Moderation Tab
+// ══════════════════════════════════════════════════════════════════════════════
+
+interface PendingVideo {
+  id: string;
+  artisan_id: string;
+  artisan_name: string;
+  artisan_avatar?: string;
+  video_url: string;
+  thumbnail_url?: string;
+  title: string;
+  description?: string;
+  duration_seconds?: number;
+  category_id?: string;
+  category_name?: string;
+  created_at: string;
+}
+
+function formatDurationAdmin(s?: number) {
+  if (!s) return "—";
+  return `${Math.floor(s / 60)}:${String(s % 60).padStart(2, "0")}`;
+}
+
+function SkillVideosTab({ qc }: { qc: ReturnType<typeof useQueryClient> }) {
+  const [previewVideo, setPreviewVideo] = useState<PendingVideo | null>(null);
+  const [rejectingId, setRejectingId] = useState<string | null>(null);
+  const [rejectReason, setRejectReason] = useState("");
+  const [rejectLoading, setRejectLoading] = useState(false);
+
+  const { data: pendingVideos, isLoading } = useQuery<PendingVideo[]>({
+    queryKey: ["admin-pending-videos"],
+    queryFn: () => api.get("/admin/skill-videos/pending").then((r) => r.data),
+    refetchInterval: 30_000,
+  });
+
+  const approveMutation = useMutation({
+    mutationFn: (id: string) => api.post(`/admin/skill-videos/${id}/approve`),
+    onSuccess: (_data, id) => {
+      qc.invalidateQueries({ queryKey: ["admin-pending-videos"] });
+      toast.success("Video approved — artisan notified ✅");
+      if (previewVideo?.id === id) setPreviewVideo(null);
+    },
+    onError: () => toast.error("Approval failed"),
+  });
+
+  const rejectMutation = useMutation({
+    mutationFn: ({ id, reason }: { id: string; reason: string }) =>
+      api.post(`/admin/skill-videos/${id}/reject`, { reason }),
+    onSuccess: (_data, { id }) => {
+      qc.invalidateQueries({ queryKey: ["admin-pending-videos"] });
+      toast.success("Video rejected — artisan notified with feedback");
+      setRejectingId(null);
+      setRejectReason("");
+      if (previewVideo?.id === id) setPreviewVideo(null);
+    },
+    onError: () => toast.error("Rejection failed"),
+  });
+
+  const handleReject = async () => {
+    if (!rejectingId || !rejectReason.trim()) return;
+    setRejectLoading(true);
+    await rejectMutation.mutateAsync({ id: rejectingId, reason: rejectReason.trim() });
+    setRejectLoading(false);
+  };
+
+  return (
+    <div className="space-y-6">
+      {/* Header */}
+      <div className="flex items-center justify-between">
+        <div>
+          <h2 className="text-xl font-extrabold flex items-center gap-2">
+            <Video className="h-5 w-5 text-primary" />
+            Skill Video Moderation
+          </h2>
+          <p className="text-sm text-muted-foreground mt-1">
+            Review and approve artisan skill verification videos. Approved videos appear on public
+            artisan profiles.
+          </p>
+        </div>
+        {pendingVideos && pendingVideos.length > 0 && (
+          <span className="inline-flex items-center gap-1.5 bg-amber-100 text-amber-800 text-sm font-bold px-3 py-1.5 rounded-full border border-amber-200">
+            <Clock className="h-3.5 w-3.5" />
+            {pendingVideos.length} pending
+          </span>
+        )}
+      </div>
+
+      {/* Guidelines */}
+      <div className="bg-blue-50 border border-blue-100 rounded-2xl p-4 text-sm text-blue-700">
+        <p className="font-bold text-blue-900 mb-2">📋 Moderation Guidelines</p>
+        <ul className="space-y-1 list-disc list-inside">
+          <li>Approve if video clearly demonstrates the claimed skill</li>
+          <li>Reject if content is unclear, off-topic, or violates community guidelines</li>
+          <li>Provide a helpful rejection reason — artisans can re-submit after fixing issues</li>
+          <li>Aim to review within 24 hours of submission</li>
+        </ul>
+      </div>
+
+      {isLoading ? (
+        <div className="flex justify-center py-20">
+          <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+        </div>
+      ) : !pendingVideos || pendingVideos.length === 0 ? (
+        <div className="text-center py-20 border-2 border-dashed border-border rounded-3xl">
+          <CheckCircle className="h-12 w-12 mx-auto text-emerald-500 mb-3" />
+          <p className="font-bold text-lg">All caught up!</p>
+          <p className="text-muted-foreground text-sm mt-1">
+            No skill videos pending review right now.
+          </p>
+        </div>
+      ) : (
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
+          {pendingVideos.map((video) => (
+            <div
+              key={video.id}
+              className="bg-card border border-border rounded-2xl overflow-hidden"
+            >
+              {/* Thumbnail + play */}
+              <div
+                className="relative aspect-video bg-zinc-900 cursor-pointer group"
+                onClick={() => setPreviewVideo(video)}
+              >
+                {video.thumbnail_url ? (
+                  <img
+                    src={video.thumbnail_url}
+                    alt={video.title}
+                    className="w-full h-full object-cover opacity-90"
+                  />
+                ) : (
+                  <div className="absolute inset-0 flex items-center justify-center">
+                    <Video className="h-14 w-14 text-zinc-600" />
+                  </div>
+                )}
+                {/* Play overlay */}
+                <div className="absolute inset-0 bg-black/40 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
+                  <div className="w-14 h-14 rounded-full bg-white/90 flex items-center justify-center shadow-xl">
+                    <Play className="h-7 w-7 text-primary fill-primary ml-1" />
+                  </div>
+                </div>
+                {/* Always-visible play hint */}
+                <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
+                  <div className="w-12 h-12 rounded-full bg-black/60 flex items-center justify-center group-hover:opacity-0 transition-opacity">
+                    <Play className="h-5 w-5 text-white fill-white ml-0.5" />
+                  </div>
+                </div>
+                {/* Duration badge */}
+                {video.duration_seconds && (
+                  <div className="absolute bottom-2 right-2 bg-black/80 text-white text-[11px] font-mono px-1.5 py-0.5 rounded">
+                    {formatDurationAdmin(video.duration_seconds)}
+                  </div>
+                )}
+                {/* Category badge */}
+                {video.category_name && (
+                  <div className="absolute top-2 left-2 bg-primary/90 text-white text-[10px] font-bold px-2 py-0.5 rounded-full">
+                    {video.category_name}
+                  </div>
+                )}
+                {/* Preview hint */}
+                <div className="absolute bottom-2 left-2 text-[10px] text-white/60 group-hover:text-white/90 transition-colors">
+                  Click to preview
+                </div>
+              </div>
+
+              {/* Content */}
+              <div className="p-4">
+                {/* Artisan */}
+                <div className="flex items-center gap-3 mb-3">
+                  {video.artisan_avatar ? (
+                    <img
+                      src={video.artisan_avatar}
+                      alt={video.artisan_name}
+                      className="w-9 h-9 rounded-full object-cover border border-border"
+                    />
+                  ) : (
+                    <div className="w-9 h-9 rounded-full bg-primary/10 flex items-center justify-center border border-border">
+                      <User className="h-4 w-4 text-primary" />
+                    </div>
+                  )}
+                  <div>
+                    <p className="font-bold text-sm">{video.artisan_name}</p>
+                    <p className="text-xs text-muted-foreground">
+                      Submitted{" "}
+                      {new Date(video.created_at).toLocaleDateString("en-GB", {
+                        day: "numeric",
+                        month: "short",
+                        year: "numeric",
+                      })}
+                    </p>
+                  </div>
+                </div>
+
+                <p className="font-semibold text-sm mb-1 truncate">{video.title}</p>
+                {video.description && (
+                  <p className="text-xs text-muted-foreground line-clamp-2 mb-3">
+                    {video.description}
+                  </p>
+                )}
+
+                {/* Action buttons */}
+                <div className="flex gap-2 mt-3">
+                  <button
+                    onClick={() => setPreviewVideo(video)}
+                    className="flex-1 flex items-center justify-center gap-1.5 border border-border bg-muted/50 hover:bg-muted text-sm font-semibold py-2 rounded-xl transition-colors"
+                  >
+                    <Eye className="h-4 w-4" />
+                    Preview
+                  </button>
+                  <button
+                    onClick={() => approveMutation.mutate(video.id)}
+                    disabled={approveMutation.isPending}
+                    className="flex-1 flex items-center justify-center gap-1.5 bg-emerald-600 hover:bg-emerald-700 text-white text-sm font-bold py-2 rounded-xl transition-colors disabled:opacity-60"
+                  >
+                    {approveMutation.isPending ? (
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                    ) : (
+                      <CheckCircle className="h-4 w-4" />
+                    )}
+                    Approve
+                  </button>
+                  <button
+                    onClick={() => {
+                      setRejectingId(video.id);
+                      setRejectReason("");
+                    }}
+                    className="flex-1 flex items-center justify-center gap-1.5 bg-red-50 hover:bg-red-100 text-red-700 border border-red-200 text-sm font-bold py-2 rounded-xl transition-colors"
+                  >
+                    <XCircle className="h-4 w-4" />
+                    Reject
+                  </button>
+                </div>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+
+      {/* ── Video Preview Modal ─────────────────────────────────────────────── */}
+      {previewVideo && (
+        <div
+          className="fixed inset-0 z-50 bg-black/90 flex flex-col"
+          onClick={() => setPreviewVideo(null)}
+        >
+          <div className="flex items-center justify-between px-6 pt-5 pb-4">
+            <div onClick={(e) => e.stopPropagation()}>
+              <p className="text-white font-bold text-lg">{previewVideo.title}</p>
+              <p className="text-zinc-400 text-sm mt-0.5">
+                by {previewVideo.artisan_name}
+                {previewVideo.category_name ? ` · ${previewVideo.category_name}` : ""}
+              </p>
+            </div>
+            <button
+              onClick={() => setPreviewVideo(null)}
+              className="p-2 bg-white/10 hover:bg-white/20 rounded-full text-white transition-colors"
+            >
+              <XCircle className="h-5 w-5" />
+            </button>
+          </div>
+
+          {/* Video player */}
+          <div
+            className="flex-1 flex items-center justify-center px-6 pb-4"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <video
+              key={previewVideo.id}
+              src={previewVideo.video_url}
+              controls
+              autoPlay
+              className="max-h-[65vh] max-w-full rounded-xl shadow-2xl"
+            />
+          </div>
+
+          {/* Bottom action bar */}
+          <div
+            className="bg-zinc-900/80 backdrop-blur border-t border-zinc-700 px-6 py-4 flex items-center gap-4"
+            onClick={(e) => e.stopPropagation()}
+          >
+            {previewVideo.description && (
+              <p className="flex-1 text-sm text-zinc-300 truncate">{previewVideo.description}</p>
+            )}
+            <div className="flex gap-3 ml-auto">
+              <button
+                onClick={() => {
+                  approveMutation.mutate(previewVideo.id);
+                }}
+                disabled={approveMutation.isPending}
+                className="flex items-center gap-2 bg-emerald-600 hover:bg-emerald-700 text-white font-bold px-5 py-2.5 rounded-xl transition-colors disabled:opacity-60"
+              >
+                {approveMutation.isPending ? (
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                ) : (
+                  <CheckCircle className="h-4 w-4" />
+                )}
+                Approve
+              </button>
+              <button
+                onClick={() => {
+                  setPreviewVideo(null);
+                  setRejectingId(previewVideo.id);
+                  setRejectReason("");
+                }}
+                className="flex items-center gap-2 bg-red-600 hover:bg-red-700 text-white font-bold px-5 py-2.5 rounded-xl transition-colors"
+              >
+                <XCircle className="h-4 w-4" />
+                Reject
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ── Rejection Dialog ─────────────────────────────────────────────────── */}
+      {rejectingId && (
+        <div className="fixed inset-0 z-50 bg-black/60 flex items-center justify-center p-4">
+          <div
+            className="bg-card border border-border rounded-3xl p-6 w-full max-w-md shadow-2xl"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="flex items-center gap-3 mb-4">
+              <div className="p-2.5 bg-red-100 rounded-xl">
+                <MessageSquare className="h-5 w-5 text-red-600" />
+              </div>
+              <div>
+                <h3 className="font-bold text-lg">Reject Video</h3>
+                <p className="text-sm text-muted-foreground">
+                  Provide clear feedback so the artisan can re-submit.
+                </p>
+              </div>
+            </div>
+
+            <label className="text-sm font-bold block mb-2">
+              Reason <span className="text-red-500">*</span>
+            </label>
+            <textarea
+              value={rejectReason}
+              onChange={(e) => setRejectReason(e.target.value)}
+              placeholder="e.g. The video is too dark to clearly see the work. Please re-record in better lighting."
+              rows={4}
+              maxLength={500}
+              className="w-full rounded-xl border border-border bg-muted/50 p-3 text-sm resize-none focus:outline-none focus:ring-2 focus:ring-primary/30"
+            />
+            <p className="text-[11px] text-right text-muted-foreground mt-1">
+              {rejectReason.length}/500
+            </p>
+
+            <div className="mt-1 text-xs text-muted-foreground bg-amber-50 border border-amber-100 rounded-xl p-3 mb-5">
+              💡 This message will be sent directly to the artisan as a notification. Be specific
+              and constructive.
+            </div>
+
+            <div className="flex gap-3">
+              <button
+                onClick={() => {
+                  setRejectingId(null);
+                  setRejectReason("");
+                }}
+                className="flex-1 border border-border py-2.5 rounded-xl font-semibold text-sm hover:bg-muted transition-colors"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleReject}
+                disabled={!rejectReason.trim() || rejectLoading}
+                className="flex-1 bg-red-600 hover:bg-red-700 text-white font-bold py-2.5 rounded-xl text-sm transition-colors disabled:opacity-60 flex items-center justify-center gap-2"
+              >
+                {rejectLoading ? (
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                ) : (
+                  <XCircle className="h-4 w-4" />
+                )}
+                Send Rejection
+              </button>
+            </div>
+          </div>
         </div>
       )}
     </div>

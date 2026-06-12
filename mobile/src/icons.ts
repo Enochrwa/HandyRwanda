@@ -59,4 +59,9 @@ export {
   Wifi,
   WifiOff,
   Zap,
+  // Sprint 10 — Skill Videos
+  PlayCircle,
+  Eye,
+  Video,
+  Upload,
 } from 'lucide-react-native';

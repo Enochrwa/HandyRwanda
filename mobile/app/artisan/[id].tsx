@@ -1,5 +1,5 @@
 // File: mobile/app/artisan/[id].tsx
-import { Star, MapPin, MessageCircle, ChevronLeft, Shield, Phone } from '@icons';
+import { Star, MapPin, MessageCircle, ChevronLeft, Shield, Phone, PlayCircle, Eye, Clock } from '@icons';
 import { useQuery } from '@tanstack/react-query';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import React, { useState } from 'react';
@@ -15,6 +15,7 @@ import {
   Linking,
 } from 'react-native';
 import Toast from 'react-native-toast-message';
+import { Video, ResizeMode } from 'expo-av';
 
 import api from '../../src/services/api';
 import { useAuthStore } from '../../src/store/authStore';
@@ -35,6 +36,7 @@ export default function ArtisanProfile() {
   const [when, setWhen] = useState('Tomorrow');
   const [submitting, setSubmitting] = useState(false);
   const [done, setDone] = useState(false);
+  const [playingVideo, setPlayingVideo] = useState<any | null>(null);
 
   const { data: artisan, isLoading } = useQuery({
     queryKey: ['artisanPublic', id],
@@ -303,6 +305,72 @@ export default function ArtisanProfile() {
             </View>
           )}
 
+          {/* Skill Videos — Sprint 10 */}
+          {artisan.skill_videos?.length > 0 && (
+            <View className="mt-6">
+              <View className="flex-row items-center justify-between mb-3">
+                <Text className="text-lg font-bold">🎬 Skill Videos</Text>
+                <View className="bg-emerald-100 px-2 py-0.5 rounded-full">
+                  <Text className="text-emerald-700 text-xs font-bold">
+                    {artisan.skill_videos.length} verified
+                  </Text>
+                </View>
+              </View>
+              <Text className="text-sm text-muted-foreground mb-3">
+                Watch {artisan.full_name.split(' ')[0]} demonstrate their skills before hiring.
+              </Text>
+              <ScrollView horizontal showsHorizontalScrollIndicator={false}>
+                {artisan.skill_videos.map((v: any) => (
+                  <TouchableOpacity
+                    key={v.id}
+                    onPress={() => setPlayingVideo(v)}
+                    className="mr-3 w-52"
+                  >
+                    <View className="w-52 aspect-video rounded-2xl overflow-hidden bg-muted relative">
+                      {v.thumbnail_url ? (
+                        <Image
+                          source={{ uri: v.thumbnail_url }}
+                          className="w-full h-full"
+                          resizeMode="cover"
+                        />
+                      ) : (
+                        <View className="flex-1 items-center justify-center">
+                          <Text className="text-4xl">🎬</Text>
+                        </View>
+                      )}
+                      <View className="absolute inset-0 items-center justify-center">
+                        <View className="w-12 h-12 bg-black/50 rounded-full items-center justify-center">
+                          <PlayCircle size={26} color="white" />
+                        </View>
+                      </View>
+                      {v.duration_seconds && (
+                        <View className="absolute bottom-2 right-2 bg-black/70 px-1.5 py-0.5 rounded">
+                          <Text className="text-white text-[10px] font-mono">
+                            {Math.floor(v.duration_seconds / 60)}:{String(v.duration_seconds % 60).padStart(2, '0')}
+                          </Text>
+                        </View>
+                      )}
+                    </View>
+                    <Text className="text-sm font-semibold mt-2" numberOfLines={1}>
+                      {v.title}
+                    </Text>
+                    {v.category_name && (
+                      <Text className="text-xs text-muted-foreground" numberOfLines={1}>
+                        {v.category_name}
+                      </Text>
+                    )}
+                    <View className="flex-row items-center gap-1 mt-0.5">
+                      <Eye size={10} color="#6B7280" />
+                      <Text className="text-[10px] text-muted-foreground">
+                        {v.view_count.toLocaleString()} views
+                      </Text>
+                    </View>
+                  </TouchableOpacity>
+                ))}
+              </ScrollView>
+            </View>
+          )}
+
           {/* Reviews */}
           {artisan.reviews?.length > 0 && (
             <View className="mt-5">
@@ -370,6 +438,58 @@ export default function ArtisanProfile() {
           </Text>
         </TouchableOpacity>
       </View>
+
+      {/* Sprint 10: Video Playback Modal */}
+      <Modal
+        visible={!!playingVideo}
+        animationType="fade"
+        presentationStyle="overFullScreen"
+        onRequestClose={() => setPlayingVideo(null)}
+      >
+        <View style={{ flex: 1, backgroundColor: '#000' }}>
+          <View className="flex-row items-center justify-between px-4 pt-14 pb-3">
+            <View className="flex-1">
+              <Text className="text-white font-bold text-base" numberOfLines={1}>
+                {playingVideo?.title}
+              </Text>
+              {playingVideo?.category_name && (
+                <Text style={{ color: 'rgba(255,255,255,0.6)', fontSize: 12 }}>
+                  {playingVideo.category_name}
+                </Text>
+              )}
+            </View>
+            <TouchableOpacity
+              onPress={() => setPlayingVideo(null)}
+              style={{ padding: 8, backgroundColor: 'rgba(255,255,255,0.1)', borderRadius: 999, marginLeft: 12 }}
+            >
+              <Text style={{ color: 'white', fontWeight: 'bold', fontSize: 16 }}>✕</Text>
+            </TouchableOpacity>
+          </View>
+          {playingVideo && (
+            <Video
+              source={{ uri: playingVideo.video_url }}
+              style={{ flex: 1 }}
+              useNativeControls
+              resizeMode={ResizeMode.CONTAIN}
+              shouldPlay
+              onPlaybackStatusUpdate={async (status: any) => {
+                if (status.isLoaded && status.isPlaying && status.positionMillis < 1500) {
+                  try {
+                    await api.post(`/artisans/skill-videos/${playingVideo.id}/view`);
+                  } catch { /* fire-and-forget */ }
+                }
+              }}
+            />
+          )}
+          {playingVideo?.description && (
+            <View className="px-4 pt-3 pb-10">
+              <Text style={{ color: 'rgba(255,255,255,0.8)', fontSize: 13, lineHeight: 20 }}>
+                {playingVideo.description}
+              </Text>
+            </View>
+          )}
+        </View>
+      </Modal>
 
       {/* Booking Modal */}
       <Modal

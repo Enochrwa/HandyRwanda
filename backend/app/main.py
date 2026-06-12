@@ -33,7 +33,13 @@ from app.integrations.socket_manager import create_combined_asgi, sio
 from app.integrations.upstash import redis_get, redis_set
 from app.integrations.ws_manager import notification_manager
 from app.logging_config import configure_logging
-from app.models.artisan import ArtisanProfile, Category, PortfolioPhoto, artisan_skills
+from app.models.artisan import (
+    ArtisanProfile,
+    Category,
+    PortfolioPhoto,
+    SkillVideo,
+    artisan_skills,
+)
 from app.models.review import Review
 from app.models.user import User, UserRole
 from app.routers import (
@@ -390,6 +396,33 @@ async def get_artisan_public(
         for p in portfolio_result.scalars().all()
     ]
 
+    # Sprint 10: fetch approved skill videos for public profile
+    skill_videos_result = await db.execute(
+        select(SkillVideo, Category)
+        .outerjoin(Category, Category.id == SkillVideo.category_id)
+        .where(
+            SkillVideo.artisan_id == artisan_id,
+            SkillVideo.is_approved.is_(True),
+        )
+        .order_by(SkillVideo.view_count.desc(), SkillVideo.created_at.desc())
+        .limit(10)
+    )
+    skill_videos = [
+        {
+            "id": str(v.id),
+            "video_url": v.video_url,
+            "thumbnail_url": v.thumbnail_url,
+            "title": v.title,
+            "description": v.description,
+            "duration_seconds": v.duration_seconds,
+            "view_count": v.view_count,
+            "category_id": str(v.category_id) if v.category_id else None,
+            "category_name": c.name_en if c else None,
+            "created_at": v.created_at.isoformat() if v.created_at else None,
+        }
+        for v, c in skill_videos_result.all()
+    ]
+
     reviews_result = await db.execute(
         select(
             Review,
@@ -456,6 +489,7 @@ async def get_artisan_public(
         },
         "categories": categories,
         "portfolio": portfolio,
+        "skill_videos": skill_videos,
         "reviews": reviews,
     }
 

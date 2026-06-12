@@ -15,6 +15,7 @@ from app.models.artisan import (
     ArtisanProfile,
     Category,
     PortfolioPhoto,
+    SkillVideo,
     VerificationStatus,
     artisan_skills,
 )
@@ -702,3 +703,238 @@ async def get_previous_artisans(
         })
 
     return output
+
+
+# ══════════════════════════════════════════════════════════════════════════════
+# Sprint 10 — Artisan Skill Verification via Video
+# ══════════════════════════════════════════════════════════════════════════════
+
+class SkillVideoCreate(BaseModel):
+    """Payload for submitting a skill verification video."""
+
+    video_url: str
+    thumbnail_url: str | None = None
+    title: str = ""
+    description: str | None = None
+    duration_seconds: int | None = None
+    category_id: UUID | None = None
+
+
+class SkillVideoResponse(BaseModel):
+    id: str
+    artisan_id: str
+    category_id: str | None
+    video_url: str
+    thumbnail_url: str | None
+    title: str
+    description: str | None
+    duration_seconds: int | None
+    is_approved: bool
+    rejection_reason: str | None
+    view_count: int
+    created_at: str
+    category_name: str | None = None
+
+
+def _video_to_dict(video: SkillVideo, category: Category | None = None) -> dict[str, Any]:
+    return {
+        "id": str(video.id),
+        "artisan_id": str(video.artisan_id),
+        "category_id": str(video.category_id) if video.category_id else None,
+        "video_url": video.video_url,
+        "thumbnail_url": video.thumbnail_url,
+        "title": video.title,
+        "description": video.description,
+        "duration_seconds": video.duration_seconds,
+        "is_approved": video.is_approved,
+        "rejection_reason": video.rejection_reason,
+        "view_count": video.view_count,
+        "created_at": video.created_at.isoformat() if video.created_at else None,
+        "category_name": category.name_en if category else None,
+    }
+
+
+@router.post("/me/skill-videos", summary="Submit a skill verification video (artisan only)")
+async def submit_skill_video(
+    payload: SkillVideoCreate,
+    db: AsyncSession = Depends(get_db),
+    current_user: dict[str, Any] = Depends(require_role(UserRole.artisan)),
+) -> Any:
+    """
+    Sprint 10 — Artisan submits a skill verification video.
+
+    The artisan uploads the video directly to Supabase Storage via presigned URL
+    (POST /uploads/presign with upload_type=skill_video), then calls this endpoint
+    with the returned public_url + metadata.
+
+    The video is set to is_approved=False (pending admin review).
+    An admin notification is dispatched immediately.
+    """
+    from app.routers.notifications import create_and_push_notification  # noqa: PLC0415
+
+    user_id = UUID(current_user["sub"])
+
+    # Validate artisan profile exists
+    profile_result = await db.execute(
+        select(ArtisanProfile, User)
+        .join(User, User.id == ArtisanProfile.user_id)
+        .where(ArtisanProfile.user_id == user_id)
+    )
+    row = profile_result.first()
+    if not row:
+        raise HTTPException(status_code=404, detail="Artisan profile not found.")
+    _, user = row
+
+    # Enforce max 5 pending or approved videos per artisan
+    existing_count = await db.scalar(
+        select(func.count(SkillVideo.id)).where(SkillVideo.artisan_id == user_id)
+    )
+    if existing_count and existing_count >= 5:
+        raise HTTPException(
+            status_code=400,
+            detail="Maximum 5 skill videos allowed. Delete an existing video to add a new one.",
+        )
+
+    # Validate category if provided
+    category: Category | None = None
+    if payload.category_id:
+        category = await db.scalar(
+            select(Category).where(Category.id == payload.category_id)
+        )
+        if not category:
+            raise HTTPException(status_code=404, detail="Category not found.")
+
+    title = payload.title.strip() or "Skill Demonstration"
+
+    video = SkillVideo(
+        artisan_id=user_id,
+        category_id=payload.category_id,
+        video_url=payload.video_url,
+        thumbnail_url=payload.thumbnail_url,
+        title=title[:100],
+        description=payload.description[:300] if payload.description else None,
+        duration_seconds=payload.duration_seconds,
+        is_approved=False,
+    )
+    db.add(video)
+    await db.flush()  # get video.id
+
+    await db.commit()
+    await db.refresh(video)
+
+    # Notify all admins about the new video submission
+    admin_result = await db.execute(
+        select(User).where(User.role == UserRole.admin, User.is_active.is_(True))
+    )
+    admins = admin_result.scalars().all()
+    category_name = category.name_en if category else "General"
+    for admin_user in admins:
+        await create_and_push_notification(
+            db=db,
+            user_id=admin_user.id,
+            event_type="skill_video_pending_review",
+            title="🎬 New Skill Video Submitted",
+            body=f"{user.full_name} submitted a skill video for {category_name}. Tap to review.",
+            payload={
+                "video_id": str(video.id),
+                "artisan_id": str(user_id),
+                "artisan_name": user.full_name,
+                "category": category_name,
+            },
+        )
+
+    return _video_to_dict(video, category)
+
+
+@router.get("/me/skill-videos", summary="Get my skill videos (artisan only, all statuses)")
+async def get_my_skill_videos(
+    db: AsyncSession = Depends(get_db),
+    current_user: dict[str, Any] = Depends(require_role(UserRole.artisan)),
+) -> Any:
+    """Sprint 10 — Artisan can see all their videos (approved + pending + rejected)."""
+    user_id = UUID(current_user["sub"])
+    result = await db.execute(
+        select(SkillVideo, Category)
+        .outerjoin(Category, Category.id == SkillVideo.category_id)
+        .where(SkillVideo.artisan_id == user_id)
+        .order_by(SkillVideo.created_at.desc())
+    )
+    return [_video_to_dict(v, c) for v, c in result.all()]
+
+
+@router.get("/{artisan_id}/skill-videos", summary="Get approved skill videos for an artisan (public)")
+async def get_artisan_skill_videos(
+    artisan_id: UUID,
+    db: AsyncSession = Depends(get_db),
+) -> Any:
+    """
+    Sprint 10 — Public endpoint. Returns only is_approved=True videos.
+    Called by client apps to display on artisan profile.
+    """
+    result = await db.execute(
+        select(SkillVideo, Category)
+        .outerjoin(Category, Category.id == SkillVideo.category_id)
+        .where(
+            SkillVideo.artisan_id == artisan_id,
+            SkillVideo.is_approved.is_(True),
+        )
+        .order_by(SkillVideo.view_count.desc(), SkillVideo.created_at.desc())
+    )
+    return [_video_to_dict(v, c) for v, c in result.all()]
+
+
+@router.post("/skill-videos/{video_id}/view", summary="Increment view count (rate-limited, no auth)")
+async def increment_video_view(
+    video_id: UUID,
+    db: AsyncSession = Depends(get_db),
+) -> Any:
+    """
+    Sprint 10 — Atomically increment view count when video starts playing.
+    Rate-limited per video_id via Upstash Redis to prevent inflation.
+    """
+    from app.integrations.upstash import redis_get, redis_set  # noqa: PLC0415
+
+    # Rate-limit: one view per video per minute (per process — sufficient for MVP)
+    rate_key = f"view_rate:{video_id}"
+    already = await redis_get(rate_key)
+    if already:
+        return {"message": "Already counted recently", "counted": False}
+
+    result = await db.execute(
+        update(SkillVideo)
+        .where(SkillVideo.id == video_id, SkillVideo.is_approved.is_(True))
+        .values(view_count=SkillVideo.view_count + 1)
+        .returning(SkillVideo.view_count)
+    )
+    row = result.fetchone()
+    if not row:
+        raise HTTPException(status_code=404, detail="Video not found or not approved.")
+
+    await db.commit()
+
+    # Set rate-limit key for 60 seconds
+    await redis_set(rate_key, "1", 60)
+
+    return {"message": "View counted", "counted": True, "view_count": row[0]}
+
+
+@router.delete("/me/skill-videos/{video_id}", summary="Delete my skill video (artisan only)")
+async def delete_skill_video(
+    video_id: UUID,
+    db: AsyncSession = Depends(get_db),
+    current_user: dict[str, Any] = Depends(require_role(UserRole.artisan)),
+) -> Any:
+    """Sprint 10 — Artisan can delete their own skill video."""
+    user_id = UUID(current_user["sub"])
+
+    video = await db.scalar(
+        select(SkillVideo).where(
+            SkillVideo.id == video_id, SkillVideo.artisan_id == user_id
+        )
+    )
+    if not video:
+        raise HTTPException(status_code=404, detail="Video not found.")
+
+    await db.delete(video)
+    await db.commit()
+    return {"message": "Video deleted successfully."}

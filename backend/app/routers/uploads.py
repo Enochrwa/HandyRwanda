@@ -37,11 +37,14 @@ ALLOWED_FOLDERS: dict[str, str] = {
     "after_photo": "booking-photos/after",
     # Sprint 7 — voice messages
     "voice_note": "voice-notes",
+    # Sprint 10 — skill verification videos
+    "skill_video": "skill-videos",
 }
 
 # Max file size per upload type (bytes)
 MAX_SIZE_BYTES: dict[str, int] = {
     "voice_note": 10 * 1024 * 1024,  # 10 MB for audio
+    "skill_video": 50 * 1024 * 1024,  # 50 MB for video
 }
 DEFAULT_MAX_SIZE_BYTES = 5 * 1024 * 1024  # 5 MB for everything else
 
@@ -69,10 +72,21 @@ AUDIO_MIME_TYPES: set[str] = {
     "audio/x-m4a",
 }
 
-ALLOWED_MIME_TYPES = IMAGE_MIME_TYPES | AUDIO_MIME_TYPES
+# Sprint 10: Video MIME types for skill verification videos
+VIDEO_MIME_TYPES: set[str] = {
+    "video/mp4",
+    "video/quicktime",  # .mov (iOS recordings)
+    "video/webm",
+    "video/x-msvideo",  # .avi
+}
+
+ALLOWED_MIME_TYPES = IMAGE_MIME_TYPES | AUDIO_MIME_TYPES | VIDEO_MIME_TYPES
 
 # Types that only accept audio
 AUDIO_ONLY_TYPES = {"voice_note"}
+
+# Types that only accept video
+VIDEO_ONLY_TYPES = {"skill_video"}
 
 # Types that only accept images
 IMAGE_ONLY_TYPES = {
@@ -86,7 +100,7 @@ class PresignRequest(BaseModel):
         ...,
         description=(
             "One of: avatar, portfolio, job_photo, id_document, selfie, "
-            "payment_proof, dispute_evidence, before_photo, after_photo, voice_note"
+            "payment_proof, dispute_evidence, before_photo, after_photo, voice_note, skill_video"
         ),
     )
     content_type: str = Field(default="image/jpeg")
@@ -134,6 +148,11 @@ async def get_presigned_url(
             status_code=400,
             detail=f"upload_type '{payload.upload_type}' requires an image content_type.",
         )
+    if payload.upload_type in VIDEO_ONLY_TYPES and payload.content_type not in VIDEO_MIME_TYPES:
+        raise HTTPException(
+            status_code=400,
+            detail=f"upload_type '{payload.upload_type}' requires a video content_type (video/mp4 or video/quicktime).",
+        )
 
     user_id = current_user["sub"]
     folder = f"{ALLOWED_FOLDERS[payload.upload_type]}/{user_id}"
@@ -142,7 +161,7 @@ async def get_presigned_url(
     filename = None
     if payload.filename:
         safe_name = re.sub(r"[^\w\-.]", "_", payload.filename)[:80]
-        ext = payload.content_type.split("/")[-1].replace("jpeg", "jpg").replace("x-m4a", "m4a")
+        ext = payload.content_type.split("/")[-1].replace("jpeg", "jpg").replace("x-m4a", "m4a").replace("quicktime", "mov").replace("x-msvideo", "avi")
         filename = f"{safe_name}.{ext}" if "." not in safe_name else safe_name
 
     max_bytes = MAX_SIZE_BYTES.get(payload.upload_type, DEFAULT_MAX_SIZE_BYTES)

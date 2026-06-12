@@ -56,3 +56,35 @@ export type Review = {
   client_avatar?: string;
   created_at?: string;
 };
+
+// Sprint 10 — Skill Verification Video types
+
+export type SkillVideo = {
+  id: string;
+  artisan_id: string;
+  category_id?: string;
+  category_name?: string;
+  video_url: string;
+  thumbnail_url?: string;
+  title: string;
+  description?: string;
+  duration_seconds?: number;
+  is_approved: boolean;
+  rejection_reason?: string;
+  view_count: number;
+  created_at: string;
+};
+
+export type ArtisanPublicProfile = {
+  id: string;
+  full_name: string;
+  avatar_url?: string;
+  bio?: string;
+  rating: number;
+  total_reviews: number;
+  hourly_rate?: number;
+  skills: string[];
+  portfolio: { id: string; image_url: string; job_type?: string; description?: string }[];
+  skill_videos: SkillVideo[];
+  reviews: Review[];
+};

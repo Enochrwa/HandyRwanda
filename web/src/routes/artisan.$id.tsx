@@ -36,6 +36,9 @@ import {
   X,
   Timer,
   RefreshCw,
+  Play,
+  Eye,
+  Video,
 } from "lucide-react";
 import { Header } from "@/components/Header";
 import { BookingSheet } from "@/components/BookingSheet";
@@ -454,6 +457,15 @@ function Profile() {
   const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
   const [instantBookOpen, setInstantBookOpen] = useState(false);
   const [instantBookResult, setInstantBookResult] = useState<InstantBookResult | null>(null);
+  const [playingSkillVideo, setPlayingSkillVideo] = useState<{
+    id: string;
+    video_url: string;
+    title: string;
+    category_name?: string;
+    description?: string;
+    view_count: number;
+    duration_seconds?: number;
+  } | null>(null);
   const { isAuthenticated, user } = useAuthStore();
   const navigate = useNavigate();
 
@@ -800,6 +812,89 @@ function Profile() {
           </section>
         )}
 
+        {/* Sprint 10: Skill Videos */}
+        {artisan.skill_videos?.length > 0 && (
+          <section className="mt-8">
+            <div className="flex items-center justify-between mb-3">
+              <h2 className="text-lg font-bold flex items-center gap-2">
+                <Video className="h-5 w-5 text-primary" />
+                Skill Videos
+              </h2>
+              <span className="text-xs bg-emerald-100 text-emerald-700 font-bold px-2.5 py-1 rounded-full border border-emerald-200">
+                {artisan.skill_videos.length} verified
+              </span>
+            </div>
+            <p className="text-sm text-muted-foreground mb-3">
+              Watch {artisan.full_name.split(" ")[0]} demonstrate their skills before hiring.
+            </p>
+            <div className="-mx-4 flex snap-x snap-mandatory gap-3 overflow-x-auto px-4 pb-2 sm:mx-0 sm:px-0">
+              {artisan.skill_videos.map(
+                (v: {
+                  id: string;
+                  video_url: string;
+                  thumbnail_url?: string;
+                  title: string;
+                  category_name?: string;
+                  description?: string;
+                  view_count: number;
+                  duration_seconds?: number;
+                }) => (
+                  <button
+                    key={v.id}
+                    onClick={async () => {
+                      setPlayingSkillVideo(v);
+                      try {
+                        await api.post(`/artisans/skill-videos/${v.id}/view`);
+                      } catch (_e) {
+                        /* view count is fire-and-forget */
+                      }
+                    }}
+                    className="group relative aspect-video w-[78%] shrink-0 snap-start overflow-hidden rounded-2xl bg-zinc-900 sm:w-64 text-left"
+                  >
+                    {v.thumbnail_url ? (
+                      <img
+                        src={v.thumbnail_url}
+                        alt={v.title}
+                        className="h-full w-full object-cover opacity-90 group-hover:opacity-75 transition-opacity"
+                      />
+                    ) : (
+                      <div className="absolute inset-0 flex items-center justify-center">
+                        <Video className="h-10 w-10 text-zinc-600" />
+                      </div>
+                    )}
+                    {/* Play overlay */}
+                    <div className="absolute inset-0 flex items-center justify-center">
+                      <div className="w-12 h-12 rounded-full bg-black/60 group-hover:bg-black/50 flex items-center justify-center transition-colors">
+                        <Play className="h-5 w-5 text-white fill-white ml-0.5" />
+                      </div>
+                    </div>
+                    {/* Duration */}
+                    {v.duration_seconds && (
+                      <div className="absolute bottom-2 right-2 bg-black/70 text-white text-[10px] font-mono px-1.5 py-0.5 rounded">
+                        {Math.floor(v.duration_seconds / 60)}:
+                        {String(v.duration_seconds % 60).padStart(2, "0")}
+                      </div>
+                    )}
+                    {/* Info bar */}
+                    <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/80 to-transparent p-3 pt-6">
+                      <p className="text-white text-xs font-semibold truncate">{v.title}</p>
+                      <div className="flex items-center gap-2 mt-0.5">
+                        {v.category_name && (
+                          <span className="text-white/70 text-[10px]">{v.category_name}</span>
+                        )}
+                        <div className="flex items-center gap-0.5 text-white/60 text-[10px]">
+                          <Eye className="h-2.5 w-2.5" />
+                          {v.view_count.toLocaleString()}
+                        </div>
+                      </div>
+                    </div>
+                  </button>
+                ),
+              )}
+            </div>
+          </section>
+        )}
+
         {/* Reviews */}
         <section className="mt-8 mb-4">
           <div className="flex items-end justify-between">
@@ -919,6 +1014,63 @@ function Profile() {
           </button>
         </div>
       </div>
+
+      {/* Sprint 10: Video Playback Modal */}
+      {playingSkillVideo && (
+        <div
+          className="fixed inset-0 z-50 bg-black/95 flex flex-col"
+          onClick={() => setPlayingSkillVideo(null)}
+        >
+          {/* Header */}
+          <div
+            className="flex items-center justify-between px-5 pt-5 pb-3"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div>
+              <p className="text-white font-bold text-base">{playingSkillVideo.title}</p>
+              {playingSkillVideo.category_name && (
+                <p className="text-zinc-400 text-sm mt-0.5">{playingSkillVideo.category_name}</p>
+              )}
+            </div>
+            <button
+              onClick={() => setPlayingSkillVideo(null)}
+              className="p-2 bg-white/10 hover:bg-white/20 rounded-full text-white transition-colors ml-4"
+            >
+              <X className="h-4 w-4" />
+            </button>
+          </div>
+          {/* Player */}
+          <div
+            className="flex-1 flex items-center justify-center px-4 pb-4"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <video
+              key={playingSkillVideo.id}
+              src={playingSkillVideo.video_url}
+              controls
+              autoPlay
+              className="max-h-[70vh] max-w-full rounded-2xl shadow-2xl"
+            />
+          </div>
+          {/* Footer */}
+          <div
+            className="bg-zinc-900/80 backdrop-blur border-t border-zinc-800 px-5 py-4"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="flex items-center gap-4">
+              {playingSkillVideo.description && (
+                <p className="text-zinc-300 text-sm flex-1 truncate">
+                  {playingSkillVideo.description}
+                </p>
+              )}
+              <div className="flex items-center gap-1.5 text-zinc-400 text-sm ml-auto">
+                <Eye className="h-4 w-4" />
+                <span>{playingSkillVideo.view_count.toLocaleString()} views</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
 
       <BookingSheet a={artisanForBooking} open={open} onClose={() => setOpen(false)} />
       <AuthModal isOpen={isAuthModalOpen} onClose={() => setIsAuthModalOpen(false)} />

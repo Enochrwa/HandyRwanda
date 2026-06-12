@@ -981,3 +981,163 @@ async def get_tfidf_status_endpoint(
     """Return the current state of the sklearn TF-IDF category index."""
     from app.services.sklearn_category_service import get_tfidf_status  # noqa: PLC0415
     return get_tfidf_status()
+
+
+# ══════════════════════════════════════════════════════════════════════════════
+# Sprint 10 — Admin: Skill Video Moderation
+# ══════════════════════════════════════════════════════════════════════════════
+
+from app.models.artisan import SkillVideo  # noqa: E402  (Category already imported)
+
+
+class VideoRejectionPayload(BaseModel):
+    reason: str
+
+
+@router.get("/skill-videos/pending", summary="Sprint 10 — List all pending skill videos")
+async def list_pending_skill_videos(
+    db: AsyncSession = Depends(get_db),
+    current_user: dict[str, Any] = Depends(require_role(UserRole.admin)),
+) -> Any:
+    """Return all skill videos awaiting admin review (is_approved=False, no rejection_reason)."""
+    result = await db.execute(
+        select(SkillVideo, User, Category)
+        .join(User, User.id == SkillVideo.artisan_id)
+        .outerjoin(Category, Category.id == SkillVideo.category_id)
+        .where(
+            SkillVideo.is_approved.is_(False),
+            SkillVideo.rejection_reason.is_(None),
+        )
+        .order_by(SkillVideo.created_at.asc())
+    )
+    rows = result.all()
+    return [
+        {
+            "id": str(v.id),
+            "artisan_id": str(v.artisan_id),
+            "artisan_name": u.full_name,
+            "artisan_avatar": u.avatar_url,
+            "video_url": v.video_url,
+            "thumbnail_url": v.thumbnail_url,
+            "title": v.title,
+            "description": v.description,
+            "duration_seconds": v.duration_seconds,
+            "category_id": str(v.category_id) if v.category_id else None,
+            "category_name": c.name_en if c else None,
+            "created_at": v.created_at.isoformat() if v.created_at else None,
+        }
+        for v, u, c in rows
+    ]
+
+
+@router.post(
+    "/skill-videos/{video_id}/approve",
+    summary="Sprint 10 — Approve a skill video",
+)
+async def approve_skill_video(
+    video_id: UUID,
+    db: AsyncSession = Depends(get_db),
+    current_user: dict[str, Any] = Depends(require_role(UserRole.admin)),
+) -> Any:
+    """
+    Sprint 10 — Admin approves a skill video.
+
+    Sets is_approved=True and notifies the artisan that their video is now live.
+    """
+    from app.routers.notifications import create_and_push_notification  # noqa: PLC0415
+
+    # Fetch video with artisan user + category
+    result = await db.execute(
+        select(SkillVideo, User, Category)
+        .join(User, User.id == SkillVideo.artisan_id)
+        .outerjoin(Category, Category.id == SkillVideo.category_id)
+        .where(SkillVideo.id == video_id)
+    )
+    row = result.first()
+    if not row:
+        raise HTTPException(status_code=404, detail="Skill video not found.")
+    video, artisan_user, category = row
+
+    if video.is_approved:
+        raise HTTPException(status_code=400, detail="Video is already approved.")
+
+    # Approve
+    video.is_approved = True
+    video.rejection_reason = None
+    await db.commit()
+    await db.refresh(video)
+
+    # Notify artisan
+    category_name = category.name_en if category else "your skill"
+    await create_and_push_notification(
+        db=db,
+        user_id=artisan_user.id,
+        event_type="skill_video_approved",
+        title="✅ Skill Video Approved!",
+        body=f"Your {category_name} skill video is now live! Clients can watch it on your profile.",
+        payload={
+            "video_id": str(video.id),
+            "category": category_name,
+        },
+    )
+
+    return {
+        "message": f"Video approved. Artisan {artisan_user.full_name} has been notified.",
+        "video_id": str(video.id),
+    }
+
+
+@router.post(
+    "/skill-videos/{video_id}/reject",
+    summary="Sprint 10 — Reject a skill video with a reason",
+)
+async def reject_skill_video(
+    video_id: UUID,
+    payload: VideoRejectionPayload,
+    db: AsyncSession = Depends(get_db),
+    current_user: dict[str, Any] = Depends(require_role(UserRole.admin)),
+) -> Any:
+    """
+    Sprint 10 — Admin rejects a skill video with a mandatory reason.
+
+    Sets rejection_reason so the artisan knows what to fix when re-submitting.
+    """
+    from app.routers.notifications import create_and_push_notification  # noqa: PLC0415
+
+    if not payload.reason.strip():
+        raise HTTPException(status_code=400, detail="A rejection reason is required.")
+
+    result = await db.execute(
+        select(SkillVideo, User, Category)
+        .join(User, User.id == SkillVideo.artisan_id)
+        .outerjoin(Category, Category.id == SkillVideo.category_id)
+        .where(SkillVideo.id == video_id)
+    )
+    row = result.first()
+    if not row:
+        raise HTTPException(status_code=404, detail="Skill video not found.")
+    video, artisan_user, category = row
+
+    video.is_approved = False
+    video.rejection_reason = payload.reason.strip()
+    await db.commit()
+
+    category_name = category.name_en if category else "your skill"
+    await create_and_push_notification(
+        db=db,
+        user_id=artisan_user.id,
+        event_type="skill_video_rejected",
+        title="❌ Skill Video Needs Changes",
+        body=f"Your {category_name} skill video wasn't approved. Reason: {payload.reason.strip()[:200]}",
+        payload={
+            "video_id": str(video.id),
+            "rejection_reason": payload.reason.strip(),
+            "category": category_name,
+        },
+    )
+
+    return {
+        "message": f"Video rejected. Artisan {artisan_user.full_name} has been notified.",
+        "video_id": str(video.id),
+        "rejection_reason": payload.reason.strip(),
+    }

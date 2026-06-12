@@ -2,6 +2,7 @@
 import { Briefcase, MapPin, ArrowRight, Zap } from '@icons';
 import { useQuery } from '@tanstack/react-query';
 import { formatDistanceToNow } from 'date-fns';
+import type { Router } from 'expo-router';
 import { useRouter } from 'expo-router';
 import React, { useState } from 'react';
 import {
@@ -41,6 +42,67 @@ interface JobItem {
   category?: { name_en: string; icon_emoji?: string };
 }
 
+// ── Sprint 11: My Bids / Negotiation banner ───────────────────────────────────
+
+interface MyBidsBannerProps {
+  router: Router;
+}
+
+function MyBidsBanner({ router }: MyBidsBannerProps) {
+  const { data: myBids = [] } = useQuery<{ status: string }[]>({
+    queryKey: ['my-bids-artisan'],
+    queryFn: () => api.get('/bids/my').then((r) => r.data),
+    refetchInterval: 20_000,
+    staleTime: 15_000,
+  });
+
+  const counterCount = myBids.filter((b) => b.status === 'countered_by_client').length;
+  const pendingCount = myBids.filter((b) => b.status === 'pending').length;
+
+  if (myBids.length === 0) return null;
+
+  return (
+    <TouchableOpacity
+      onPress={() => router.push('/(artisan)/jobs/my-bids')}
+      className="mx-4 mt-3 bg-card border border-border rounded-2xl px-4 py-3.5 flex-row items-center justify-between"
+      style={{ elevation: 2 }}
+      activeOpacity={0.85}
+      accessibilityLabel="View my submitted bids"
+    >
+      <View className="flex-row items-center gap-3">
+        <View
+          className={`w-9 h-9 rounded-xl items-center justify-center ${counterCount > 0 ? 'bg-blue-600' : 'bg-primary/10'}`}
+        >
+          <Text className="text-base">{counterCount > 0 ? '💬' : '📋'}</Text>
+        </View>
+        <View>
+          {counterCount > 0 ? (
+            <>
+              <View className="flex-row items-center gap-1.5">
+                <Text className="font-extrabold text-blue-600 text-sm">
+                  {counterCount} Counter-Offer{counterCount !== 1 ? 's' : ''} Received
+                </Text>
+                <View className="bg-red-500 rounded-full w-2 h-2" />
+              </View>
+              <Text className="text-muted-foreground text-xs mt-0.5">
+                Tap to respond — {pendingCount} other bid{pendingCount !== 1 ? 's' : ''} pending
+              </Text>
+            </>
+          ) : (
+            <>
+              <Text className="font-bold text-foreground text-sm">My Bids ({myBids.length})</Text>
+              <Text className="text-muted-foreground text-xs mt-0.5">
+                {pendingCount} awaiting client response
+              </Text>
+            </>
+          )}
+        </View>
+      </View>
+      <ArrowRight size={18} color={counterCount > 0 ? '#2563EB' : '#1B5E3B'} />
+    </TouchableOpacity>
+  );
+}
+
 export default function ArtisanJobFeed() {
   const router = useRouter();
   const [refreshing, setRefreshing] = useState(false);
@@ -72,7 +134,13 @@ export default function ArtisanJobFeed() {
     queryKey: ['artisan-active-bookings'],
     queryFn: async () => {
       const res = await api.get('/bookings');
-      const ACTIVE = ['confirmed', 'artisan_accepted', 'artisan_en_route', 'arrived', 'in_progress'];
+      const ACTIVE = [
+        'confirmed',
+        'artisan_accepted',
+        'artisan_en_route',
+        'arrived',
+        'in_progress',
+      ];
       return (res.data as any[]).filter((b) => ACTIVE.includes(b.status));
     },
     refetchInterval: 30_000,
@@ -192,13 +260,18 @@ export default function ArtisanJobFeed() {
         </TouchableOpacity>
       )}
 
+      {/* Sprint 11: My Bids / Counter-Offer Notifications banner */}
+      <MyBidsBanner router={router} />
+
       {/* Sprint 4: Instant Booking Requests banner */}
       {instantCount > 0 && (
         <TouchableOpacity
-          onPress={() => router.push({
-            pathname: '/(artisan)/jobs/instant-booking-request',
-            params: { bookingId: instantRequests[0].id },
-          })}
+          onPress={() =>
+            router.push({
+              pathname: '/(artisan)/jobs/instant-booking-request',
+              params: { bookingId: instantRequests[0].id },
+            })
+          }
           className="mx-4 mt-3 bg-primary/5 border-2 border-primary rounded-2xl px-4 py-3.5 flex-row items-center justify-between"
           style={{ elevation: 3 }}
           activeOpacity={0.85}

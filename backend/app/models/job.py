@@ -43,6 +43,10 @@ class BidStatus(str, enum.Enum):
     pending = "pending"
     accepted = "accepted"
     rejected = "rejected"
+    # ── Sprint 11: negotiation states ─────────────────────────────────────────
+    countered_by_client = "countered_by_client"  # client made a counter-offer
+    artisan_countered = "artisan_countered"        # artisan proposed middle ground
+    negotiation_expired = "negotiation_expired"    # max rounds reached, no deal
 
 
 class Job(Base):
@@ -114,6 +118,8 @@ class Bid(Base):
         # Artisan's bid list + job bid list
         Index("ix_bids_job_id", "job_id"),
         Index("ix_bids_artisan_status", "artisan_id", "status"),
+        # Sprint 11: fast lookup of negotiation-active bids
+        Index("ix_bids_negotiation_status", "status", "negotiation_round"),
     )
     id: Mapped[uuid.UUID] = mapped_column(
         UUID(as_uuid=True), primary_key=True, default=uuid.uuid4
@@ -134,6 +140,27 @@ class Bid(Base):
     status: Mapped[BidStatus] = mapped_column(
         Enum(BidStatus), default=BidStatus.pending
     )
+
+    # ── Sprint 11: Negotiation fields ────────────────────────────────────────
+    # Round tracking — max 3 rounds total
+    negotiation_round: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
+
+    # Client's counter-offer
+    counter_price: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    counter_message: Mapped[str | None] = mapped_column(String(300), nullable=True)
+    counter_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True), nullable=True
+    )
+
+    # Artisan's response counter
+    artisan_counter_price: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    artisan_counter_message: Mapped[str | None] = mapped_column(
+        String(300), nullable=True
+    )
+    artisan_counter_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True), nullable=True
+    )
+
     created_at: Mapped[datetime | None] = mapped_column(
         DateTime(timezone=True),
         server_default=func.now(),

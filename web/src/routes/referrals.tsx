@@ -1,5 +1,5 @@
 // File: web/src/routes/referrals.tsx
-import { createFileRoute, useNavigate } from "@tanstack/react-router";
+import { createFileRoute, useNavigate, redirect } from "@tanstack/react-router";
 import {
   Gift,
   Copy,
@@ -38,6 +38,12 @@ export const Route = createFileRoute("/referrals")({
       },
     ],
   }),
+  beforeLoad: () => {
+    const { isAuthenticated } = useAuthStore.getState();
+    if (!isAuthenticated) {
+      throw redirect({ to: "/" });
+    }
+  },
   component: ReferralsPage,
 });
 
@@ -460,10 +466,6 @@ function ReferralsPage() {
   const { isAuthenticated } = useAuthStore();
   const navigate = useNavigate();
 
-  useEffect(() => {
-    if (!isAuthenticated) navigate({ to: "/" });
-  }, [isAuthenticated, navigate]);
-
   const { data: stats, isLoading: statsLoading } = useQuery({
     queryKey: ["referralStats"],
     queryFn: referralService.getMyStats,
@@ -516,7 +518,8 @@ function ReferralsPage() {
 
         {stats && (
           <>
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
+            {/* Stat cards: 1 col on mobile → 2 col on sm → 4 col on lg */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
               <StatCard
                 icon={Users}
                 label="Total Referred"
@@ -551,6 +554,7 @@ function ReferralsPage() {
               />
             </div>
 
+            {/* Main content: stacks on mobile, side-by-side on lg */}
             <div className="grid grid-cols-1 lg:grid-cols-5 gap-6">
               <div className="lg:col-span-2 space-y-6">
                 <ReferralCodeCard stats={stats} />

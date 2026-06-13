@@ -1,5 +1,5 @@
 // File: web/src/routes/messages.tsx
-import { createFileRoute, useNavigate, useSearch } from "@tanstack/react-router";
+import { createFileRoute, useNavigate, useSearch, redirect } from "@tanstack/react-router";
 import { Header } from "@/components/Header";
 import { useState, useEffect, useRef, useCallback } from "react";
 import { useAuthStore } from "@/store/authStore";
@@ -31,6 +31,15 @@ export const Route = createFileRoute("/messages")({
   validateSearch: (search: Record<string, unknown>): { booking?: string } => ({
     booking: typeof search.booking === "string" ? search.booking : undefined,
   }),
+  beforeLoad: () => {
+    const { isAuthenticated, user } = useAuthStore.getState();
+    if (!isAuthenticated) {
+      throw redirect({ to: "/" });
+    }
+    if (user?.role === "admin") {
+      throw redirect({ to: "/admin/verification" });
+    }
+  },
   component: MessagesPage,
 });
 
@@ -366,12 +375,6 @@ function MessagesPage() {
   // ── Socket.IO real-time messages ─────────────────────────────────────────
   const { connected: wsConnected } = useMessageSocket(selectedBookingId);
 
-  useEffect(() => {
-    if (!isAuthenticated) {
-      navigate({ to: "/" });
-    }
-  }, [isAuthenticated, navigate]);
-
   const { data: conversations = [], isLoading: loadingConvs } = useQuery({
     queryKey: ["conversations"],
     queryFn: () => api.get("/messages/conversations").then((r) => r.data),
@@ -459,7 +462,7 @@ function MessagesPage() {
   if (!isAuthenticated) return null;
 
   return (
-    <div className="min-h-dvh flex flex-col">
+    <div className="min-h-dvh flex flex-col bg-background">
       <Header />
       {reviewOpen && selectedBookingId && bookingDetail && (
         <ReviewDialog
@@ -468,10 +471,16 @@ function MessagesPage() {
           onClose={() => setReviewOpen(false)}
         />
       )}
-      <div className="flex flex-1 overflow-hidden max-h-[calc(100dvh-64px)]">
+      {/* Full-height flex row: sidebar + chat panel.
+          On mobile we show EITHER the sidebar OR the chat, not both.
+          On sm+ we show both side by side. */}
+      <div className="flex flex-1 overflow-hidden" style={{ height: "calc(100dvh - 64px)" }}>
         {/* Sidebar: conversation list */}
         <aside
-          className={`w-full sm:w-80 border-r border-border flex flex-col ${selectedBookingId ? "hidden sm:flex" : "flex"}`}
+          className={`
+            flex-col border-r border-border bg-card
+            ${selectedBookingId ? "hidden sm:flex sm:w-80 lg:w-96" : "flex w-full sm:w-80 lg:w-96"}
+          `}
         >
           <div className="p-4 border-b border-border">
             <h2 className="font-bold text-lg">Messages</h2>
@@ -544,7 +553,7 @@ function MessagesPage() {
 
         {/* Main chat area */}
         {selectedBookingId ? (
-          <main className="flex flex-1 flex-col">
+          <main className="flex flex-1 flex-col min-w-0 overflow-hidden bg-background">
             {/* Chat header */}
             <div className="flex items-center gap-3 border-b border-border px-4 py-3">
               <button
@@ -731,7 +740,7 @@ function MessagesPage() {
             )}
           </main>
         ) : (
-          <main className="hidden sm:flex flex-1 items-center justify-center text-center text-muted-foreground">
+          <main className="hidden sm:flex flex-1 items-center justify-center text-center text-muted-foreground bg-muted/20">
             <div>
               <MessageCircle className="mx-auto h-16 w-16 mb-4" />
               <p className="text-lg font-semibold">Select a conversation</p>

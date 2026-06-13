@@ -1,6 +1,6 @@
 // File: web/src/routes/onboarding/artisan.tsx
 import { useState, useEffect, useRef } from "react";
-import { createFileRoute, useNavigate } from "@tanstack/react-router";
+import { createFileRoute, useNavigate, redirect } from "@tanstack/react-router";
 import { Header } from "@/components/Header";
 import { artisanService } from "@/services/artisanService";
 import { useAuthStore } from "@/store/authStore";
@@ -10,6 +10,11 @@ import { toast } from "sonner";
 import { RwandaAddressPicker, type RwandaAddress } from "@/components/RwandaAddressPicker";
 
 export const Route = createFileRoute("/onboarding/artisan")({
+  beforeLoad: () => {
+    const { isAuthenticated, user } = useAuthStore.getState();
+    if (!isAuthenticated) throw redirect({ to: "/" });
+    if (user?.role !== "artisan") throw redirect({ to: "/" });
+  },
   component: ArtisanOnboarding,
 });
 

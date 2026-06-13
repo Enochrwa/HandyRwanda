@@ -1,7 +1,6 @@
 // File: web/src/routes/admin/verification.tsx
 import { useState } from "react";
 import { createFileRoute, Link, useNavigate, redirect } from "@tanstack/react-router";
-import { useAuthStore } from "@/store/authStore";
 import {
   ShieldCheck,
   XCircle,

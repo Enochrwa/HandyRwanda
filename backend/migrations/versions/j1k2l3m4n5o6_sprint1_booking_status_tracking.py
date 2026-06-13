@@ -12,9 +12,8 @@ Changes:
   - Add composite index on (status, created_at) for APScheduler queries
 """
 
-from alembic import op
 import sqlalchemy as sa
-from sqlalchemy.dialects import postgresql
+from alembic import op
 
 revision = "j1k2l3m4n5o6"
 down_revision = "i1j2k3l4m5n6"

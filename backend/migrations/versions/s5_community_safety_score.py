@@ -10,8 +10,8 @@ This migration ensures:
 3. Adds score_override_reason column for admin audit trail (optional text)
 """
 
-from alembic import op
 import sqlalchemy as sa
+from alembic import op
 
 revision = "s5a1b2c3d4e5f"
 down_revision = "h1i2j3k4l5m6"

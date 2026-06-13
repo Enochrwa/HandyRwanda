@@ -8,11 +8,11 @@ Seeds the categories table with default HandyRwanda service categories.
 This migration is idempotent — it only inserts rows that don't already exist.
 """
 
-from collections.abc import Sequence
 import uuid
+from collections.abc import Sequence
 
-from alembic import op
 import sqlalchemy as sa
+from alembic import op
 
 revision: str = "a1b2c3d4e5f6"
 down_revision: str | None = "f1a2b3c4d5e6"

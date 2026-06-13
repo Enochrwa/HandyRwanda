@@ -13,8 +13,8 @@ Also adds indexes for district/sector on artisan_profiles to support
 proximity search.
 """
 
-from alembic import op
 import sqlalchemy as sa
+from alembic import op
 
 revision = "h1i2j3k4l5m6"
 down_revision = "g1h2i3j4k5l6"

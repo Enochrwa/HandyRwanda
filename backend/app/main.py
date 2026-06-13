@@ -58,6 +58,7 @@ from app.routers import (
     messages,
     notifications,
     payments,
+    recurring,
     referrals,
     reviews,
     schedule,
@@ -249,6 +250,20 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
 
         scheduler.start()
         _log.info("✅ APScheduler started (timezone: Africa/Kigali)")
+
+        # ── Sprint 12: Recurring job dispatcher ───────────────────────────────
+        from app.services.recurring_service import recurring_dispatcher  # noqa: PLC0415
+
+        scheduler.add_job(
+            recurring_dispatcher,
+            "interval",
+            minutes=15,
+            id="recurring_job_dispatcher",
+            replace_existing=True,
+            misfire_grace_time=900,
+            kwargs={"async_session_factory": AsyncSessionLocal},
+        )
+        _log.info("✅ Sprint 12: Recurring job dispatcher registered (every 15 min)")
     except Exception as exc:
         _log.warning("APScheduler failed to start: %s", exc)
         scheduler = None
@@ -317,6 +332,7 @@ app.include_router(legal.router)
 app.include_router(messages.router)
 app.include_router(notifications.router)
 app.include_router(payments.router)
+app.include_router(recurring.router)
 app.include_router(referrals.router)
 app.include_router(reviews.router)
 app.include_router(schedule.router)

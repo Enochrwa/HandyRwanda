@@ -8,8 +8,8 @@ Phase 1: Hybrid MTN MoMo / Airtel Money payment table.
 Phase 2: api_request_id and api_reference will be populated when
          MTN/Airtel Collections API is integrated.
 """
-from alembic import op
 import sqlalchemy as sa
+from alembic import op
 from sqlalchemy.dialects import postgresql
 
 revision = "a2b3c4d5e6f7"

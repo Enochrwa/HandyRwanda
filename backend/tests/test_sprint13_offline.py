@@ -18,14 +18,12 @@ Tests:
 from __future__ import annotations
 
 import uuid
-from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 from pydantic import ValidationError
 
 # We test the Pydantic schema directly
 from app.routers.jobs import OfflineDraftPayload
-
 
 # ── 1-2. Schema validation ─────────────────────────────────────────────────────
 

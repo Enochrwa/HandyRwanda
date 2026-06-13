@@ -24,13 +24,12 @@ from __future__ import annotations
 
 import uuid
 from datetime import datetime, time, timezone
-from unittest.mock import AsyncMock, MagicMock, patch
+from unittest.mock import AsyncMock, MagicMock
 
 import pytest
 
 from app.models.job import RecurringFrequency, RecurringSchedule
 from app.services.recurring_service import compute_next_run, spawn_session
-
 
 # ── Fixtures ───────────────────────────────────────────────────────────────────
 

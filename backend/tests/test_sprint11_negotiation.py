@@ -22,11 +22,12 @@ from __future__ import annotations
 
 import uuid
 from datetime import datetime, timezone
-from unittest.mock import AsyncMock, MagicMock, patch
+from unittest.mock import AsyncMock, MagicMock
 
 import pytest
 
 from app.models.job import Bid, BidStatus
+from app.routers.bids import _build_negotiation_timeline, _current_offer_price
 from app.services.negotiation_service import (
     MAX_NEGOTIATION_ROUNDS,
     artisan_accept_counter,
@@ -361,8 +362,6 @@ async def test_client_reject_artisan_counter_sets_rejected() -> None:
 
 
 def test_negotiation_timeline_ordering() -> None:
-    from app.routers.bids import _build_negotiation_timeline
-
     now = datetime.now(timezone.utc)
     bid = _make_bid(
         status=BidStatus.artisan_countered,
@@ -387,8 +386,6 @@ def test_negotiation_timeline_ordering() -> None:
 
 
 def test_negotiation_timeline_original_only() -> None:
-    from app.routers.bids import _build_negotiation_timeline
-
     bid = _make_bid(status=BidStatus.pending, proposed_price=15_000)
     timeline = _build_negotiation_timeline(bid)
     assert len(timeline) == 1
@@ -399,15 +396,11 @@ def test_negotiation_timeline_original_only() -> None:
 
 
 def test_current_offer_price_pending_returns_proposed() -> None:
-    from app.routers.bids import _current_offer_price
-
     bid = _make_bid(status=BidStatus.pending, proposed_price=15_000)
     assert _current_offer_price(bid) == 15_000
 
 
 def test_current_offer_price_client_counter_returns_counter() -> None:
-    from app.routers.bids import _current_offer_price
-
     bid = _make_bid(
         status=BidStatus.countered_by_client,
         proposed_price=15_000,
@@ -417,8 +410,6 @@ def test_current_offer_price_client_counter_returns_counter() -> None:
 
 
 def test_current_offer_price_artisan_counter_returns_artisan_price() -> None:
-    from app.routers.bids import _current_offer_price
-
     bid = _make_bid(
         status=BidStatus.artisan_countered,
         proposed_price=15_000,

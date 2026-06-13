@@ -7,54 +7,14 @@
  *   - admin    → full dashboard access (verification, users, disputes, analytics)
  *
  * Unauthenticated visitors can browse artisans and the landing page only.
+ *
+ * Non-component exports (hooks, types, constants) live in rbac-utils.ts to
+ * satisfy the react-refresh/only-export-components rule.
  */
 
-import React, { useEffect } from "react";
-import { useNavigate } from "@tanstack/react-router";
-import { useAuthStore } from "@/store/authStore";
-
-export type UserRole = "client" | "artisan" | "admin";
-
-// ── Route guard hooks ────────────────────────────────────────────────────────
-
-/**
- * Redirects unauthenticated users to `/`.
- * Safe to call inside any React component — no hook-order violation.
- */
-export function useRequireAuth(redirectTo = "/") {
-  const { isAuthenticated } = useAuthStore();
-  const navigate = useNavigate();
-
-  useEffect(() => {
-    if (!isAuthenticated) {
-      navigate({ to: redirectTo });
-    }
-  }, [isAuthenticated, navigate, redirectTo]);
-
-  return isAuthenticated;
-}
-
-/**
- * Redirects users whose role is NOT in `allowedRoles`.
- * Returns true once the guard passes (user is authenticated + has a valid role).
- */
-export function useRequireRole(allowedRoles: UserRole[], redirectTo = "/") {
-  const { isAuthenticated, user } = useAuthStore();
-  const navigate = useNavigate();
-
-  useEffect(() => {
-    if (!isAuthenticated) {
-      navigate({ to: redirectTo });
-      return;
-    }
-    if (user && !allowedRoles.includes(user.role as UserRole)) {
-      navigate({ to: redirectTo });
-    }
-  }, [isAuthenticated, user, navigate, redirectTo, allowedRoles]);
-
-  if (!isAuthenticated || !user) return false;
-  return allowedRoles.includes(user.role as UserRole);
-}
+import React from "react";
+import { useRequireAuth, useRequireRole } from "./rbac-utils";
+export type { UserRole } from "./rbac-utils";
 
 // ── Guard wrapper components ─────────────────────────────────────────────────
 
@@ -76,19 +36,14 @@ export function AuthGuard({ children, fallback = null, redirectTo = "/" }: AuthG
 }
 
 interface RoleGuardProps extends AuthGuardProps {
-  allowedRoles: UserRole[];
+  allowedRoles: Array<"client" | "artisan" | "admin">;
 }
 
 /**
  * Wrap a page component to require a specific role.
  * Shows `fallback` (default: AccessDenied banner) while redirecting.
  */
-export function RoleGuard({
-  children,
-  allowedRoles,
-  fallback,
-  redirectTo = "/",
-}: RoleGuardProps) {
+export function RoleGuard({ children, allowedRoles, fallback, redirectTo = "/" }: RoleGuardProps) {
   const passed = useRequireRole(allowedRoles, redirectTo);
   if (!passed)
     return (
@@ -105,29 +60,3 @@ export function RoleGuard({
     );
   return <>{children}</>;
 }
-
-// ── Permission helpers ────────────────────────────────────────────────────────
-
-export const can = {
-  /** Only clients post jobs */
-  postJob: (role?: string) => role === "client",
-
-  /** Only artisans see job feed and submit bids */
-  viewJobFeed: (role?: string) => role === "artisan",
-  submitBid: (role?: string) => role === "artisan",
-
-  /** Both clients and artisans use messaging */
-  useMessages: (role?: string) => role === "client" || role === "artisan",
-
-  /** All authenticated users use referrals */
-  useReferrals: (role?: string) => !!role,
-
-  /** Admin-only */
-  accessAdmin: (role?: string) => role === "admin",
-
-  /** Clients book artisans */
-  bookArtisan: (role?: string) => role === "client",
-
-  /** Artisans manage their own bookings */
-  manageBookings: (role?: string) => role === "artisan" || role === "client",
-};

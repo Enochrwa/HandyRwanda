@@ -13,7 +13,7 @@
  *   3. PUT binary video directly to Supabase (XMLHttpRequest for progress)
  *   4. POST /artisans/me/skill-videos with metadata
  */
-import { createFileRoute, useNavigate } from "@tanstack/react-router";
+import { createFileRoute, useNavigate, redirect } from "@tanstack/react-router";
 import { Header } from "@/components/Header";
 import {
   Camera,
@@ -66,6 +66,12 @@ import {
 import { cn } from "@/lib/utils";
 
 export const Route = createFileRoute("/profile/portfolio")({
+  beforeLoad: () => {
+    const { isAuthenticated, user } = useAuthStore.getState();
+    if (!isAuthenticated) throw redirect({ to: "/" });
+    // Portfolio management is artisan-only
+    if (user?.role !== "artisan") throw redirect({ to: "/" });
+  },
   component: PortfolioManagement,
 });
 

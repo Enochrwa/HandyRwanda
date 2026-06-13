@@ -4,7 +4,7 @@
 // Full CRUD: create schedule, list, pause, resume, cancel
 
 import { useState } from "react";
-import { createFileRoute, Link } from "@tanstack/react-router";
+import { createFileRoute, Link, redirect } from "@tanstack/react-router";
 import { Header } from "@/components/Header";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useAuthStore } from "@/store/authStore";
@@ -43,6 +43,11 @@ import { Badge } from "@/components/ui/badge";
 
 export const Route = createFileRoute("/recurring/")({
   head: () => ({ meta: [{ title: "Recurring Jobs — HandyRwanda" }] }),
+  beforeLoad: () => {
+    const { isAuthenticated, user } = useAuthStore.getState();
+    if (!isAuthenticated) throw redirect({ to: "/" });
+    if (user?.role === "admin") throw redirect({ to: "/admin/verification" });
+  },
   component: RecurringPage,
 });
 

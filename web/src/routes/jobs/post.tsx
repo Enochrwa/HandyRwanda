@@ -1,6 +1,6 @@
 // File: web/src/routes/jobs/post.tsx
 import { useState, useRef, useCallback, useEffect } from "react";
-import { createFileRoute, useNavigate } from "@tanstack/react-router";
+import { createFileRoute, useNavigate, redirect } from "@tanstack/react-router";
 import { Header } from "@/components/Header";
 import {
   Loader2,
@@ -27,6 +27,19 @@ import { RwandaAddressPicker, type RwandaAddress } from "@/components/RwandaAddr
 
 export const Route = createFileRoute("/jobs/post")({
   head: () => ({ meta: [{ title: "Post a Job — HandyRwanda" }] }),
+  beforeLoad: () => {
+    const { isAuthenticated, user } = useAuthStore.getState();
+    if (!isAuthenticated) {
+      throw redirect({ to: "/" });
+    }
+    if (user?.role === "artisan") {
+      // Artisans cannot post jobs — they bid on them
+      throw redirect({ to: "/artisans/jobs" });
+    }
+    if (user?.role === "admin") {
+      throw redirect({ to: "/admin/verification" });
+    }
+  },
   component: PostJob,
 });
 

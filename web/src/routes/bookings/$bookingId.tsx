@@ -14,7 +14,7 @@
  *  - If instant booking declined/expired → link to open job bids
  */
 
-import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
+import { createFileRoute, Link, useNavigate, redirect } from "@tanstack/react-router";
 import {
   CheckCircle2,
   XCircle,
@@ -40,6 +40,15 @@ import { formatDistanceToNow } from "date-fns";
 
 export const Route = createFileRoute("/bookings/$bookingId")({
   head: () => ({ meta: [{ title: "Booking — HandyRwanda" }] }),
+  beforeLoad: () => {
+    const { isAuthenticated, user } = useAuthStore.getState();
+    if (!isAuthenticated) {
+      throw redirect({ to: "/" });
+    }
+    if (user?.role === "admin") {
+      throw redirect({ to: "/admin/verification" });
+    }
+  },
   component: BookingDetailPage,
 });
 

@@ -10,7 +10,7 @@
  */
 
 import { useState } from "react";
-import { createFileRoute, Link } from "@tanstack/react-router";
+import { createFileRoute, Link, redirect } from "@tanstack/react-router";
 import {
   RefreshCw,
   Search,
@@ -25,12 +25,19 @@ import {
 } from "lucide-react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import api from "@/services/api";
+import { useAuthStore } from "@/store/authStore";
 import { toast } from "sonner";
 import { SafetyScoreBadge } from "@/components/SafetyScoreBadge";
 import { getScoreTier, SCORE_TIERS } from "@/components/safetyScoreTiers";
 import type { ScoreBreakdown } from "@/components/SafetyScoreBadge";
 
 export const Route = createFileRoute("/admin/scores")({
+  beforeLoad: () => {
+    const { isAuthenticated, user } = useAuthStore.getState();
+    if (!isAuthenticated || user?.role !== "admin") {
+      throw redirect({ to: "/" });
+    }
+  },
   component: AdminScoresPage,
 });
 

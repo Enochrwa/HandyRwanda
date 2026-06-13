@@ -5,7 +5,7 @@
 // negotiation timeline, round tracker, and all existing bid features.
 
 import { useState, useMemo } from "react";
-import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
+import { createFileRoute, Link, useNavigate, redirect } from "@tanstack/react-router";
 import { Header } from "@/components/Header";
 import {
   ChevronLeft,
@@ -57,6 +57,13 @@ import { Badge } from "@/components/ui/badge";
 
 export const Route = createFileRoute("/jobs/$jobId/bids")({
   head: () => ({ meta: [{ title: "Job Bids — HandyRwanda" }] }),
+  beforeLoad: () => {
+    const { isAuthenticated, user } = useAuthStore.getState();
+    if (!isAuthenticated) throw redirect({ to: "/" });
+    // Only the client who owns the job should see bids
+    if (user?.role === "admin") throw redirect({ to: "/admin/verification" });
+    if (user?.role === "artisan") throw redirect({ to: "/artisans/jobs" });
+  },
   component: JobBids,
 });
 

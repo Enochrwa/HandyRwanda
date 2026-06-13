@@ -113,16 +113,11 @@ export function Header() {
         </Link>
 
         <nav className="hidden gap-1 md:flex">
+          {/* Home and Browse are public */}
           {[
             { to: "/", label: "Home", exact: true },
             { to: "/search", label: "Browse" },
-            {
-              to: "/messages",
-              label: "Messages",
-              badge: unreadMessages > 0 ? unreadMessages : undefined,
-            },
-            { to: "/pro", label: "For Artisans" },
-          ].map(({ to, label, exact, badge }) => (
+          ].map(({ to, label, exact }) => (
             <Link
               key={to}
               to={to}
@@ -133,13 +128,53 @@ export function Header() {
               }}
             >
               {label}
-              {badge ? (
-                <span className="ml-1.5 rounded-full bg-accent px-1.5 py-0.5 text-[10px] font-bold text-accent-foreground">
-                  {badge}
-                </span>
-              ) : null}
             </Link>
           ))}
+
+          {/* Messages — clients and artisans only */}
+          {isAuthenticated && (user?.role === "client" || user?.role === "artisan") && (
+            <Link
+              to="/messages"
+              className="rounded-lg px-3 py-2 text-sm font-semibold text-muted-foreground hover:bg-muted hover:text-foreground transition-colors"
+              activeProps={{
+                className: "rounded-lg px-3 py-2 text-sm font-semibold text-foreground bg-muted",
+              }}
+            >
+              Messages
+              {unreadMessages > 0 && (
+                <span className="ml-1.5 rounded-full bg-accent px-1.5 py-0.5 text-[10px] font-bold text-accent-foreground">
+                  {unreadMessages}
+                </span>
+              )}
+            </Link>
+          )}
+
+          {/* For Artisans promo — unauthenticated or clients only */}
+          {(!isAuthenticated || user?.role === "client") && (
+            <Link
+              to="/pro"
+              className="rounded-lg px-3 py-2 text-sm font-semibold text-muted-foreground hover:bg-muted hover:text-foreground transition-colors"
+              activeProps={{
+                className: "rounded-lg px-3 py-2 text-sm font-semibold text-foreground bg-muted",
+              }}
+            >
+              For Artisans
+            </Link>
+          )}
+
+          {/* Artisan job feed — artisans only */}
+          {isAuthenticated && user?.role === "artisan" && (
+            <Link
+              to="/artisans/jobs"
+              className="rounded-lg px-3 py-2 text-sm font-semibold text-muted-foreground hover:bg-muted hover:text-foreground transition-colors"
+              activeProps={{
+                className: "rounded-lg px-3 py-2 text-sm font-semibold text-foreground bg-muted",
+              }}
+            >
+              Job Feed
+            </Link>
+          )}
+
           {/* My Jobs — client only */}
           {isAuthenticated && user?.role === "client" && (
             <Link
@@ -152,8 +187,22 @@ export function Header() {
               My Jobs
             </Link>
           )}
-          {/* Referrals — authenticated users */}
-          {isAuthenticated && (
+
+          {/* Admin dashboard — admin only */}
+          {isAuthenticated && user?.role === "admin" && (
+            <Link
+              to="/admin/verification"
+              className="rounded-lg px-3 py-2 text-sm font-semibold text-muted-foreground hover:bg-muted hover:text-foreground transition-colors"
+              activeProps={{
+                className: "rounded-lg px-3 py-2 text-sm font-semibold text-foreground bg-muted",
+              }}
+            >
+              🛡️ Admin
+            </Link>
+          )}
+
+          {/* Referrals — all authenticated users except admin */}
+          {isAuthenticated && user?.role !== "admin" && (
             <Link
               to="/referrals"
               className="rounded-lg px-3 py-2 text-sm font-semibold text-muted-foreground hover:bg-muted hover:text-foreground transition-colors"

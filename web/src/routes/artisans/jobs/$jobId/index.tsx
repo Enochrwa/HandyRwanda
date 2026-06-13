@@ -1,5 +1,5 @@
 // File: web/src/routes/artisans/jobs/$jobId.tsx
-import { createFileRoute, Link, useParams, useNavigate } from "@tanstack/react-router";
+import { createFileRoute, Link, useParams, useNavigate, redirect } from "@tanstack/react-router";
 import { Header } from "@/components/Header";
 import { MapPin, Briefcase, Clock, ChevronLeft, Loader2 } from "lucide-react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
@@ -12,6 +12,11 @@ import { formatRWF } from "@/services/artisanService";
 import { Badge } from "@/components/ui/badge";
 
 export const Route = createFileRoute("/artisans/jobs/$jobId/")({
+  beforeLoad: () => {
+    const { isAuthenticated, user } = useAuthStore.getState();
+    if (!isAuthenticated) throw redirect({ to: "/" });
+    if (user?.role !== "artisan") throw redirect({ to: "/" });
+  },
   component: JobDetail,
 });
 

@@ -4,7 +4,7 @@
 // status pills, and links to the bid detail page.
 
 import { useState, useMemo } from "react";
-import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
+import { createFileRoute, Link, useNavigate, redirect } from "@tanstack/react-router";
 import { Header } from "@/components/Header";
 import {
   Briefcase,
@@ -33,6 +33,18 @@ import { toast } from "sonner";
 
 export const Route = createFileRoute("/jobs/mine")({
   head: () => ({ meta: [{ title: "My Jobs — HandyRwanda" }] }),
+  beforeLoad: () => {
+    const { isAuthenticated, user } = useAuthStore.getState();
+    if (!isAuthenticated) {
+      throw redirect({ to: "/" });
+    }
+    if (user?.role === "artisan") {
+      throw redirect({ to: "/artisans/jobs" });
+    }
+    if (user?.role === "admin") {
+      throw redirect({ to: "/admin/verification" });
+    }
+  },
   component: MyJobs,
 });
 

@@ -1,5 +1,5 @@
 // File: web/src/routes/artisans/jobs.tsx
-import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
+import { createFileRoute, Link, useNavigate, redirect } from "@tanstack/react-router";
 import { Header } from "@/components/Header";
 import {
   MapPin,
@@ -24,6 +24,16 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 
 export const Route = createFileRoute("/artisans/jobs")({
+  beforeLoad: () => {
+    const { isAuthenticated, user } = useAuthStore.getState();
+    if (!isAuthenticated) {
+      throw redirect({ to: "/" });
+    }
+    if (user?.role !== "artisan") {
+      // Clients and admins should not see the artisan job feed
+      throw redirect({ to: "/" });
+    }
+  },
   component: ArtisanJobFeed,
 });
 

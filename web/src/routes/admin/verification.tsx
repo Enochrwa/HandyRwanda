@@ -1,6 +1,6 @@
 // File: web/src/routes/admin/verification.tsx
 import { useState } from "react";
-import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
+import { createFileRoute, Link, useNavigate, redirect } from "@tanstack/react-router";
 import {
   ShieldCheck,
   XCircle,
@@ -43,6 +43,15 @@ import {
 } from "recharts";
 
 export const Route = createFileRoute("/admin/verification")({
+  beforeLoad: () => {
+    // Read auth state directly from the persisted Zustand store.
+    // This runs before any React component renders, so there is no
+    // "call navigate before hooks" violation.
+    const { isAuthenticated, user } = useAuthStore.getState();
+    if (!isAuthenticated || user?.role !== "admin") {
+      throw redirect({ to: "/" });
+    }
+  },
   component: AdminDashboard,
 });
 
@@ -62,11 +71,7 @@ function AdminDashboard() {
   const [tab, setTab] = useState<Tab>("verification");
   const [userSearch, setUserSearch] = useState("");
 
-  // Redirect if not admin
-  if (user && user.role !== "admin") {
-    navigate({ to: "/" });
-    return null;
-  }
+  // Role is already enforced by beforeLoad — no inline navigate() needed here.
 
   return (
     <div className="min-h-dvh bg-muted/30">

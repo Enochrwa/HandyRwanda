@@ -1,14 +1,19 @@
 // File: web/src/routes/settings/notifications.tsx
-import { createFileRoute } from "@tanstack/react-router";
+import { createFileRoute, redirect } from "@tanstack/react-router";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useEffect, useState } from "react";
 import api from "@/services/api";
+import { useAuthStore } from "@/store/authStore";
 import { toast } from "sonner";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
 
 export const Route = createFileRoute("/settings/notifications")({
+  beforeLoad: () => {
+    const { isAuthenticated } = useAuthStore.getState();
+    if (!isAuthenticated) throw redirect({ to: "/" });
+  },
   component: NotificationPreferencesPage,
 });
 

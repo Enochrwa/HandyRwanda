@@ -10,8 +10,8 @@ Changes:
 3. messages.voice_note_duration_secs — store audio duration for UI
 """
 
-from alembic import op
 import sqlalchemy as sa
+from alembic import op
 
 revision = "s7a1b2c3d4e5f"
 down_revision = "s5a1b2c3d4e5f"

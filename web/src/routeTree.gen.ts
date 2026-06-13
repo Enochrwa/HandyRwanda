@@ -11,6 +11,7 @@
 import { Route as rootRouteImport } from "./routes/__root";
 import { Route as SearchRouteImport } from "./routes/search";
 import { Route as ReferralsRouteImport } from "./routes/referrals";
+import { Route as RecurringIndexRouteImport } from "./routes/recurring/index";
 import { Route as JoinRouteImport } from "./routes/join";
 import { Route as ProRouteImport } from "./routes/pro";
 import { Route as MessagesRouteImport } from "./routes/messages";
@@ -40,6 +41,11 @@ const SearchRoute = SearchRouteImport.update({
 const ReferralsRoute = ReferralsRouteImport.update({
   id: "/referrals",
   path: "/referrals",
+  getParentRoute: () => rootRouteImport,
+} as any);
+const RecurringIndexRoute = RecurringIndexRouteImport.update({
+  id: "/recurring/",
+  path: "/recurring/",
   getParentRoute: () => rootRouteImport,
 } as any);
 const JoinRoute = JoinRouteImport.update({
@@ -149,6 +155,7 @@ export interface FileRoutesByFullPath {
   "/messages": typeof MessagesRoute;
   "/pro": typeof ProRoute;
   "/referrals": typeof ReferralsRoute;
+  "/recurring/": typeof RecurringIndexRoute;
   "/search": typeof SearchRoute;
   "/admin/verification": typeof AdminVerificationRoute;
   "/admin/scores": typeof AdminScoresRoute;
@@ -173,6 +180,7 @@ export interface FileRoutesByTo {
   "/messages": typeof MessagesRoute;
   "/pro": typeof ProRoute;
   "/referrals": typeof ReferralsRoute;
+  "/recurring/": typeof RecurringIndexRoute;
   "/search": typeof SearchRoute;
   "/admin/verification": typeof AdminVerificationRoute;
   "/admin/scores": typeof AdminScoresRoute;
@@ -198,6 +206,7 @@ export interface FileRoutesById {
   "/messages": typeof MessagesRoute;
   "/pro": typeof ProRoute;
   "/referrals": typeof ReferralsRoute;
+  "/recurring/": typeof RecurringIndexRoute;
   "/search": typeof SearchRoute;
   "/admin/verification": typeof AdminVerificationRoute;
   "/admin/scores": typeof AdminScoresRoute;
@@ -224,6 +233,7 @@ export interface FileRouteTypes {
     | "/messages"
     | "/pro"
     | "/referrals"
+    | "/recurring/"
     | "/search"
     | "/admin/verification"
     | "/admin/scores"
@@ -248,6 +258,7 @@ export interface FileRouteTypes {
     | "/messages"
     | "/pro"
     | "/referrals"
+    | "/recurring/"
     | "/search"
     | "/admin/verification"
     | "/admin/scores"
@@ -272,6 +283,7 @@ export interface FileRouteTypes {
     | "/messages"
     | "/pro"
     | "/referrals"
+    | "/recurring/"
     | "/search"
     | "/admin/verification"
     | "/admin/scores"
@@ -297,6 +309,7 @@ export interface RootRouteChildren {
   MessagesRoute: typeof MessagesRoute;
   ProRoute: typeof ProRoute;
   ReferralsRoute: typeof ReferralsRoute;
+  RecurringIndexRoute: typeof RecurringIndexRoute;
   SearchRoute: typeof SearchRoute;
   AdminVerificationRoute: typeof AdminVerificationRoute;
   AdminScoresRoute: typeof AdminScoresRoute;
@@ -328,6 +341,11 @@ declare module "@tanstack/react-router" {
       id: "/referrals";
       path: "/referrals";
       fullPath: "/referrals";
+    };
+    "/recurring/": {
+      id: "/recurring/";
+      path: "/recurring/";
+      fullPath: "/recurring/";
       preLoaderRoute: typeof ReferralsRouteImport;
       parentRoute: typeof rootRouteImport;
     };
@@ -490,6 +508,8 @@ const rootRouteChildren: RootRouteChildren = {
   MessagesRoute: MessagesRoute,
   ProRoute: ProRoute,
   ReferralsRoute: ReferralsRoute,
+    RecurringIndexRoute: RecurringIndexRoute,
+    RecurringIndexRoute,
   SearchRoute: SearchRoute,
   AdminVerificationRoute: AdminVerificationRoute,
   AdminScoresRoute: AdminScoresRoute,

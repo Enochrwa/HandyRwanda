@@ -101,12 +101,8 @@ function AiSuggestionPanel({
       {/* Header */}
       <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
         <Text style={{ fontSize: 14 }}>✨</Text>
-        <Text style={{ fontSize: 12, fontWeight: '700', color: PRIMARY }}>
-          AI Assistant
-        </Text>
-        {loading && (
-          <ActivityIndicator size="small" color={PRIMARY} style={{ marginLeft: 4 }} />
-        )}
+        <Text style={{ fontSize: 12, fontWeight: '700', color: PRIMARY }}>AI Assistant</Text>
+        {loading && <ActivityIndicator size="small" color={PRIMARY} style={{ marginLeft: 4 }} />}
         {suggestion?.source === 'sklearn' && (
           <View
             style={{
@@ -117,9 +113,7 @@ function AiSuggestionPanel({
               borderRadius: 10,
             }}
           >
-            <Text style={{ fontSize: 9, color: PRIMARY, fontWeight: '600' }}>
-              sklearn TF-IDF
-            </Text>
+            <Text style={{ fontSize: 9, color: PRIMARY, fontWeight: '600' }}>sklearn TF-IDF</Text>
           </View>
         )}
       </View>
@@ -163,9 +157,7 @@ function AiSuggestionPanel({
               borderRadius: 10,
             }}
           >
-            <Text style={{ color: '#fff', fontSize: 11, fontWeight: '800' }}>
-              Apply →
-            </Text>
+            <Text style={{ color: '#fff', fontSize: 11, fontWeight: '800' }}>Apply →</Text>
           </TouchableOpacity>
         </View>
       )}
@@ -182,7 +174,8 @@ function AiSuggestionPanel({
               </Text>
               {suggestion.typical_price_range.based_on ? (
                 <Text style={{ color: TEXT_MUTED }}>
-                  {' '}({suggestion.typical_price_range.based_on} completed jobs)
+                  {' '}
+                  ({suggestion.typical_price_range.based_on} completed jobs)
                 </Text>
               ) : null}
             </Text>
@@ -203,9 +196,7 @@ function AiSuggestionPanel({
               borderRadius: 8,
             }}
           >
-            <Text style={{ color: PRIMARY, fontSize: 10, fontWeight: '700' }}>
-              Use
-            </Text>
+            <Text style={{ color: PRIMARY, fontSize: 10, fontWeight: '700' }}>Use</Text>
           </TouchableOpacity>
         </View>
       )}
@@ -259,6 +250,15 @@ export default function JobDetails() {
   const [photos, setPhotos] = useState<string[]>([]);
   const [showDatePicker, setShowDatePicker] = useState(false);
   const [scheduledDate, setScheduledDate] = useState<Date | null>(null);
+
+  // Sprint 12 — Recurring job state
+  const [isRecurring, setIsRecurring] = useState(false);
+  const [recurringFrequency, setRecurringFrequency] = useState<'weekly' | 'biweekly' | 'monthly'>(
+    'weekly',
+  );
+  const [recurringDayOfWeek, setRecurringDayOfWeek] = useState<number>(5); // Saturday
+  const [recurringDayOfMonth, setRecurringDayOfMonth] = useState<number>(1);
+  const [recurringPreferSameArtisan, setRecurringPreferSameArtisan] = useState(true);
 
   // Sprint 9 — AI state
   const [aiSuggestion, setAiSuggestion] = useState<AiSuggestion | null>(null);
@@ -346,6 +346,12 @@ export default function JobDetails() {
         urgency,
         photos: JSON.stringify(photos),
         scheduledTime: scheduledDate ? scheduledDate.toISOString() : '',
+        // Sprint 12: recurring params
+        isRecurring: isRecurring ? '1' : '0',
+        recurringFrequency,
+        recurringDayOfWeek: String(recurringDayOfWeek),
+        recurringDayOfMonth: String(recurringDayOfMonth),
+        recurringPreferSameArtisan: recurringPreferSameArtisan ? '1' : '0',
       },
     });
   };
@@ -585,14 +591,10 @@ export default function JobDetails() {
             maxLength={2000}
           />
           <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginTop: 4 }}>
-            <Text style={{ fontSize: 10, color: TEXT_LABEL }}>
-              More detail = better bids
-            </Text>
+            <Text style={{ fontSize: 10, color: TEXT_LABEL }}>More detail = better bids</Text>
             <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
               {aiLoading && <ActivityIndicator size="small" color={PRIMARY} />}
-              <Text style={{ fontSize: 10, color: TEXT_LABEL }}>
-                {description.length}/2000
-              </Text>
+              <Text style={{ fontSize: 10, color: TEXT_LABEL }}>{description.length}/2000</Text>
             </View>
           </View>
 
@@ -770,6 +772,307 @@ export default function JobDetails() {
             }}
           />
         )}
+
+        {/* ── Sprint 12: Make this recurring ──────────────────────────── */}
+        <View
+          style={{
+            marginBottom: 20,
+            backgroundColor: isRecurring ? '#F0FDF4' : '#FAFAFA',
+            borderRadius: 16,
+            borderWidth: 1.5,
+            borderColor: isRecurring ? '#BBF7D0' : '#E5E7EB',
+            padding: 16,
+          }}
+        >
+          <TouchableOpacity
+            onPress={() => setIsRecurring((p) => !p)}
+            style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}
+            activeOpacity={0.8}
+          >
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
+              <View
+                style={{
+                  width: 36,
+                  height: 36,
+                  borderRadius: 10,
+                  backgroundColor: isRecurring ? '#1B5E3B' : '#E5E7EB',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                }}
+              >
+                <Text style={{ fontSize: 18 }}>🔄</Text>
+              </View>
+              <View>
+                <Text
+                  style={{
+                    fontSize: 14,
+                    fontWeight: '800',
+                    color: isRecurring ? '#1B5E3B' : '#111827',
+                  }}
+                >
+                  Make this recurring
+                </Text>
+                <Text style={{ fontSize: 11, color: '#6B7280', marginTop: 1 }}>
+                  Auto-book the same service regularly
+                </Text>
+              </View>
+            </View>
+            <View
+              style={{
+                width: 44,
+                height: 26,
+                borderRadius: 13,
+                backgroundColor: isRecurring ? '#1B5E3B' : '#D1D5DB',
+                justifyContent: 'center',
+                paddingHorizontal: 2,
+              }}
+            >
+              <View
+                style={{
+                  width: 22,
+                  height: 22,
+                  borderRadius: 11,
+                  backgroundColor: '#FFFFFF',
+                  transform: [{ translateX: isRecurring ? 18 : 0 }],
+                  shadowColor: '#000',
+                  shadowOpacity: 0.15,
+                  shadowRadius: 2,
+                  elevation: 2,
+                }}
+              />
+            </View>
+          </TouchableOpacity>
+
+          {isRecurring && (
+            <View style={{ marginTop: 16, gap: 14 }}>
+              {/* Frequency */}
+              <View>
+                <Text
+                  style={{
+                    fontSize: 11,
+                    fontWeight: '700',
+                    color: '#6B7280',
+                    textTransform: 'uppercase',
+                    letterSpacing: 0.5,
+                    marginBottom: 8,
+                  }}
+                >
+                  Frequency
+                </Text>
+                <View style={{ flexDirection: 'row', gap: 8 }}>
+                  {(
+                    [
+                      ['weekly', 'Weekly'],
+                      ['biweekly', 'Every 2 Weeks'],
+                      ['monthly', 'Monthly'],
+                    ] as [string, string][]
+                  ).map(([val, label]) => (
+                    <TouchableOpacity
+                      key={val}
+                      onPress={() => setRecurringFrequency(val as typeof recurringFrequency)}
+                      style={{
+                        flex: 1,
+                        paddingVertical: 10,
+                        borderRadius: 12,
+                        borderWidth: 2,
+                        borderColor: recurringFrequency === val ? '#1B5E3B' : '#E5E7EB',
+                        backgroundColor: recurringFrequency === val ? '#1B5E3B' : '#FFFFFF',
+                        alignItems: 'center',
+                      }}
+                    >
+                      <Text
+                        style={{
+                          fontSize: 11,
+                          fontWeight: '800',
+                          color: recurringFrequency === val ? '#FFFFFF' : '#374151',
+                        }}
+                      >
+                        {label}
+                      </Text>
+                    </TouchableOpacity>
+                  ))}
+                </View>
+              </View>
+
+              {/* Day of week (weekly/biweekly) */}
+              {(recurringFrequency === 'weekly' || recurringFrequency === 'biweekly') && (
+                <View>
+                  <Text
+                    style={{
+                      fontSize: 11,
+                      fontWeight: '700',
+                      color: '#6B7280',
+                      textTransform: 'uppercase',
+                      letterSpacing: 0.5,
+                      marginBottom: 8,
+                    }}
+                  >
+                    Day of Week
+                  </Text>
+                  <View style={{ flexDirection: 'row', gap: 6, flexWrap: 'wrap' }}>
+                    {['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'].map((day, i) => (
+                      <TouchableOpacity
+                        key={day}
+                        onPress={() => setRecurringDayOfWeek(i)}
+                        style={{
+                          width: 44,
+                          height: 44,
+                          borderRadius: 12,
+                          borderWidth: 2,
+                          borderColor: recurringDayOfWeek === i ? '#1B5E3B' : '#E5E7EB',
+                          backgroundColor: recurringDayOfWeek === i ? '#1B5E3B' : '#FFFFFF',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                        }}
+                      >
+                        <Text
+                          style={{
+                            fontSize: 11,
+                            fontWeight: '800',
+                            color: recurringDayOfWeek === i ? '#FFFFFF' : '#374151',
+                          }}
+                        >
+                          {day}
+                        </Text>
+                      </TouchableOpacity>
+                    ))}
+                  </View>
+                </View>
+              )}
+
+              {/* Day of month (monthly) */}
+              {recurringFrequency === 'monthly' && (
+                <View>
+                  <Text
+                    style={{
+                      fontSize: 11,
+                      fontWeight: '700',
+                      color: '#6B7280',
+                      textTransform: 'uppercase',
+                      letterSpacing: 0.5,
+                      marginBottom: 8,
+                    }}
+                  >
+                    Day of Month (1–28)
+                  </Text>
+                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
+                    <TouchableOpacity
+                      onPress={() => setRecurringDayOfMonth((d) => Math.max(1, d - 1))}
+                      style={{
+                        width: 40,
+                        height: 40,
+                        borderRadius: 10,
+                        borderWidth: 1,
+                        borderColor: '#E5E7EB',
+                        backgroundColor: '#F9FAFB',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                      }}
+                    >
+                      <Text style={{ fontSize: 20, color: '#374151' }}>−</Text>
+                    </TouchableOpacity>
+                    <View
+                      style={{
+                        flex: 1,
+                        height: 40,
+                        borderRadius: 10,
+                        borderWidth: 1.5,
+                        borderColor: '#1B5E3B',
+                        backgroundColor: '#F0FDF4',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                      }}
+                    >
+                      <Text style={{ fontSize: 18, fontWeight: '900', color: '#1B5E3B' }}>
+                        {recurringDayOfMonth}
+                      </Text>
+                    </View>
+                    <TouchableOpacity
+                      onPress={() => setRecurringDayOfMonth((d) => Math.min(28, d + 1))}
+                      style={{
+                        width: 40,
+                        height: 40,
+                        borderRadius: 10,
+                        borderWidth: 1,
+                        borderColor: '#E5E7EB',
+                        backgroundColor: '#F9FAFB',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                      }}
+                    >
+                      <Text style={{ fontSize: 20, color: '#374151' }}>+</Text>
+                    </TouchableOpacity>
+                  </View>
+                </View>
+              )}
+
+              {/* Prefer same artisan */}
+              <TouchableOpacity
+                onPress={() => setRecurringPreferSameArtisan((p) => !p)}
+                style={{
+                  flexDirection: 'row',
+                  alignItems: 'center',
+                  gap: 10,
+                  backgroundColor: '#FFFFFF',
+                  borderRadius: 12,
+                  padding: 12,
+                  borderWidth: 1,
+                  borderColor: '#E5E7EB',
+                }}
+                activeOpacity={0.8}
+              >
+                <View
+                  style={{
+                    width: 22,
+                    height: 22,
+                    borderRadius: 6,
+                    borderWidth: 2,
+                    borderColor: recurringPreferSameArtisan ? '#1B5E3B' : '#D1D5DB',
+                    backgroundColor: recurringPreferSameArtisan ? '#1B5E3B' : 'transparent',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                  }}
+                >
+                  {recurringPreferSameArtisan && (
+                    <Text style={{ color: '#FFF', fontSize: 12, fontWeight: '900' }}>✓</Text>
+                  )}
+                </View>
+                <View style={{ flex: 1 }}>
+                  <Text style={{ fontSize: 13, fontWeight: '700', color: '#111827' }}>
+                    Prefer same artisan each time
+                  </Text>
+                  <Text style={{ fontSize: 11, color: '#6B7280', marginTop: 1 }}>
+                    Re-book your most trusted artisan automatically
+                  </Text>
+                </View>
+              </TouchableOpacity>
+
+              {/* Summary */}
+              <View
+                style={{
+                  backgroundColor: '#1B5E3B',
+                  borderRadius: 12,
+                  padding: 12,
+                  flexDirection: 'row',
+                  alignItems: 'center',
+                  gap: 8,
+                }}
+              >
+                <Text style={{ fontSize: 16 }}>🗓️</Text>
+                <Text style={{ fontSize: 12, color: '#FFFFFF', fontWeight: '600', flex: 1 }}>
+                  {recurringFrequency === 'weekly' &&
+                    `Every ${['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'][recurringDayOfWeek]}`}
+                  {recurringFrequency === 'biweekly' &&
+                    `Every other ${['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'][recurringDayOfWeek]}`}
+                  {recurringFrequency === 'monthly' &&
+                    `${recurringDayOfMonth}${['st', 'nd', 'rd'][recurringDayOfMonth - 1] || 'th'} of every month`}
+                  {' · '}
+                  {recurringPreferSameArtisan ? 'Same artisan preferred' : 'Open bidding each time'}
+                </Text>
+              </View>
+            </View>
+          )}
+        </View>
 
         {/* Budget — with AI price hint */}
         <View style={{ marginBottom: 20 }}>

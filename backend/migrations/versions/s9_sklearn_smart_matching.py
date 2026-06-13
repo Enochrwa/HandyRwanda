@@ -34,7 +34,6 @@ Sprint 9 deliverables (code-only changes):
   8. mobile/app/                             — AI description assistant mobile UI
 """
 
-from alembic import op
 
 revision = "s9a1b2c3d4e5f"
 down_revision = "s8a1b2c3d4e5f"

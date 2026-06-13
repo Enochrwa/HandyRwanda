@@ -598,3 +598,155 @@ async def get_recommended_artisans(
     client_id = UUID(current_user["sub"])
     results = await _get(db, client_id, limit=limit)
     return {"artisans": results, "total": len(results)}
+
+
+# ── Sprint 13: Offline-first job draft sync endpoint ─────────────────────────
+
+
+class OfflineDraftPayload(BaseModel):
+    """
+    Payload for a job draft created offline and synced when back online.
+    Identical shape to JobCreate but accepts nullable fields gracefully.
+    """
+
+    category_id: str
+    title: str = Field(..., min_length=3, max_length=200)
+    description: str = Field(..., min_length=10)
+    additional_notes: str | None = None
+    budget: int | None = Field(None, ge=500)
+    budget_negotiable: bool = True
+    urgency: str = "flexible"
+    photos_urls: list[str] | None = None
+    scheduled_time: str | None = None
+    province: str | None = None
+    district: str | None = None
+    sector: str | None = None
+    cell: str | None = None
+    village: str | None = None
+    street_road: str | None = None
+    house_number: str | None = None
+    landmark: str | None = None
+    location_label: str | None = None
+    latitude: float | None = None
+    longitude: float | None = None
+    # Sprint 12 recurring fields
+    is_recurring: bool = False
+    recurring_frequency: str | None = None
+    recurring_day_of_week: int | None = Field(None, ge=0, le=6)
+    recurring_day_of_month: int | None = Field(None, ge=1, le=28)
+    recurring_prefer_same_artisan: bool = True
+
+
+@router.post(
+    "/sync-offline-draft",
+    status_code=201,
+    summary="Sprint 13 — Sync an offline-created job draft",
+)
+async def sync_offline_draft(
+    payload: OfflineDraftPayload,
+    db: AsyncSession = Depends(get_db),
+    current_user: dict[str, Any] = Depends(require_role(UserRole.client)),
+) -> Any:
+    """
+    **Sprint 13 — Offline-First Sync**
+
+    Called when the device reconnects. Creates a Job (or RecurringSchedule)
+    from a draft that was created offline.
+
+    Idempotent by title+client+created_at window (15 min) to prevent duplicates
+    from multiple sync attempts.
+    """
+    from datetime import datetime, timedelta, timezone  # noqa: PLC0415
+    from uuid import UUID as _UUID  # noqa: PLC0415
+
+    from app.models.job import RecurringFrequency, RecurringSchedule  # noqa: PLC0415
+    from app.services.recurring_service import compute_next_run  # noqa: PLC0415
+
+    client_id = _UUID(current_user["sub"])
+    window_start = datetime.now(tz=timezone.utc) - timedelta(minutes=15)
+
+    if payload.is_recurring:
+        # Check for recent duplicate recurring schedule
+        existing = await db.scalar(
+            select(Job).where(
+                Job.client_id == client_id,
+                Job.title == payload.title,
+                Job.created_at >= window_start,
+            )
+        )
+        if existing:
+            return {"status": "duplicate_skipped", "id": str(existing.id)}
+
+        freq_map = {
+            "weekly": RecurringFrequency.weekly,
+            "biweekly": RecurringFrequency.biweekly,
+            "monthly": RecurringFrequency.monthly,
+        }
+        freq = freq_map.get(payload.recurring_frequency or "weekly", RecurringFrequency.weekly)
+
+
+        schedule = RecurringSchedule(
+            client_id=client_id,
+            category_id=_UUID(payload.category_id),
+            title=payload.title,
+            description=payload.description,
+            district=payload.district or "Kigali",
+            sector=payload.sector,
+            location_label=payload.location_label,
+            latitude=payload.latitude,
+            longitude=payload.longitude,
+            budget_per_session=payload.budget or 0,
+            frequency=freq,
+            day_of_week=payload.recurring_day_of_week,
+            day_of_month=payload.recurring_day_of_month,
+            is_active=True,
+            total_sessions=0,
+            next_run_at=datetime.now(tz=timezone.utc),
+        )
+        schedule.next_run_at = compute_next_run(schedule)
+        db.add(schedule)
+        await db.commit()
+        await db.refresh(schedule)
+        return {"status": "created", "type": "recurring_schedule", "id": str(schedule.id)}
+
+    # ── Regular job ────────────────────────────────────────────────────────────
+    existing_job = await db.scalar(
+        select(Job).where(
+            Job.client_id == client_id,
+            Job.title == payload.title,
+            Job.created_at >= window_start,
+        )
+    )
+    if existing_job:
+        return {"status": "duplicate_skipped", "id": str(existing_job.id)}
+
+    from app.models.job import JobStatus, JobUrgency  # noqa: PLC0415, F811
+
+    urgency_map = {e.value: e for e in JobUrgency}
+    job = Job(
+        client_id=client_id,
+        category_id=_UUID(payload.category_id),
+        title=payload.title,
+        description=payload.description,
+        additional_notes=payload.additional_notes,
+        budget=payload.budget,
+        budget_negotiable=payload.budget_negotiable,
+        urgency=urgency_map.get(payload.urgency, JobUrgency.flexible),
+        photos_urls=payload.photos_urls,
+        district=payload.district,
+        sector=payload.sector,
+        province=payload.province,
+        cell=payload.cell,
+        village=payload.village,
+        street_road=payload.street_road,
+        house_number=payload.house_number,
+        landmark=payload.landmark,
+        location_label=payload.location_label,
+        latitude=payload.latitude,
+        longitude=payload.longitude,
+        status=JobStatus.open,
+    )
+    db.add(job)
+    await db.commit()
+    await db.refresh(job)
+    return {"status": "created", "type": "job", "id": str(job.id)}
